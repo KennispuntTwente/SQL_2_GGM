@@ -1,0 +1,26 @@
+# ggmpilot
+
+Deze repository bevat de code voor onze pilot met het GGM. Dit is nog een work-in-progress (WIP).
+
+## Installatie
+
+### Python & packages
+
+Installeer eerst '[uv](https://docs.astral.sh/uv/)'. 'uv' is een tool voor het beheren van Python-omgevingen en packages.
+Run dan `uv sync` in deze map om de benodigde Python-omgeving en packages te installeren naar de lockfile (zie: [uv.lock](uv.lock)).
+
+``` bash
+uv sync
+```
+
+Zorg daarna dat je in je IDE (bijv. VSCode) de Python-interpreter hebt ingesteld die hoort bij de '.venv' die door `uv sync` is aangemaakt.
+
+### Docker
+
+Om een development-database te maken, is installatie van Docker nodig. Installeer bijvoorbeeld [Docker Desktop](https://www.docker.com/products/docker-desktop/). Zorg dat de Docker daemon draait (bijvoorbeeld door Docker Desktop te starten).
+
+## Gebruik
+
+### GGM-development-database draaien
+
+[ggm_dev_server/get_connection.py](ggm_dev_server/get_connection.py) bevat de functie get_connection() die een development-databaes binnen een Docker-container kan aanmaken en hiermee kan verbinden. Hierbij kan een map met SQL-scripts worden opgegeven, welke zullen worden uitgevoerd bij het aanmaken van de database. Hiermee kan de database geinitialiseerd worden met de tabellen van het GGM. [ggm_dev_server/sql](ggm_dev_server/sql) bevat de SQL-scripts die tabellen van het GGM aanmaken; is nu nog WIP om deze geschikt te maken voor onze pilot.

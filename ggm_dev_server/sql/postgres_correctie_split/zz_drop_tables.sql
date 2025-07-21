@@ -1,0 +1,2255 @@
+DROP TABLE IF EXISTS "Activiteit" CASCADE;
+
+DROP TABLE IF EXISTS "Aomstatus" CASCADE;
+
+DROP TABLE IF EXISTS "Bevinding" CASCADE;
+
+DROP TABLE IF EXISTS "Boa" CASCADE;
+
+DROP TABLE IF EXISTS "Combibon" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_beoordelingsoort" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_heffingsoort" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_statusopenbareactiviteit" CASCADE;
+
+DROP TABLE IF EXISTS "Fietsregistratie" CASCADE;
+
+DROP TABLE IF EXISTS "Grondslag" CASCADE;
+
+DROP TABLE IF EXISTS "Heffinggrondslag" CASCADE;
+
+DROP TABLE IF EXISTS "Heffingsverordening" CASCADE;
+
+DROP TABLE IF EXISTS "Indiener" CASCADE;
+
+DROP TABLE IF EXISTS "Inspectie" CASCADE;
+
+DROP TABLE IF EXISTS "Kosten" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_activiteit_vthzaak" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_bevinding_inspectie" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_grondslag_zaak" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_inspectie_vthzaak" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_kosten_vthzaak" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_leges_grondslag_vthzaak" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_subproducttype_vthzaak" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_vordering_vorderingregel" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_vordering_vthzaak" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_vth_melding_object" CASCADE;
+
+DROP TABLE IF EXISTS "Leges_grondslag" CASCADE;
+
+DROP TABLE IF EXISTS "Ligplaatsontheffing" CASCADE;
+
+DROP TABLE IF EXISTS "Moraanvraagofmelding" CASCADE;
+
+DROP TABLE IF EXISTS "Openbareactiviteit" CASCADE;
+
+DROP TABLE IF EXISTS "Precario" CASCADE;
+
+DROP TABLE IF EXISTS "Producttype" CASCADE;
+
+DROP TABLE IF EXISTS "Subproducttype" CASCADE;
+
+DROP TABLE IF EXISTS "Vaartuig" CASCADE;
+
+DROP TABLE IF EXISTS "Vomaanvraagofmelding" CASCADE;
+
+DROP TABLE IF EXISTS "Vordering" CASCADE;
+
+DROP TABLE IF EXISTS "Vorderingregel" CASCADE;
+
+DROP TABLE IF EXISTS "Vth_aanvraagofmelding" CASCADE;
+
+DROP TABLE IF EXISTS "Vth_melding" CASCADE;
+
+DROP TABLE IF EXISTS "Vthzaak" CASCADE;
+
+DROP TABLE IF EXISTS "Waarneming" CASCADE;
+
+DROP TABLE IF EXISTS "Waboaanvraagofmelding" CASCADE;
+
+DROP TABLE IF EXISTS "Woonfraudeaanvraagofmelding" CASCADE;
+
+DROP TABLE IF EXISTS "Woonoverlastaanvraagofmelding" CASCADE;
+
+DROP TABLE IF EXISTS "Aanvraagdata" CASCADE;
+
+DROP TABLE IF EXISTS "Aanvraagofmelding" CASCADE;
+
+DROP TABLE IF EXISTS "Afspraakstatus" CASCADE;
+
+DROP TABLE IF EXISTS "Artikel" CASCADE;
+
+DROP TABLE IF EXISTS "Balieafspraak" CASCADE;
+
+DROP TABLE IF EXISTS "Externebron" CASCADE;
+
+DROP TABLE IF EXISTS "Formuliersoort" CASCADE;
+
+DROP TABLE IF EXISTS "Formuliersoortveld" CASCADE;
+
+DROP TABLE IF EXISTS "Klantbeoordeling" CASCADE;
+
+DROP TABLE IF EXISTS "Klantbeoordelingreden" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_aanvraagofmelding_onderwerp" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_balieafspraak_productofdien" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_formuliersoort_zaaktype" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_klantcontact_productofdiens" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_organisatorischeeenheid_kla" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_productofdienst_klantbeoord" CASCADE;
+
+DROP TABLE IF EXISTS "Mor_aanvraagofmelding" CASCADE;
+
+DROP TABLE IF EXISTS "Onderwerp" CASCADE;
+
+DROP TABLE IF EXISTS "Productofdienst" CASCADE;
+
+DROP TABLE IF EXISTS "Telefoononderwerp" CASCADE;
+
+DROP TABLE IF EXISTS "Telefoonstatus" CASCADE;
+
+DROP TABLE IF EXISTS "Telefoontje" CASCADE;
+
+DROP TABLE IF EXISTS "Belprovider" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_doelgroepenplaatsen" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_zonesoort" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_parkeerrecht_perkeerzone" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_parkeervergunning_perkeerzo" CASCADE;
+
+DROP TABLE IF EXISTS "Mulderfeit" CASCADE;
+
+DROP TABLE IF EXISTS "Naheffing" CASCADE;
+
+DROP TABLE IF EXISTS "Parkeergarage" CASCADE;
+
+DROP TABLE IF EXISTS "Parkeerrecht" CASCADE;
+
+DROP TABLE IF EXISTS "Parkeerscan" CASCADE;
+
+DROP TABLE IF EXISTS "Parkeervergunning" CASCADE;
+
+DROP TABLE IF EXISTS "Parkeervlak" CASCADE;
+
+DROP TABLE IF EXISTS "Perkeerzone" CASCADE;
+
+DROP TABLE IF EXISTS "Productgroep" CASCADE;
+
+DROP TABLE IF EXISTS "Productsoort" CASCADE;
+
+DROP TABLE IF EXISTS "Straatsectie" CASCADE;
+
+DROP TABLE IF EXISTS "Voertuig" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_aantalGehinderden" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_hindercategorie" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_hinderklasse" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_stremmingstatus" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_stremming_wegdeel" CASCADE;
+
+DROP TABLE IF EXISTS "Stremming" CASCADE;
+
+DROP TABLE IF EXISTS "Strooidag" CASCADE;
+
+DROP TABLE IF EXISTS "Strooiroute" CASCADE;
+
+DROP TABLE IF EXISTS "Strooirouteuitvoering" CASCADE;
+
+DROP TABLE IF EXISTS "Verkeersbesluit" CASCADE;
+
+DROP TABLE IF EXISTS "Verkeerstelling" CASCADE;
+
+DROP TABLE IF EXISTS "Vloginfo" CASCADE;
+
+DROP TABLE IF EXISTS "Contact" CASCADE;
+
+DROP TABLE IF EXISTS "Hotel" CASCADE;
+
+DROP TABLE IF EXISTS "Hotelbezoek" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_contact_natuurlijkpersoon" CASCADE;
+
+DROP TABLE IF EXISTS "Verkooppunt" CASCADE;
+
+DROP TABLE IF EXISTS "Werkgelegenheid" CASCADE;
+
+DROP TABLE IF EXISTS "Winkelvloeroppervlak" CASCADE;
+
+DROP TABLE IF EXISTS "AanvraagLeerlingenvervoer" CASCADE;
+
+DROP TABLE IF EXISTS "Aanvraagofmelding" CASCADE;
+
+DROP TABLE IF EXISTS "Aanvraagvrijstelling" CASCADE;
+
+DROP TABLE IF EXISTS "BeschikkingLeerlingenvervoer" CASCADE;
+
+DROP TABLE IF EXISTS "Beslissing" CASCADE;
+
+DROP TABLE IF EXISTS "DoorgeleidingOm" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_sanctiesoort" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_verzuimsoort" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_vrijstellingsoort" CASCADE;
+
+DROP TABLE IF EXISTS "Halt_verwijzing" CASCADE;
+
+DROP TABLE IF EXISTS "KlachtLeerlingenvervoer" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_beschikkingLeerlingenvervo" CASCADE;
+
+DROP TABLE IF EXISTS "Leerplichtambtenaar" CASCADE;
+
+DROP TABLE IF EXISTS "ProcesverbaalOnderwijs" CASCADE;
+
+DROP TABLE IF EXISTS "Verlofaanvraag" CASCADE;
+
+DROP TABLE IF EXISTS "Vervoerder" CASCADE;
+
+DROP TABLE IF EXISTS "Verzuimmelding" CASCADE;
+
+DROP TABLE IF EXISTS "Vrijstelling" CASCADE;
+
+DROP TABLE IF EXISTS "ZiekmeldingLeerlingenvervoer" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_onderwijstype" CASCADE;
+
+DROP TABLE IF EXISTS "Inschrijving" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_doorgeleidingOm_ouderOfV" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_procesverbaalOnderwijs_oud" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_school_onderwijsloopbaan" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_school_onderwijssoort" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_school_sportlocatie" CASCADE;
+
+DROP TABLE IF EXISTS "Leerjaar" CASCADE;
+
+DROP TABLE IF EXISTS "Leerling" CASCADE;
+
+DROP TABLE IF EXISTS "Locatie" CASCADE;
+
+DROP TABLE IF EXISTS "Loopbaanstap" CASCADE;
+
+DROP TABLE IF EXISTS "Onderwijsloopbaan" CASCADE;
+
+DROP TABLE IF EXISTS "Onderwijsniveau" CASCADE;
+
+DROP TABLE IF EXISTS "Onderwijssoort" CASCADE;
+
+DROP TABLE IF EXISTS "OuderOfVerzorger" CASCADE;
+
+DROP TABLE IF EXISTS "School" CASCADE;
+
+DROP TABLE IF EXISTS "Startkwalificatie" CASCADE;
+
+DROP TABLE IF EXISTS "Uitschrijving" CASCADE;
+
+DROP TABLE IF EXISTS "Archeologiebesluit" CASCADE;
+
+DROP TABLE IF EXISTS "Artefact" CASCADE;
+
+DROP TABLE IF EXISTS "Artefactsoort" CASCADE;
+
+DROP TABLE IF EXISTS "Boring" CASCADE;
+
+DROP TABLE IF EXISTS "Doos" CASCADE;
+
+DROP TABLE IF EXISTS "Kaart" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_project_locatie" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_put_locatie" CASCADE;
+
+DROP TABLE IF EXISTS "Locatie" CASCADE;
+
+DROP TABLE IF EXISTS "Magazijnlocatie" CASCADE;
+
+DROP TABLE IF EXISTS "Magazijnplaatsing" CASCADE;
+
+DROP TABLE IF EXISTS "Project" CASCADE;
+
+DROP TABLE IF EXISTS "Put" CASCADE;
+
+DROP TABLE IF EXISTS "Spoor" CASCADE;
+
+DROP TABLE IF EXISTS "Stelling" CASCADE;
+
+DROP TABLE IF EXISTS "Vindplaats" CASCADE;
+
+DROP TABLE IF EXISTS "Vlak" CASCADE;
+
+DROP TABLE IF EXISTS "Vondst" CASCADE;
+
+DROP TABLE IF EXISTS "Vulling" CASCADE;
+
+DROP TABLE IF EXISTS "Aanvraag" CASCADE;
+
+DROP TABLE IF EXISTS "Archief" CASCADE;
+
+DROP TABLE IF EXISTS "Archiefcategorie" CASCADE;
+
+DROP TABLE IF EXISTS "Archiefstuk" CASCADE;
+
+DROP TABLE IF EXISTS "Auteur" CASCADE;
+
+DROP TABLE IF EXISTS "Bezoeker" CASCADE;
+
+DROP TABLE IF EXISTS "Depot" CASCADE;
+
+DROP TABLE IF EXISTS "Digitaalbestand" CASCADE;
+
+DROP TABLE IF EXISTS "Indeling" CASCADE;
+
+DROP TABLE IF EXISTS "Index" CASCADE;
+
+DROP TABLE IF EXISTS "Kast" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_aanvraag_archiefstuk" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_archief_archiefcategorie" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_archief_periode" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_archiefstuk_ordeningsschema" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_archiefstuk_periode" CASCADE;
+
+DROP TABLE IF EXISTS "NadereToegang" CASCADE;
+
+DROP TABLE IF EXISTS "Ordeningsschema" CASCADE;
+
+DROP TABLE IF EXISTS "Plank" CASCADE;
+
+DROP TABLE IF EXISTS "Rechthebbende" CASCADE;
+
+DROP TABLE IF EXISTS "Stelling" CASCADE;
+
+DROP TABLE IF EXISTS "Uitgever" CASCADE;
+
+DROP TABLE IF EXISTS "Vindplaats" CASCADE;
+
+DROP TABLE IF EXISTS "ErfgoedObject" CASCADE;
+
+DROP TABLE IF EXISTS "HistorischeRol" CASCADE;
+
+DROP TABLE IF EXISTS "HistorischPersoon" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_erfgoedObject_objectclassi" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_foto_erfgoedObject" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_tentoonstelling_historisch" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_video_opname_erfgoedObject" CASCADE;
+
+DROP TABLE IF EXISTS "Objectclassificatie" CASCADE;
+
+DROP TABLE IF EXISTS "Ambacht" CASCADE;
+
+DROP TABLE IF EXISTS "BeschermdeStatus" CASCADE;
+
+DROP TABLE IF EXISTS "Bouwactiviteit" CASCADE;
+
+DROP TABLE IF EXISTS "Bouwstijl" CASCADE;
+
+DROP TABLE IF EXISTS "Bouwtype" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typemonument" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_beschermdeStatus_ambacht" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_beschermdeStatus_bouwactiv" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_beschermdeStatus_bouwstijl" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_beschermdeStatus_bouwtype" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_beschermdeStatus_oorspronk" CASCADE;
+
+DROP TABLE IF EXISTS "Oorspronkelijkefunctie" CASCADE;
+
+DROP TABLE IF EXISTS "Activiteit" CASCADE;
+
+DROP TABLE IF EXISTS "Activiteitsoort" CASCADE;
+
+DROP TABLE IF EXISTS "Balieverkoop" CASCADE;
+
+DROP TABLE IF EXISTS "BalieverkoopEntreekaart" CASCADE;
+
+DROP TABLE IF EXISTS "Belanghebbende" CASCADE;
+
+DROP TABLE IF EXISTS "Belangtype" CASCADE;
+
+DROP TABLE IF EXISTS "Bruikleen" CASCADE;
+
+DROP TABLE IF EXISTS "Collectie" CASCADE;
+
+DROP TABLE IF EXISTS "Doelgroep" CASCADE;
+
+DROP TABLE IF EXISTS "Entreekaart" CASCADE;
+
+DROP TABLE IF EXISTS "Incident" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_bruikleen_tentoonstelling" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_collectie_museumobject" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_incident_museumobject" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_lener_bruikleen" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_mailing_museumrelatie" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_museumobject_tentoonstellin" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_museumrelatie_doelgroep" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_product_omzetgroep" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_product_productgroep" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_programma_programmasoort" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_samensteller_tentoonstellin" CASCADE;
+
+DROP TABLE IF EXISTS "Lener" CASCADE;
+
+DROP TABLE IF EXISTS "Mailing" CASCADE;
+
+DROP TABLE IF EXISTS "Museumobject" CASCADE;
+
+DROP TABLE IF EXISTS "Museumrelatie" CASCADE;
+
+DROP TABLE IF EXISTS "Omzetgroep" CASCADE;
+
+DROP TABLE IF EXISTS "Prijs" CASCADE;
+
+DROP TABLE IF EXISTS "Product" CASCADE;
+
+DROP TABLE IF EXISTS "Productgroep" CASCADE;
+
+DROP TABLE IF EXISTS "Productie_eenheid" CASCADE;
+
+DROP TABLE IF EXISTS "Programma" CASCADE;
+
+DROP TABLE IF EXISTS "Programmasoort" CASCADE;
+
+DROP TABLE IF EXISTS "Reservering" CASCADE;
+
+DROP TABLE IF EXISTS "Rol" CASCADE;
+
+DROP TABLE IF EXISTS "Rondleiding" CASCADE;
+
+DROP TABLE IF EXISTS "Samensteller" CASCADE;
+
+DROP TABLE IF EXISTS "Standplaats" CASCADE;
+
+DROP TABLE IF EXISTS "Tentoonstelling" CASCADE;
+
+DROP TABLE IF EXISTS "Voorziening" CASCADE;
+
+DROP TABLE IF EXISTS "Winkelverkoopgroep" CASCADE;
+
+DROP TABLE IF EXISTS "Winkelvoorraaditem" CASCADE;
+
+DROP TABLE IF EXISTS "Zaal" CASCADE;
+
+DROP TABLE IF EXISTS "Aantal" CASCADE;
+
+DROP TABLE IF EXISTS "Belijning" CASCADE;
+
+DROP TABLE IF EXISTS "Bezetting" CASCADE;
+
+DROP TABLE IF EXISTS "Binnenlocatie" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_binnenlocatie_belijning" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_binnenlocatie_sportmateriaa" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_sportvereniging_sport" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_sportvereniging_sportlocati" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_veld_belijning" CASCADE;
+
+DROP TABLE IF EXISTS "Onderhoudskosten" CASCADE;
+
+DROP TABLE IF EXISTS "Sport" CASCADE;
+
+DROP TABLE IF EXISTS "Sportlocatie" CASCADE;
+
+DROP TABLE IF EXISTS "Sportmateriaal" CASCADE;
+
+DROP TABLE IF EXISTS "Sportpark" CASCADE;
+
+DROP TABLE IF EXISTS "Sportvereniging" CASCADE;
+
+DROP TABLE IF EXISTS "Veld" CASCADE;
+
+DROP TABLE IF EXISTS "Gemeentebegrafenis" CASCADE;
+
+DROP TABLE IF EXISTS "Brutonettoinkomsten" CASCADE;
+
+DROP TABLE IF EXISTS "Cdsrtinkomstenverhouding" CASCADE;
+
+DROP TABLE IF EXISTS "Cdszwet" CASCADE;
+
+DROP TABLE IF EXISTS "Cduitkeringsperiode" CASCADE;
+
+DROP TABLE IF EXISTS "Codesoortvrijlating" CASCADE;
+
+DROP TABLE IF EXISTS "Inkomstencomponenttype" CASCADE;
+
+DROP TABLE IF EXISTS "Inkomstensoortalimentatie" CASCADE;
+
+DROP TABLE IF EXISTS "Inkomstensoortbetaaldwerk" CASCADE;
+
+DROP TABLE IF EXISTS "Inkomstensoortpensioen" CASCADE;
+
+DROP TABLE IF EXISTS "Inkomstensoortstudiefinancieri" CASCADE;
+
+DROP TABLE IF EXISTS "Jsonruledgrouptype" CASCADE;
+
+DROP TABLE IF EXISTS "Onderhoudsplichttype" CASCADE;
+
+DROP TABLE IF EXISTS "Soortcontract" CASCADE;
+
+DROP TABLE IF EXISTS "Alimentatie" CASCADE;
+
+DROP TABLE IF EXISTS "AnderInkomen" CASCADE;
+
+DROP TABLE IF EXISTS "BeslagOpInkomen" CASCADE;
+
+DROP TABLE IF EXISTS "BetaaldWerk" CASCADE;
+
+DROP TABLE IF EXISTS "DertiendeMaand_Eindejaarsui" CASCADE;
+
+DROP TABLE IF EXISTS "Draagkracht" CASCADE;
+
+DROP TABLE IF EXISTS "Draagkrachtregime" CASCADE;
+
+DROP TABLE IF EXISTS "EigenBedrijf" CASCADE;
+
+DROP TABLE IF EXISTS "EigenBijdrage" CASCADE;
+
+DROP TABLE IF EXISTS "Heffingskorting" CASCADE;
+
+DROP TABLE IF EXISTS "Hobby" CASCADE;
+
+DROP TABLE IF EXISTS "Inkomstencomponent" CASCADE;
+
+DROP TABLE IF EXISTS "Inkomstenverhouding" CASCADE;
+
+DROP TABLE IF EXISTS "Inkomstenvermindering" CASCADE;
+
+DROP TABLE IF EXISTS "Kostencomponent" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_betaaldWerk_dertiendeMaan" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_betaaldWerk_heffingskortin" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_betaaldWerk_loonbeslag" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_betaaldWerk_maaltijdvergoe" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_betaaldWerk_onkostenvergoe" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_betaaldWerk_reiskostenverg" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_betaaldWerk_vakantiegeld" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_draagkracht_draagkrachtregi" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_onderhoudsverhouding_onderh" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_pensioen_loonbeslag" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_pensioen_vakantiegeld" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_stage_maaltijdvergoeding" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_stage_onkostenvergoeding" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_stage_reiskostenvergoeding" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_stage_vergoedingInNatura" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_uitkering_loonbeslag" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_uitkering_vakantiegeld" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_uitkering_verlagingDoorBo" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_uitkering_verlagingDoorMa" CASCADE;
+
+DROP TABLE IF EXISTS "Loonbeslag" CASCADE;
+
+DROP TABLE IF EXISTS "Maaltijdvergoeding" CASCADE;
+
+DROP TABLE IF EXISTS "Onderhoudsplicht" CASCADE;
+
+DROP TABLE IF EXISTS "Onderhoudsverhouding" CASCADE;
+
+DROP TABLE IF EXISTS "Onkostenvergoeding" CASCADE;
+
+DROP TABLE IF EXISTS "Pensioen" CASCADE;
+
+DROP TABLE IF EXISTS "PrimairInkomstencomponent" CASCADE;
+
+DROP TABLE IF EXISTS "ReiskostenNaarHetWerk" CASCADE;
+
+DROP TABLE IF EXISTS "Reiskostenvergoeding" CASCADE;
+
+DROP TABLE IF EXISTS "SecundairInkomstencomponent" CASCADE;
+
+DROP TABLE IF EXISTS "Stage" CASCADE;
+
+DROP TABLE IF EXISTS "Studiefinanciering" CASCADE;
+
+DROP TABLE IF EXISTS "TeBetalenAlimentatie" CASCADE;
+
+DROP TABLE IF EXISTS "Uitkering" CASCADE;
+
+DROP TABLE IF EXISTS "Vakantiegeld" CASCADE;
+
+DROP TABLE IF EXISTS "Vergoeding" CASCADE;
+
+DROP TABLE IF EXISTS "VergoedingInNatura" CASCADE;
+
+DROP TABLE IF EXISTS "VerlagingDoorBoete" CASCADE;
+
+DROP TABLE IF EXISTS "VerlagingDoorMaatregel" CASCADE;
+
+DROP TABLE IF EXISTS "VrijlatingInkomsten" CASCADE;
+
+DROP TABLE IF EXISTS "Adrestype" CASCADE;
+
+DROP TABLE IF EXISTS "Cdsrtvermogenscomponent" CASCADE;
+
+DROP TABLE IF EXISTS "Cdsrtvoertuig" CASCADE;
+
+DROP TABLE IF EXISTS "Cdsrtwaardevermogenscomponent" CASCADE;
+
+DROP TABLE IF EXISTS "Bankrekening" CASCADE;
+
+DROP TABLE IF EXISTS "Hypotheek" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_client_bankrekening" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_hypotheek_onroerendGoed" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_profiel_vermogenscomponent" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_vermogenscomponent_waardepe" CASCADE;
+
+DROP TABLE IF EXISTS "Motorvoertuig" CASCADE;
+
+DROP TABLE IF EXISTS "OnroerendGoed" CASCADE;
+
+DROP TABLE IF EXISTS "Vermogenscomponent" CASCADE;
+
+DROP TABLE IF EXISTS "Waardepeiling" CASCADE;
+
+DROP TABLE IF EXISTS "Aom_aanvraagwmojeugd" CASCADE;
+
+DROP TABLE IF EXISTS "Aommeldingwmojeugd" CASCADE;
+
+DROP TABLE IF EXISTS "Beperking" CASCADE;
+
+DROP TABLE IF EXISTS "Beperkingscategorie" CASCADE;
+
+DROP TABLE IF EXISTS "Beperkingscore" CASCADE;
+
+DROP TABLE IF EXISTS "Beperkingscoresoort" CASCADE;
+
+DROP TABLE IF EXISTS "Beschikking" CASCADE;
+
+DROP TABLE IF EXISTS "Beschikkingsoort" CASCADE;
+
+DROP TABLE IF EXISTS "BeschikteVoorziening" CASCADE;
+
+DROP TABLE IF EXISTS "Budgetuitputting" CASCADE;
+
+DROP TABLE IF EXISTS "Declaratie" CASCADE;
+
+DROP TABLE IF EXISTS "Declaratieregel" CASCADE;
+
+DROP TABLE IF EXISTS "Leefgebied" CASCADE;
+
+DROP TABLE IF EXISTS "Levering" CASCADE;
+
+DROP TABLE IF EXISTS "Leveringsvorm" CASCADE;
+
+DROP TABLE IF EXISTS "MeldingEigenBijdrage" CASCADE;
+
+DROP TABLE IF EXISTS "onderkent leefgebiieden" CASCADE;
+
+DROP TABLE IF EXISTS "onderkent scores" CASCADE;
+
+DROP TABLE IF EXISTS "Pgb-toekenning" CASCADE;
+
+DROP TABLE IF EXISTS "Score" CASCADE;
+
+DROP TABLE IF EXISTS "Scoresoort" CASCADE;
+
+DROP TABLE IF EXISTS "Tarief" CASCADE;
+
+DROP TABLE IF EXISTS "Team" CASCADE;
+
+DROP TABLE IF EXISTS "Toewijzing" CASCADE;
+
+DROP TABLE IF EXISTS "VerplichtingWmoJeugd" CASCADE;
+
+DROP TABLE IF EXISTS "VerzoekOmToewijzing" CASCADE;
+
+DROP TABLE IF EXISTS "Voorziening" CASCADE;
+
+DROP TABLE IF EXISTS "Voorzieningsoort" CASCADE;
+
+DROP TABLE IF EXISTS "Zelfredzaamheidmatrix" CASCADE;
+
+DROP TABLE IF EXISTS "Asielstatushouder" CASCADE;
+
+DROP TABLE IF EXISTS "B1" CASCADE;
+
+DROP TABLE IF EXISTS "BredeIntake" CASCADE;
+
+DROP TABLE IF EXISTS "Examen" CASCADE;
+
+DROP TABLE IF EXISTS "Examenonderdeel" CASCADE;
+
+DROP TABLE IF EXISTS "GezinsmigrantEnOverigeMigra" CASCADE;
+
+DROP TABLE IF EXISTS "Inburgeraar" CASCADE;
+
+DROP TABLE IF EXISTS "Inburgeringstraject" CASCADE;
+
+DROP TABLE IF EXISTS "Knm?" CASCADE;
+
+DROP TABLE IF EXISTS "Leerroute" CASCADE;
+
+DROP TABLE IF EXISTS "Map" CASCADE;
+
+DROP TABLE IF EXISTS "Onderwijs" CASCADE;
+
+DROP TABLE IF EXISTS "Participatiecomponent" CASCADE;
+
+DROP TABLE IF EXISTS "Pip" CASCADE;
+
+DROP TABLE IF EXISTS "Pvt" CASCADE;
+
+DROP TABLE IF EXISTS "Verblijfplaats" CASCADE;
+
+DROP TABLE IF EXISTS "VerblijfplaatsAzc" CASCADE;
+
+DROP TABLE IF EXISTS "Vreemdeling" CASCADE;
+
+DROP TABLE IF EXISTS "Z" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_enumSocialeGroep" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_enumSocialeRelatie" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_incidenttype" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_leefgebied" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_verzoeksoort" CASCADE;
+
+DROP TABLE IF EXISTS "Informering" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_zorgmelding_medewerker" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_zorgmelding_natuurlijkperso" CASCADE;
+
+DROP TABLE IF EXISTS "Leefgebied" CASCADE;
+
+DROP TABLE IF EXISTS "ZorgelijkeSituatie" CASCADE;
+
+DROP TABLE IF EXISTS "Zorgmelding" CASCADE;
+
+DROP TABLE IF EXISTS "Component" CASCADE;
+
+DROP TABLE IF EXISTS "Componentsoort" CASCADE;
+
+DROP TABLE IF EXISTS "Doelgroep" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_verstrekkingsvormsoort" CASCADE;
+
+DROP TABLE IF EXISTS "Fraudegegevens" CASCADE;
+
+DROP TABLE IF EXISTS "Fraudesoort" CASCADE;
+
+DROP TABLE IF EXISTS "Huisvestingsoort" CASCADE;
+
+DROP TABLE IF EXISTS "Informatiedakloosheid" CASCADE;
+
+DROP TABLE IF EXISTS "Inkomensvoorziening" CASCADE;
+
+DROP TABLE IF EXISTS "Inkomensvoorzieningsoort" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_client_inkomensvoorziening" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_client_taalniveau" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_trajectsoort_trajectactivit" CASCADE;
+
+DROP TABLE IF EXISTS "Participatiedossier" CASCADE;
+
+DROP TABLE IF EXISTS "Redenbeeindiging" CASCADE;
+
+DROP TABLE IF EXISTS "Redenblokkering" CASCADE;
+
+DROP TABLE IF EXISTS "Redeninstroom" CASCADE;
+
+DROP TABLE IF EXISTS "Redenuitstroom" CASCADE;
+
+DROP TABLE IF EXISTS "Regeling" CASCADE;
+
+DROP TABLE IF EXISTS "Regelingsoort" CASCADE;
+
+DROP TABLE IF EXISTS "Taalniveau" CASCADE;
+
+DROP TABLE IF EXISTS "Tegenprestatie" CASCADE;
+
+DROP TABLE IF EXISTS "Tegenprestatiehoogte" CASCADE;
+
+DROP TABLE IF EXISTS "Traject" CASCADE;
+
+DROP TABLE IF EXISTS "Trajectactiviteit" CASCADE;
+
+DROP TABLE IF EXISTS "Trajectactiviteitsoort" CASCADE;
+
+DROP TABLE IF EXISTS "Trajectsoort" CASCADE;
+
+DROP TABLE IF EXISTS "Uitkeringsrun" CASCADE;
+
+DROP TABLE IF EXISTS "Aanmelding" CASCADE;
+
+DROP TABLE IF EXISTS "Begeleiding" CASCADE;
+
+DROP TABLE IF EXISTS "Begeleidingssoort" CASCADE;
+
+DROP TABLE IF EXISTS "Contactpersoon" CASCADE;
+
+DROP TABLE IF EXISTS "Crisisinterventie" CASCADE;
+
+DROP TABLE IF EXISTS "Enumbegeleidingssoort" CASCADE;
+
+DROP TABLE IF EXISTS "Enumbeschikkingssoort" CASCADE;
+
+DROP TABLE IF EXISTS "Enumhuishoudenssoort" CASCADE;
+
+DROP TABLE IF EXISTS "Enumoplossingssoort" CASCADE;
+
+DROP TABLE IF EXISTS "Enumschuldensoort" CASCADE;
+
+DROP TABLE IF EXISTS "Enumuitstroomreden" CASCADE;
+
+DROP TABLE IF EXISTS "Enumwoningbezit" CASCADE;
+
+DROP TABLE IF EXISTS "Informatieenadvies" CASCADE;
+
+DROP TABLE IF EXISTS "Inkomen" CASCADE;
+
+DROP TABLE IF EXISTS "Intake" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_leefsituatie_woningbezit" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_schuldhulporganisatie_begel" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_schuldhulporganisatie_conta" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_schuldhulporganisatie_oplos" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_schuldhulporganisatie_schul" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_schuldhulptraject_client" CASCADE;
+
+DROP TABLE IF EXISTS "Leefsituatie" CASCADE;
+
+DROP TABLE IF EXISTS "Moratorium" CASCADE;
+
+DROP TABLE IF EXISTS "Nazorg" CASCADE;
+
+DROP TABLE IF EXISTS "Ondernemer" CASCADE;
+
+DROP TABLE IF EXISTS "Oplossing" CASCADE;
+
+DROP TABLE IF EXISTS "Oplossingssoort" CASCADE;
+
+DROP TABLE IF EXISTS "Partner" CASCADE;
+
+DROP TABLE IF EXISTS "Planvanaanpak" CASCADE;
+
+DROP TABLE IF EXISTS "Schuld" CASCADE;
+
+DROP TABLE IF EXISTS "Schuldeiser" CASCADE;
+
+DROP TABLE IF EXISTS "Schuldhulporganisatie" CASCADE;
+
+DROP TABLE IF EXISTS "Schuldhulptraject" CASCADE;
+
+DROP TABLE IF EXISTS "Schuldregeling" CASCADE;
+
+DROP TABLE IF EXISTS "Stabilisatie" CASCADE;
+
+DROP TABLE IF EXISTS "Uitstroom" CASCADE;
+
+DROP TABLE IF EXISTS "Voorlopigevoorziening" CASCADE;
+
+DROP TABLE IF EXISTS "Woningbezit" CASCADE;
+
+DROP TABLE IF EXISTS "Wsnp_traject" CASCADE;
+
+DROP TABLE IF EXISTS "Wsnp_verklaring" CASCADE;
+
+DROP TABLE IF EXISTS "Behandeling" CASCADE;
+
+DROP TABLE IF EXISTS "Behandelsoort" CASCADE;
+
+DROP TABLE IF EXISTS "Bijzonderheid" CASCADE;
+
+DROP TABLE IF EXISTS "Bijzonderheidsoort" CASCADE;
+
+DROP TABLE IF EXISTS "Caseaanmelding" CASCADE;
+
+DROP TABLE IF EXISTS "Doelstelling" CASCADE;
+
+DROP TABLE IF EXISTS "Doelstellingsoort" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_sociaalteamdossier_relatie" CASCADE;
+
+DROP TABLE IF EXISTS "Sociaalteamdossier" CASCADE;
+
+DROP TABLE IF EXISTS "Sociaalteamdossiersoort" CASCADE;
+
+DROP TABLE IF EXISTS "Categorie" CASCADE;
+
+DROP TABLE IF EXISTS "Container" CASCADE;
+
+DROP TABLE IF EXISTS "Containertype" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_routesoort" CASCADE;
+
+DROP TABLE IF EXISTS "Fractie" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_milieustraat_fractie" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_pas_milieustraat" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_storting_fractie" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_vuilniswagen_containertype" CASCADE;
+
+DROP TABLE IF EXISTS "Locatie" CASCADE;
+
+DROP TABLE IF EXISTS "Melding" CASCADE;
+
+DROP TABLE IF EXISTS "Milieustraat" CASCADE;
+
+DROP TABLE IF EXISTS "Ophaalmoment" CASCADE;
+
+DROP TABLE IF EXISTS "Pas" CASCADE;
+
+DROP TABLE IF EXISTS "Prijsafspraak" CASCADE;
+
+DROP TABLE IF EXISTS "Prijsregel" CASCADE;
+
+DROP TABLE IF EXISTS "Rit" CASCADE;
+
+DROP TABLE IF EXISTS "Route" CASCADE;
+
+DROP TABLE IF EXISTS "Storting" CASCADE;
+
+DROP TABLE IF EXISTS "Vuilniswagen" CASCADE;
+
+DROP TABLE IF EXISTS "Vulgraadmeting" CASCADE;
+
+DROP TABLE IF EXISTS "Gebouw" CASCADE;
+
+DROP TABLE IF EXISTS "Huurwoningen" CASCADE;
+
+DROP TABLE IF EXISTS "Koopwoningen" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_projectontwikkelaar_plan" CASCADE;
+
+DROP TABLE IF EXISTS "Plan" CASCADE;
+
+DROP TABLE IF EXISTS "Projectleider" CASCADE;
+
+DROP TABLE IF EXISTS "Projectontwikkelaar" CASCADE;
+
+DROP TABLE IF EXISTS "Studentenwoningen" CASCADE;
+
+DROP TABLE IF EXISTS "Actie" CASCADE;
+
+DROP TABLE IF EXISTS "Areaal" CASCADE;
+
+DROP TABLE IF EXISTS "Crow_melding" CASCADE;
+
+DROP TABLE IF EXISTS "Deelplan_veld" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_crow_kwaliteitsniveaus" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_energielabel" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_oppervlakteWoning" CASCADE;
+
+DROP TABLE IF EXISTS "Fase_oplevering" CASCADE;
+
+DROP TABLE IF EXISTS "Geo_object" CASCADE;
+
+DROP TABLE IF EXISTS "Grondbeheerder" CASCADE;
+
+DROP TABLE IF EXISTS "Inspectie" CASCADE;
+
+DROP TABLE IF EXISTS "Kadastralemutatie" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_areaal_buurt" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_areaal_schouwronde" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_areaal_wijk" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_kadastralemutatie_kadastral" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_rechtspersoon_kadastralemut" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_uitvoerderGraafwerkzaamhed" CASCADE;
+
+DROP TABLE IF EXISTS "KwaliteitscatalogusOpenbareR" CASCADE;
+
+DROP TABLE IF EXISTS "Kwaliteitskenmerken" CASCADE;
+
+DROP TABLE IF EXISTS "Logboek" CASCADE;
+
+DROP TABLE IF EXISTS "Melding" CASCADE;
+
+DROP TABLE IF EXISTS "Meldingongeval" CASCADE;
+
+DROP TABLE IF EXISTS "Moor_melding" CASCADE;
+
+DROP TABLE IF EXISTS "Omgevingsvergunning" CASCADE;
+
+DROP TABLE IF EXISTS "Onderhoud" CASCADE;
+
+DROP TABLE IF EXISTS "Opbreking" CASCADE;
+
+DROP TABLE IF EXISTS "Proces_verbaal_moor_melding" CASCADE;
+
+DROP TABLE IF EXISTS "Schouwronde" CASCADE;
+
+DROP TABLE IF EXISTS "Storing" CASCADE;
+
+DROP TABLE IF EXISTS "Taak" CASCADE;
+
+DROP TABLE IF EXISTS "UitvoerderGraafwerkzaamheden" CASCADE;
+
+DROP TABLE IF EXISTS "Verkeerslicht" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_aanofvrijliggend" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_afmeting" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_bedienaar" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_beheergebied" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_beheerobjectgebruiksfunct" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_belasting" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_belastingklassenieuw" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_belastingklasseoud" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_beleidsstatus" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_beoogdeomlooptijd" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_bereikbaarheid" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_bereikbaarheidkolk" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_boombeeld" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_boomgroep" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_boomhoogteklasseactueel" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_boomtypebeschermingsstatu" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_boomveiligheidsklasse" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_boomvoorziening" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_breedteklassehaag" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_certificeringsinstantie" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_constructielaagsoort" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_constructietype" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_controlefrequentie" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_cultuurhistorischwaardevo" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_doelsoort" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_fabrikant" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_formaat" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_funderingleiding" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_gebiedstype" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_gewenstsluitingspercentag" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_groeifase" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_groenobjectbereikbaarheid" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_grondsoort" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_grondsoortplus" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_hoogteklassehaag" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_imklthema" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_installateur" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_kleur" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_kroondiameterklasseactuee" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_kwaliteitsniveaugewenst" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_kweker" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_lengtekunstgras" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_leverancier" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_liningtype" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_markeringsbreedte" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_markeringsoort" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_markeringspatroon" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_materiaal" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_ondergroei" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_onderhoudsplichtige" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_onderhoudsregime" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_ondersteuningsvorm" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_oriã«ntatie" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_overbruggingsobjectmodali" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_plaatsorientatie" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_rioolputconstructieonderd" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_snoeifase" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_soortnaam" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_soortplantenbak" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_soortvoeg" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_speelterreinleeftijddoelg" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_speeltoesteltoestelonderd" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_sportterreintypesport" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_stamdiameterklasse" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_status" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_takvrijestam" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_taludsteilte" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_toestelgroep" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_type" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typeafdekking" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typeasbesthoudend" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typebediening" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typebeheerder" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typebeheerderplus" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typebeschermingsstatus" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typebewerking" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typebouwdeel" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typebovenkantkademuur" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typecommunicatie" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typeconstructie" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typedeurbediening" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typeeigenaar" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typeeigenaarplus" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typeelement" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typefundering" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typeligging" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typemantel" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typemonument" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typenivelleerschijf" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typeomgevingsrisicoklasse" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typeonderdeelmetpomp" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typeplus" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typeslot" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typestandplaats" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typestandplaatsplus" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typeteerhoudend" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typevaarwater" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typevermeerderingsvorm" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typevoeg" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typevoegvulling" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typewaaier" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typewaterplant" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_vegen" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_verbindingstype" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_verhardingsobjectwegfunct" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_vorm" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_vrijedoorrijhoogte" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_vrijetakval" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_vulmateriaalkunstgras" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_waterdoorlatendheid" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_wegastyperoute" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_wegcategoriedv" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_wegtypebestaand" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_zettingsgevoeligheid" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_zettingsgevoeligheidplus" CASCADE;
+
+DROP TABLE IF EXISTS "Aansluitput" CASCADE;
+
+DROP TABLE IF EXISTS "Afvalbak" CASCADE;
+
+DROP TABLE IF EXISTS "Bak" CASCADE;
+
+DROP TABLE IF EXISTS "Bank" CASCADE;
+
+DROP TABLE IF EXISTS "Beheerobject" CASCADE;
+
+DROP TABLE IF EXISTS "Bemalingsgebied" CASCADE;
+
+DROP TABLE IF EXISTS "Bergingsbassin" CASCADE;
+
+DROP TABLE IF EXISTS "Boom" CASCADE;
+
+DROP TABLE IF EXISTS "Bord" CASCADE;
+
+DROP TABLE IF EXISTS "Bouwwerk" CASCADE;
+
+DROP TABLE IF EXISTS "Brug" CASCADE;
+
+DROP TABLE IF EXISTS "Drainageput" CASCADE;
+
+DROP TABLE IF EXISTS "Ecoduct" CASCADE;
+
+DROP TABLE IF EXISTS "Fietsparkeervoorziening" CASCADE;
+
+DROP TABLE IF EXISTS "Filterput" CASCADE;
+
+DROP TABLE IF EXISTS "Flyover" CASCADE;
+
+DROP TABLE IF EXISTS "Functioneelgebied" CASCADE;
+
+DROP TABLE IF EXISTS "Geluidsscherm" CASCADE;
+
+DROP TABLE IF EXISTS "Gemaal" CASCADE;
+
+DROP TABLE IF EXISTS "Groenobject" CASCADE;
+
+DROP TABLE IF EXISTS "Infiltratieput" CASCADE;
+
+DROP TABLE IF EXISTS "Installatie" CASCADE;
+
+DROP TABLE IF EXISTS "Kademuur" CASCADE;
+
+DROP TABLE IF EXISTS "Kast" CASCADE;
+
+DROP TABLE IF EXISTS "Keermuur" CASCADE;
+
+DROP TABLE IF EXISTS "Klimplant" CASCADE;
+
+DROP TABLE IF EXISTS "Kolk" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_melding_beheerobject" CASCADE;
+
+DROP TABLE IF EXISTS "Kunstwerk" CASCADE;
+
+DROP TABLE IF EXISTS "Leiding" CASCADE;
+
+DROP TABLE IF EXISTS "Leidingelement" CASCADE;
+
+DROP TABLE IF EXISTS "Mast" CASCADE;
+
+DROP TABLE IF EXISTS "Meubilair" CASCADE;
+
+DROP TABLE IF EXISTS "Overbruggingsobject" CASCADE;
+
+DROP TABLE IF EXISTS "Overstortconstructie" CASCADE;
+
+DROP TABLE IF EXISTS "Paal" CASCADE;
+
+DROP TABLE IF EXISTS "Pomp" CASCADE;
+
+DROP TABLE IF EXISTS "Put" CASCADE;
+
+DROP TABLE IF EXISTS "Putdeksel" CASCADE;
+
+DROP TABLE IF EXISTS "Rioleringsgebied" CASCADE;
+
+DROP TABLE IF EXISTS "Rioolput" CASCADE;
+
+DROP TABLE IF EXISTS "Scheiding" CASCADE;
+
+DROP TABLE IF EXISTS "Sensor" CASCADE;
+
+DROP TABLE IF EXISTS "Solitaireplant" CASCADE;
+
+DROP TABLE IF EXISTS "Speelterrein" CASCADE;
+
+DROP TABLE IF EXISTS "Speeltoestel" CASCADE;
+
+DROP TABLE IF EXISTS "Sportterrein" CASCADE;
+
+DROP TABLE IF EXISTS "Stuwgebied" CASCADE;
+
+DROP TABLE IF EXISTS "Terreindeel" CASCADE;
+
+DROP TABLE IF EXISTS "Tunnelobject" CASCADE;
+
+DROP TABLE IF EXISTS "Uitlaatconstructie" CASCADE;
+
+DROP TABLE IF EXISTS "Vegetatieobject" CASCADE;
+
+DROP TABLE IF EXISTS "Verhardingsobject" CASCADE;
+
+DROP TABLE IF EXISTS "Verkeersdrempel" CASCADE;
+
+DROP TABLE IF EXISTS "Verlichtingsobject" CASCADE;
+
+DROP TABLE IF EXISTS "Viaduct" CASCADE;
+
+DROP TABLE IF EXISTS "Waterinrichtingsobject" CASCADE;
+
+DROP TABLE IF EXISTS "Waterobject" CASCADE;
+
+DROP TABLE IF EXISTS "Weginrichtingsobject" CASCADE;
+
+DROP TABLE IF EXISTS "BevoegdGezag" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_doelVerzoek" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typeVerzoek" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_vraagClassificatie" CASCADE;
+
+DROP TABLE IF EXISTS "Gemachtigde" CASCADE;
+
+DROP TABLE IF EXISTS "Initiatiefnemer" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_verzoek_activiteit" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_verzoek_locatie" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_verzoek_project" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_verzoek_projectactiviteit" CASCADE;
+
+DROP TABLE IF EXISTS "Project" CASCADE;
+
+DROP TABLE IF EXISTS "Projectactiviteit" CASCADE;
+
+DROP TABLE IF EXISTS "Projectlocatie" CASCADE;
+
+DROP TABLE IF EXISTS "Specificatie" CASCADE;
+
+DROP TABLE IF EXISTS "UitvoerendeInstantie" CASCADE;
+
+DROP TABLE IF EXISTS "Verzoek" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_regeltekst_idealisatie" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_regeltekst_locatie" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_regeltekst_thema" CASCADE;
+
+DROP TABLE IF EXISTS "Omgevingsdocument" CASCADE;
+
+DROP TABLE IF EXISTS "Regeltekst" CASCADE;
+
+DROP TABLE IF EXISTS "Activiteit" CASCADE;
+
+DROP TABLE IF EXISTS "Beperkingsgebied" CASCADE;
+
+DROP TABLE IF EXISTS "Functie" CASCADE;
+
+DROP TABLE IF EXISTS "Gebiedsaanwijzing" CASCADE;
+
+DROP TABLE IF EXISTS "Idealisatie" CASCADE;
+
+DROP TABLE IF EXISTS "Instructieregel" CASCADE;
+
+DROP TABLE IF EXISTS "JuridischeRegel" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_activiteit_locatie" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_gebiedsaanwijzing_locatie" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_instructieregel_gebiedsaanw" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_juridischeRegel_activiteit" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_juridischeRegel_idealisati" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_juridischeRegel_locatie" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_juridischeRegel_thema" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_normwaarde_locatie" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_omgevingswaarderegel_omgevi" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_omgevingswaarderegel_omgevi" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_regelVoorIedereen_activit" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_regelVoorIedereen_gebieds" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_regelVoorIedereen_omgevin" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_toepasbareRegel_juridische" CASCADE;
+
+DROP TABLE IF EXISTS "Norm" CASCADE;
+
+DROP TABLE IF EXISTS "Normwaarde" CASCADE;
+
+DROP TABLE IF EXISTS "Omgevingsnorm" CASCADE;
+
+DROP TABLE IF EXISTS "Omgevingswaarde" CASCADE;
+
+DROP TABLE IF EXISTS "Omgevingswaarderegel" CASCADE;
+
+DROP TABLE IF EXISTS "RegelVoorIedereen" CASCADE;
+
+DROP TABLE IF EXISTS "Thema" CASCADE;
+
+DROP TABLE IF EXISTS "Conclusie" CASCADE;
+
+DROP TABLE IF EXISTS "Indieningsvereisten" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_toepasbareRegel_locatie" CASCADE;
+
+DROP TABLE IF EXISTS "Maatregelen" CASCADE;
+
+DROP TABLE IF EXISTS "ToepasbareRegel" CASCADE;
+
+DROP TABLE IF EXISTS "Toepasbareregelbestand" CASCADE;
+
+DROP TABLE IF EXISTS "Uitvoeringsregel" CASCADE;
+
+DROP TABLE IF EXISTS "Activa" CASCADE;
+
+DROP TABLE IF EXISTS "Activasoort" CASCADE;
+
+DROP TABLE IF EXISTS "Bankafschrift" CASCADE;
+
+DROP TABLE IF EXISTS "Bankafschriftregel" CASCADE;
+
+DROP TABLE IF EXISTS "Bankrekening" CASCADE;
+
+DROP TABLE IF EXISTS "Batch" CASCADE;
+
+DROP TABLE IF EXISTS "Batchregel" CASCADE;
+
+DROP TABLE IF EXISTS "Begroting" CASCADE;
+
+DROP TABLE IF EXISTS "Begrotingregel" CASCADE;
+
+DROP TABLE IF EXISTS "Debiteur" CASCADE;
+
+DROP TABLE IF EXISTS "Doelstelling" CASCADE;
+
+DROP TABLE IF EXISTS "Factuur" CASCADE;
+
+DROP TABLE IF EXISTS "Factuurregel" CASCADE;
+
+DROP TABLE IF EXISTS "Hoofdrekening" CASCADE;
+
+DROP TABLE IF EXISTS "Hoofdstuk" CASCADE;
+
+DROP TABLE IF EXISTS "Inkooporder" CASCADE;
+
+DROP TABLE IF EXISTS "Kostenplaats" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_hoofdrekening_activa" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_hoofdrekening_kostenplaats" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_hoofdstuk_periode" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_inkooporder_hoofdrekening" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_kostenplaats_inkooporder" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_kostenplaats_taakveld" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_project_kostenplaats" CASCADE;
+
+DROP TABLE IF EXISTS "Mutatie" CASCADE;
+
+DROP TABLE IF EXISTS "Opdrachtgever" CASCADE;
+
+DROP TABLE IF EXISTS "Opdrachtnemer" CASCADE;
+
+DROP TABLE IF EXISTS "Product" CASCADE;
+
+DROP TABLE IF EXISTS "Subrekening" CASCADE;
+
+DROP TABLE IF EXISTS "Taakveld" CASCADE;
+
+DROP TABLE IF EXISTS "Werkorder" CASCADE;
+
+DROP TABLE IF EXISTS "Beoordeling" CASCADE;
+
+DROP TABLE IF EXISTS "Declaratie" CASCADE;
+
+DROP TABLE IF EXISTS "Declaratiesoort" CASCADE;
+
+DROP TABLE IF EXISTS "Dienstverband" CASCADE;
+
+DROP TABLE IF EXISTS "DisciplinaireMaatregel" CASCADE;
+
+DROP TABLE IF EXISTS "Formatieplaats" CASCADE;
+
+DROP TABLE IF EXISTS "Functie" CASCADE;
+
+DROP TABLE IF EXISTS "Functiehuis" CASCADE;
+
+DROP TABLE IF EXISTS "Genotenopleiding" CASCADE;
+
+DROP TABLE IF EXISTS "Geweldsincident" CASCADE;
+
+DROP TABLE IF EXISTS "IndividueelKeuzebudget" CASCADE;
+
+DROP TABLE IF EXISTS "Inzet" CASCADE;
+
+DROP TABLE IF EXISTS "Keuzebudgetbesteding" CASCADE;
+
+DROP TABLE IF EXISTS "Keuzebudgetbestedingsoort" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_dienstverband_organisatoris" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_dienstverband_vestigingvanz" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_opleiding_onderwijsinstituu" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_sollicitatiegesprek_sollici" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_sollicitatiegesprek_werknem" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_werknemer_rol" CASCADE;
+
+DROP TABLE IF EXISTS "Normprofiel" CASCADE;
+
+DROP TABLE IF EXISTS "Onderwijsinstituut" CASCADE;
+
+DROP TABLE IF EXISTS "Opleiding" CASCADE;
+
+DROP TABLE IF EXISTS "Organisatorischeeenheidhr" CASCADE;
+
+DROP TABLE IF EXISTS "Relatie" CASCADE;
+
+DROP TABLE IF EXISTS "Rol" CASCADE;
+
+DROP TABLE IF EXISTS "Sollicitant" CASCADE;
+
+DROP TABLE IF EXISTS "Sollicitatie" CASCADE;
+
+DROP TABLE IF EXISTS "Sollicitatiegesprek" CASCADE;
+
+DROP TABLE IF EXISTS "Soortdisciplinairemaatregel" CASCADE;
+
+DROP TABLE IF EXISTS "Uren" CASCADE;
+
+DROP TABLE IF EXISTS "Vacature" CASCADE;
+
+DROP TABLE IF EXISTS "Verlof" CASCADE;
+
+DROP TABLE IF EXISTS "Verlofsoort" CASCADE;
+
+DROP TABLE IF EXISTS "Verzuim" CASCADE;
+
+DROP TABLE IF EXISTS "Verzuimsoort" CASCADE;
+
+DROP TABLE IF EXISTS "Werknemer" CASCADE;
+
+DROP TABLE IF EXISTS "Aanvraag" CASCADE;
+
+DROP TABLE IF EXISTS "Applicatie" CASCADE;
+
+DROP TABLE IF EXISTS "Attribuutsoort" CASCADE;
+
+DROP TABLE IF EXISTS "Classificatie" CASCADE;
+
+DROP TABLE IF EXISTS "Cmdb_item" CASCADE;
+
+DROP TABLE IF EXISTS "Database" CASCADE;
+
+DROP TABLE IF EXISTS "Datatype" CASCADE;
+
+DROP TABLE IF EXISTS "Dienst" CASCADE;
+
+DROP TABLE IF EXISTS "Domein_taakveld" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_applicatiecategorie" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_beheerstatus" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_gebruikerrol" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_packagingstatus" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_servertypes" CASCADE;
+
+DROP TABLE IF EXISTS "ExterneBron" CASCADE;
+
+DROP TABLE IF EXISTS "Gebruikerrol" CASCADE;
+
+DROP TABLE IF EXISTS "Gegeven" CASCADE;
+
+DROP TABLE IF EXISTS "Generalisatie" CASCADE;
+
+DROP TABLE IF EXISTS "Hardware" CASCADE;
+
+DROP TABLE IF EXISTS "Inventaris" CASCADE;
+
+DROP TABLE IF EXISTS "Koppeling" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_applicatie_document" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_gegeven_classificatie" CASCADE;
+
+DROP TABLE IF EXISTS "Licentie" CASCADE;
+
+DROP TABLE IF EXISTS "LinkbaarCmdb_item" CASCADE;
+
+DROP TABLE IF EXISTS "Log" CASCADE;
+
+DROP TABLE IF EXISTS "Melding" CASCADE;
+
+DROP TABLE IF EXISTS "Nertwerkcomponent" CASCADE;
+
+DROP TABLE IF EXISTS "Notitie" CASCADE;
+
+DROP TABLE IF EXISTS "Objecttype" CASCADE;
+
+DROP TABLE IF EXISTS "Onderwerp" CASCADE;
+
+DROP TABLE IF EXISTS "Package" CASCADE;
+
+DROP TABLE IF EXISTS "Prijzenboek" CASCADE;
+
+DROP TABLE IF EXISTS "Product" CASCADE;
+
+DROP TABLE IF EXISTS "Relatiesoort" CASCADE;
+
+DROP TABLE IF EXISTS "Server" CASCADE;
+
+DROP TABLE IF EXISTS "Software" CASCADE;
+
+DROP TABLE IF EXISTS "Storing" CASCADE;
+
+DROP TABLE IF EXISTS "Telefoniegegevens" CASCADE;
+
+DROP TABLE IF EXISTS "Toegangsmiddel" CASCADE;
+
+DROP TABLE IF EXISTS "Versie" CASCADE;
+
+DROP TABLE IF EXISTS "Vervoersmiddel" CASCADE;
+
+DROP TABLE IF EXISTS "Wijzigingsverzoek" CASCADE;
+
+DROP TABLE IF EXISTS "Aanbesteding" CASCADE;
+
+DROP TABLE IF EXISTS "AanbestedingInhuur" CASCADE;
+
+DROP TABLE IF EXISTS "Aankondiging" CASCADE;
+
+DROP TABLE IF EXISTS "AanvraagInkooporder" CASCADE;
+
+DROP TABLE IF EXISTS "Categorie" CASCADE;
+
+DROP TABLE IF EXISTS "Contract" CASCADE;
+
+DROP TABLE IF EXISTS "Cpv_code" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_aanbestedingsoort" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_inkooprol" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_opdrachtcategorie" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_opdrachtsoort" CASCADE;
+
+DROP TABLE IF EXISTS "Formulierinhuur" CASCADE;
+
+DROP TABLE IF EXISTS "Formulierverlenginginhuur" CASCADE;
+
+DROP TABLE IF EXISTS "Gunning" CASCADE;
+
+DROP TABLE IF EXISTS "Inkooppakket" CASCADE;
+
+DROP TABLE IF EXISTS "Inschrijving" CASCADE;
+
+DROP TABLE IF EXISTS "Kandidaat" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_inkooppakket_cpv_code" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_leverancier_aanbestedingVa" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_leverancier_categorie" CASCADE;
+
+DROP TABLE IF EXISTS "Kwalificatie" CASCADE;
+
+DROP TABLE IF EXISTS "Leverancier" CASCADE;
+
+DROP TABLE IF EXISTS "Offerte" CASCADE;
+
+DROP TABLE IF EXISTS "Offerteaanvraag" CASCADE;
+
+DROP TABLE IF EXISTS "Selectietabelaanbesteding" CASCADE;
+
+DROP TABLE IF EXISTS "Startformulieraanbesteden" CASCADE;
+
+DROP TABLE IF EXISTS "Uitnodiging" CASCADE;
+
+DROP TABLE IF EXISTS "Programma" CASCADE;
+
+DROP TABLE IF EXISTS "Project" CASCADE;
+
+DROP TABLE IF EXISTS "Betaalmoment" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_subsidieniveau" CASCADE;
+
+DROP TABLE IF EXISTS "Rapportagemoment" CASCADE;
+
+DROP TABLE IF EXISTS "Sector" CASCADE;
+
+DROP TABLE IF EXISTS "Subsidie" CASCADE;
+
+DROP TABLE IF EXISTS "Subsidieaanvraag" CASCADE;
+
+DROP TABLE IF EXISTS "Subsidiebeschikking" CASCADE;
+
+DROP TABLE IF EXISTS "Subsidiecomponent" CASCADE;
+
+DROP TABLE IF EXISTS "Subsidieprogramma" CASCADE;
+
+DROP TABLE IF EXISTS "Taak" CASCADE;
+
+DROP TABLE IF EXISTS "Foto" CASCADE;
+
+DROP TABLE IF EXISTS "Gebied" CASCADE;
+
+DROP TABLE IF EXISTS "Gebiedengroep" CASCADE;
+
+DROP TABLE IF EXISTS "Lijn" CASCADE;
+
+DROP TABLE IF EXISTS "Lijnengroep" CASCADE;
+
+DROP TABLE IF EXISTS "Locatie" CASCADE;
+
+DROP TABLE IF EXISTS "Punt" CASCADE;
+
+DROP TABLE IF EXISTS "Puntengroep" CASCADE;
+
+DROP TABLE IF EXISTS "Video_opname" CASCADE;
+
+DROP TABLE IF EXISTS "Adresseerbaarobject" CASCADE;
+
+DROP TABLE IF EXISTS "Buurt" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_boolean" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_gebruiksdoel" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_ontsluitingswijzeverdiepi" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_soortwoonobject" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_statusligplaats" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_statusnummeraanduiding" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_statusopenbareruimte" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_statuspand" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_statusstandplaats" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_statusverblijfsobject" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_statusvoortgangbouw" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_statuswoonplaats" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typeadresseerbaarobject" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_typeringopenbareruimte" CASCADE;
+
+DROP TABLE IF EXISTS "Gemeente" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_verblijfsobject_pand" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_woonplaats_gemeente" CASCADE;
+
+DROP TABLE IF EXISTS "Ligplaats" CASCADE;
+
+DROP TABLE IF EXISTS "Nummeraanduiding" CASCADE;
+
+DROP TABLE IF EXISTS "Openbareruimte" CASCADE;
+
+DROP TABLE IF EXISTS "Pand" CASCADE;
+
+DROP TABLE IF EXISTS "Standplaats" CASCADE;
+
+DROP TABLE IF EXISTS "Verblijfsobject" CASCADE;
+
+DROP TABLE IF EXISTS "Wijk" CASCADE;
+
+DROP TABLE IF EXISTS "Woonplaats" CASCADE;
+
+DROP TABLE IF EXISTS "Periode" CASCADE;
+
+DROP TABLE IF EXISTS "Adresaanduiding" CASCADE;
+
+DROP TABLE IF EXISTS "Correspondentieadresbuitenland" CASCADE;
+
+DROP TABLE IF EXISTS "Geboorteingeschrevennatuurlijk" CASCADE;
+
+DROP TABLE IF EXISTS "Geboorteingeschrevenpersoon" CASCADE;
+
+DROP TABLE IF EXISTS "Handelsnamenmaatschappelijkeac" CASCADE;
+
+DROP TABLE IF EXISTS "Handelsnamenvestiging" CASCADE;
+
+DROP TABLE IF EXISTS "Koopsomkadastraleonroerendezaa" CASCADE;
+
+DROP TABLE IF EXISTS "Locatiekadastraleonroerendezaa" CASCADE;
+
+DROP TABLE IF EXISTS "Migratieingeschrevennatuurlijk" CASCADE;
+
+DROP TABLE IF EXISTS "Naamaanschrijvingnatuurlijkper" CASCADE;
+
+DROP TABLE IF EXISTS "Naamgebruiknatuurlijkpersoon" CASCADE;
+
+DROP TABLE IF EXISTS "Naamnatuurlijkpersoon" CASCADE;
+
+DROP TABLE IF EXISTS "Nationaliteitingeschrevennatuu" CASCADE;
+
+DROP TABLE IF EXISTS "Nederlandsenationaliteitingesc" CASCADE;
+
+DROP TABLE IF EXISTS "Ontbindinghuwelijk_geregistree" CASCADE;
+
+DROP TABLE IF EXISTS "Overlijdeningeschrevennatuurli" CASCADE;
+
+DROP TABLE IF EXISTS "Overlijdeningeschrevenpersoon" CASCADE;
+
+DROP TABLE IF EXISTS "Postadres" CASCADE;
+
+DROP TABLE IF EXISTS "Rekeningnummer" CASCADE;
+
+DROP TABLE IF EXISTS "Samengesteldenaamnatuurlijkper" CASCADE;
+
+DROP TABLE IF EXISTS "Sbiactiviteitvestiging" CASCADE;
+
+DROP TABLE IF EXISTS "Sluitingofaangaanhuwelijkofger" CASCADE;
+
+DROP TABLE IF EXISTS "Soortfunctioneelgebied" CASCADE;
+
+DROP TABLE IF EXISTS "Soortkunstwerk" CASCADE;
+
+DROP TABLE IF EXISTS "Soortoverigbouwwerk" CASCADE;
+
+DROP TABLE IF EXISTS "Soortscheiding" CASCADE;
+
+DROP TABLE IF EXISTS "Soortspoor" CASCADE;
+
+DROP TABLE IF EXISTS "Splitsingstekeningreferentie" CASCADE;
+
+DROP TABLE IF EXISTS "Verblijfadresingeschrevennatuu" CASCADE;
+
+DROP TABLE IF EXISTS "Verblijfadresingeschrevenperso" CASCADE;
+
+DROP TABLE IF EXISTS "Verblijfbuitenland" CASCADE;
+
+DROP TABLE IF EXISTS "Verblijfbuitenlandsubject" CASCADE;
+
+DROP TABLE IF EXISTS "Verblijfsrechtingeschrevennatu" CASCADE;
+
+DROP TABLE IF EXISTS "Verstrekkingsbeperkingpartieel" CASCADE;
+
+DROP TABLE IF EXISTS "Locatieaanduidingadreswozobjec" CASCADE;
+
+DROP TABLE IF EXISTS "Aantekening" CASCADE;
+
+DROP TABLE IF EXISTS "Adresbuitenland" CASCADE;
+
+DROP TABLE IF EXISTS "Adresseerbaarobjectaanduiding" CASCADE;
+
+DROP TABLE IF EXISTS "Appartementsrecht" CASCADE;
+
+DROP TABLE IF EXISTS "Appartementsrechtsplitsing" CASCADE;
+
+DROP TABLE IF EXISTS "Begroeidterreindeel" CASCADE;
+
+DROP TABLE IF EXISTS "Benoemdobject" CASCADE;
+
+DROP TABLE IF EXISTS "Benoemdterrein" CASCADE;
+
+DROP TABLE IF EXISTS "Briefadres" CASCADE;
+
+DROP TABLE IF EXISTS "Buurt" CASCADE;
+
+DROP TABLE IF EXISTS "Functioneelgebied" CASCADE;
+
+DROP TABLE IF EXISTS "Gebied" CASCADE;
+
+DROP TABLE IF EXISTS "Gebouwdobject" CASCADE;
+
+DROP TABLE IF EXISTS "Gebouwinstallatie" CASCADE;
+
+DROP TABLE IF EXISTS "Gemeente" CASCADE;
+
+DROP TABLE IF EXISTS "Huishouden" CASCADE;
+
+DROP TABLE IF EXISTS "Ingeschrevenpersoon" CASCADE;
+
+DROP TABLE IF EXISTS "Ingezetene" CASCADE;
+
+DROP TABLE IF EXISTS "Inrichtingselement" CASCADE;
+
+DROP TABLE IF EXISTS "Kadastraalperceel" CASCADE;
+
+DROP TABLE IF EXISTS "Kadastraleonroerendezaak" CASCADE;
+
+DROP TABLE IF EXISTS "Kadastraleonroerendezaakaantek" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_gebouwdobject_gebruiksdoel" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_kadoz_adraan" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_natuurlijkpersoon_socialeG" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_nevenadres_adresseerbaarobj" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_nietnatuurlijkpersoon_natuu" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_nummeraanduiding_gebied" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_opr_wpl" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_socialeRelatie_natuurlijkp" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_vastgoedobject_kadastraalpe" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_verbobj_pand" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_vestiging_benoemdobject" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_vstgobj_kadoz" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_woz_object_kadastraleonroer" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_zakelijkrecht_tenaamstellin" CASCADE;
+
+DROP TABLE IF EXISTS "Kunstwerkdeel" CASCADE;
+
+DROP TABLE IF EXISTS "Ligplaats" CASCADE;
+
+DROP TABLE IF EXISTS "Maatschappelijkeactiviteit" CASCADE;
+
+DROP TABLE IF EXISTS "Nationaliteit" CASCADE;
+
+DROP TABLE IF EXISTS "Natuurlijkpersoon" CASCADE;
+
+DROP TABLE IF EXISTS "Nietnatuurlijkpersoon" CASCADE;
+
+DROP TABLE IF EXISTS "Nummeraanduiding" CASCADE;
+
+DROP TABLE IF EXISTS "Onbegroeidterreindeel" CASCADE;
+
+DROP TABLE IF EXISTS "OnbestemdAdres" CASCADE;
+
+DROP TABLE IF EXISTS "Ondersteunendwaterdeel" CASCADE;
+
+DROP TABLE IF EXISTS "Ondersteunendwegdeel" CASCADE;
+
+DROP TABLE IF EXISTS "Openbareruimte" CASCADE;
+
+DROP TABLE IF EXISTS "Overbruggingsdeel" CASCADE;
+
+DROP TABLE IF EXISTS "Overigbenoemdterrein" CASCADE;
+
+DROP TABLE IF EXISTS "Overigbouwwerk" CASCADE;
+
+DROP TABLE IF EXISTS "Overigeadresseerbaarobjectaand" CASCADE;
+
+DROP TABLE IF EXISTS "Overigescheiding" CASCADE;
+
+DROP TABLE IF EXISTS "Overiggebouwdobject" CASCADE;
+
+DROP TABLE IF EXISTS "Pand" CASCADE;
+
+DROP TABLE IF EXISTS "Rechtspersoon" CASCADE;
+
+DROP TABLE IF EXISTS "Reisdocument" CASCADE;
+
+DROP TABLE IF EXISTS "Scheiding" CASCADE;
+
+DROP TABLE IF EXISTS "Spoor" CASCADE;
+
+DROP TABLE IF EXISTS "Standplaats" CASCADE;
+
+DROP TABLE IF EXISTS "Tenaamstelling" CASCADE;
+
+DROP TABLE IF EXISTS "Tunneldeel" CASCADE;
+
+DROP TABLE IF EXISTS "Vegetatieobject" CASCADE;
+
+DROP TABLE IF EXISTS "Verblijfsobject" CASCADE;
+
+DROP TABLE IF EXISTS "Verblijfstitel" CASCADE;
+
+DROP TABLE IF EXISTS "Vestiging" CASCADE;
+
+DROP TABLE IF EXISTS "Waterdeel" CASCADE;
+
+DROP TABLE IF EXISTS "Wegdeel" CASCADE;
+
+DROP TABLE IF EXISTS "Wijk" CASCADE;
+
+DROP TABLE IF EXISTS "Woonplaats" CASCADE;
+
+DROP TABLE IF EXISTS "Woz_deelobject" CASCADE;
+
+DROP TABLE IF EXISTS "Woz_object" CASCADE;
+
+DROP TABLE IF EXISTS "Woz_waarde" CASCADE;
+
+DROP TABLE IF EXISTS "Zakelijkrecht" CASCADE;
+
+DROP TABLE IF EXISTS "Zekerheidsrecht" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_geslachtsaanduidingMedew" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_soortenKlantcontact" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_vertrouwelijkAanduiding" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_vervalredenBesluit" CASCADE;
+
+DROP TABLE IF EXISTS "Brondocumenten" CASCADE;
+
+DROP TABLE IF EXISTS "Formelehistorie" CASCADE;
+
+DROP TABLE IF EXISTS "Inonderzoek" CASCADE;
+
+DROP TABLE IF EXISTS "Materielehistorie" CASCADE;
+
+DROP TABLE IF EXISTS "Strijdigheidofnietigheid" CASCADE;
+
+DROP TABLE IF EXISTS "Bedrijfsproces" CASCADE;
+
+DROP TABLE IF EXISTS "Bedrijfsprocestype" CASCADE;
+
+DROP TABLE IF EXISTS "Besluit" CASCADE;
+
+DROP TABLE IF EXISTS "Besluittype" CASCADE;
+
+DROP TABLE IF EXISTS "Betaling" CASCADE;
+
+DROP TABLE IF EXISTS "Betrokkene" CASCADE;
+
+DROP TABLE IF EXISTS "Deelproces" CASCADE;
+
+DROP TABLE IF EXISTS "Deelprocestype" CASCADE;
+
+DROP TABLE IF EXISTS "Document" CASCADE;
+
+DROP TABLE IF EXISTS "Documenttype" CASCADE;
+
+DROP TABLE IF EXISTS "Enkelvoudigdocument" CASCADE;
+
+DROP TABLE IF EXISTS "Heffing" CASCADE;
+
+DROP TABLE IF EXISTS "Identificatiekenmerk" CASCADE;
+
+DROP TABLE IF EXISTS "Klantcontact" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_bedrijfsproces_bedrijfsproc" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_bedrijfsproces_zaak" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_besluit_document" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_medewerker_organisatorische" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_zaak_medewerker" CASCADE;
+
+DROP TABLE IF EXISTS "Medewerker" CASCADE;
+
+DROP TABLE IF EXISTS "Object" CASCADE;
+
+DROP TABLE IF EXISTS "Offerte" CASCADE;
+
+DROP TABLE IF EXISTS "Organisatorischeeenheid" CASCADE;
+
+DROP TABLE IF EXISTS "Samengestelddocument" CASCADE;
+
+DROP TABLE IF EXISTS "Status" CASCADE;
+
+DROP TABLE IF EXISTS "Statustype" CASCADE;
+
+DROP TABLE IF EXISTS "Vestigingvanzaakbehandelendeor" CASCADE;
+
+DROP TABLE IF EXISTS "Zaak" CASCADE;
+
+DROP TABLE IF EXISTS "Zaak_Origineel" CASCADE;
+
+DROP TABLE IF EXISTS "Zaaktype" CASCADE;
+
+DROP TABLE IF EXISTS "AanwezigeDeelnemer" CASCADE;
+
+DROP TABLE IF EXISTS "Agendapunt" CASCADE;
+
+DROP TABLE IF EXISTS "Categorie" CASCADE;
+
+DROP TABLE IF EXISTS "Collegelid" CASCADE;
+
+DROP TABLE IF EXISTS "Dossier" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_deelnemersrol" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_stemmingsresultaattype" CASCADE;
+
+DROP TABLE IF EXISTS "Enum_stemmingstype" CASCADE;
+
+DROP TABLE IF EXISTS "Indiener" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_dossier_raadsstuk" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_indiener_raadsstuk" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_raadslid_raadscommissie" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_raadsstuk_agendapunt" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_raadsstuk_programma" CASCADE;
+
+DROP TABLE IF EXISTS "Kp_raadsstuk_vergadering" CASCADE;
+
+DROP TABLE IF EXISTS "Programma" CASCADE;
+
+DROP TABLE IF EXISTS "Raadscommissie" CASCADE;
+
+DROP TABLE IF EXISTS "Raadslid" CASCADE;
+
+DROP TABLE IF EXISTS "Raadsstuk" CASCADE;
+
+DROP TABLE IF EXISTS "Stemming" CASCADE;
+
+DROP TABLE IF EXISTS "Taakveld" CASCADE;
+
+DROP TABLE IF EXISTS "Vergadering" CASCADE;
