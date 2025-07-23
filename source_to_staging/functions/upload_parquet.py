@@ -2,26 +2,47 @@
 
 import os
 import polars as pl
+from collections import defaultdict
+from sqlalchemy import text
 
-def upload_parquet_to_db(engine, schema, input_dir="data"):
+def upload_parquet_to_db(
+    engine, schema, input_dir="data",
+    cleanup=True
+):
     """
-    Uploads Parquet files from a folder into the destination DB.
+    Uploads (possibly chunked) Parquet files into destination DB.
+    Creates schema if it doesn't exist.
     """
+    # Create schema if it doesn't exist
+    with engine.connect() as conn:
+        conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema}"))
+        conn.commit()
+
+    # Group files by base table name (before _partXXXX or .parquet)
+    grouped_files = defaultdict(list)
     for file in os.listdir(input_dir):
-        if not file.endswith(".parquet"):
-            continue
+        if file.endswith(".parquet"):
+            base = file.split("_part")[0].replace(".parquet", "")
+            grouped_files[base].append(file)
 
-        table_name = file.replace(".parquet", "")
-        parquet_path = os.path.join(input_dir, file)
+    for table_name, files in grouped_files.items():
+        print(f"📦 Uploading {len(files)} part(s) to table {schema}.{table_name}")
+        full_table_name = f"{schema}.{table_name}"
 
-        print(f"📦 Importeren van {parquet_path} naar tabel {schema}.{table_name}")
-        df = pl.read_parquet(parquet_path)
+        for idx, file in enumerate(sorted(files)):
+            parquet_path = os.path.join(input_dir, file)
+            print(f"🔹 Processing {parquet_path}")
+            df = pl.read_parquet(parquet_path)
 
-        df.write_database(
-            table_name=f"{schema}.{table_name}",
-            connection=engine,
-            if_table_exists="replace",
-            engine="sqlalchemy"
-        )
+            df.write_database(
+                table_name=full_table_name,
+                connection=engine,
+                if_table_exists="replace" if idx == 0 else "append",
+                engine="sqlalchemy"
+            )
         print(f"✅ Ingeladen: {table_name}")
 
+        if cleanup:
+            for file in files:
+                os.remove(os.path.join(input_dir, file))
+            print(f"🗑️ Schoonmaak voltooid voor {table_name}")
