@@ -3,10 +3,14 @@ name = "ggmpilot"
 version = "0.1.0"
 requires-python = ">= 3.12.10"
 dependencies = [
+    "configparser>=7.2.0",
     "cx-oracle>=8.3.0",
     "docker>=7.1.0",
+    "dotenv>=0.9.9",
+    "polars>=1.31.0",
     "psycopg2>=2.9.10",
     "pyodbc>=5.2.0",
     "pypiwin32>=223",
+    "sqlalchemy>=2.0.41",
     "sqlparse>=0.5.3",
 ]
