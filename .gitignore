@@ -3,3 +3,4 @@
 __pycache__/
 data/
 source_to_staging/.env
+/tmp_dump

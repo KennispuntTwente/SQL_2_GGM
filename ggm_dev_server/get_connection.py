@@ -5,34 +5,60 @@
 
 from __future__ import annotations
 
-import os
+import sys
 import time
-import docker
 from pathlib import Path
 from typing import Callable, Dict, Any
 
-# ------- driver‑specific helpers ------------------------------------------------
+import docker
+import oracledb
+import psycopg2
+import pyodbc
+import pymysql
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import URL
 
+
+# ────────────────────────────────────────────────────────────────────────────────
+# Driver‑specific helpers
+# ────────────────────────────────────────────────────────────────────────────────
 def _connect_postgres(cfg: Dict[str, Any]):
-    import psycopg2
     return psycopg2.connect(**cfg)
 
 def _connect_oracle(cfg: Dict[str, Any]):
-    import cx_Oracle
-    dsn = cx_Oracle.makedsn(cfg["host"], cfg["port"], service_name="XEPDB1")
-    return cx_Oracle.connect(cfg["user"], cfg["password"], dsn)
+    """Connect to Oracle PDB FREEPDB1."""
+    oracledb.defaults.fetch_lobs = False
+    dsn = f"{cfg['host']}:{cfg['port']}/FREEPDB1"
+    return oracledb.connect(
+        user=cfg["user"], password=cfg["password"], dsn=dsn
+    )
 
+SQL_SERVER_DRIVER = "ODBC Driver 18 for SQL Server"  # Ensure this is installed
 def _connect_sqlserver(cfg: Dict[str, Any]):
-    import pyodbc
     conn_str = (
-        "DRIVER={SQL Server};"  # Use installed driver
+        f"DRIVER={{{SQL_SERVER_DRIVER}}};"
         f"SERVER={cfg['host']},{cfg['port']};"
+        f"DATABASE={cfg['dbname']};"
         f"UID={cfg['user']};PWD={cfg['password']};"
         "TrustServerCertificate=yes;"
     )
     return pyodbc.connect(conn_str)
 
-# Shared configuration
+def _connect_mysql(cfg: Dict[str, Any]):
+    """Connect to MySQL."""
+    return pymysql.connect(
+        host=cfg['host'],
+        port=cfg['port'],
+        user=cfg['user'],
+        password=cfg['password'],
+        database=cfg['dbname'],
+        autocommit=True
+    )
+
+
+# ────────────────────────────────────────────────────────────────────────────────
+# Image settings for the three supported databases
+# ────────────────────────────────────────────────────────────────────────────────
 SETTINGS = {
     "postgres": dict(
         image="postgres:latest",
@@ -45,7 +71,7 @@ SETTINGS = {
         connector=_connect_postgres,
     ),
     "oracle": dict(
-        image="gvenzl/oracle-xe:21.3.0-slim",
+        image="gvenzl/oracle-free:latest-faststart",  # fastest first start
         default_port=1521,
         env=lambda user, password, db_name: {
             "ORACLE_PASSWORD": password,
@@ -64,157 +90,346 @@ SETTINGS = {
         },
         connector=_connect_sqlserver,
     ),
+    "mysql": dict(
+        image="mysql:8.0",
+        default_port=3306,
+        env=lambda user, password, db_name: {
+            "MYSQL_ROOT_PASSWORD": password,
+            "MYSQL_USER": user,
+            "MYSQL_PASSWORD": password,
+            "MYSQL_DATABASE": db_name,
+        },
+        connector=_connect_mysql,
+    ),
+    "mariadb": dict(             
+        image="mariadb:latest",
+        default_port=3306,
+        env=lambda user, password, db_name: {
+            # MariaDB uses the same env vars as MySQL
+            "MYSQL_ROOT_PASSWORD": password,
+            "MYSQL_USER": user,
+            "MYSQL_PASSWORD": password,
+            "MYSQL_DATABASE": db_name,
+        },
+        connector=_connect_mysql,
+    ),
 }
 
-def _ensure_container_running(db_type: str, user: str, password: str, db_name: str, port: int | None) -> tuple[dict, int, bool]:
+
+# ────────────────────────────────────────────────────────────────────────────────
+# Docker helpers
+# ────────────────────────────────────────────────────────────────────────────────
+
+def _ensure_container_running(
+    db_type: str,
+    user: str,
+    password: str,
+    db_name: str,
+    port: int,
+    container_name: str,
+    volume_name: str,
+    force_refresh: bool,
+) -> tuple[dict, int, bool]:
+    """
+    Start (or restart) the requested DB container if necessary.
+
+    Returns:
+        cfg           – settings entry for the db_type
+        port          – effective host port
+        was_created   – True if a *new* container was created
+    """
     cfg = SETTINGS[db_type]
-    port = port or cfg["default_port"]
-    container_name = f"{db_type}-docker-db"
     client = docker.from_env()
+
+    if force_refresh:
+        # blow away everything and start from scratch
+        try:
+            old = client.containers.get(container_name)
+            old.stop(); old.remove()
+        except docker.errors.NotFound:
+            pass
+        try:
+            vol = client.volumes.get(volume_name)
+            vol.remove(force=True)
+        except docker.errors.NotFound:
+            pass
 
     try:
         container = client.containers.get(container_name)
         if container.status != "running":
             container.start()
-            print(f"Started existing {db_type} container.")
-        else:
-            print(f"{db_type} container already running.")
-        return cfg, port, False
+        was_created = False
     except docker.errors.NotFound:
-        print(f"Creating new {db_type} container...")
+        print(f"Creating new {db_type} container '{container_name}'…")
         client.containers.run(
             cfg["image"],
             name=container_name,
             environment=cfg["env"](user, password, db_name),
             ports={f"{cfg['default_port']}/tcp": port},
-            volumes={f"{db_type}_data": {"bind": "/var/lib/data", "mode": "rw"}},
+            volumes={volume_name: {"bind": "/var/lib/data", "mode": "rw"}},
+            healthcheck={"test": ["CMD", "healthcheck.sh"]} if db_type == "oracle" else None,
             detach=True,
         )
-        return cfg, port, True
+        was_created = True
 
-def _run_sql_scripts(sql_folder: str | Path, connector: Callable, connect_cfg: dict):
-    sql_folder = Path(sql_folder).expanduser().resolve()
-    if not sql_folder.is_dir():
-        raise FileNotFoundError(sql_folder)
+    return cfg, port, was_created
 
-    conn = connector(connect_cfg)
-    cur = conn.cursor()
 
-    for sql_file in sorted(sql_folder.glob("*.sql")):
-        print(f"Running {sql_file.name} …")
-        with sql_file.open("r", encoding="utf-8") as f:
-            sql = f.read()
-            cur.execute(sql)
+# ────────────────────────────────────────────────────────────────────────────────
+# Generic “wait until DB accepts connections” helper
+# ────────────────────────────────────────────────────────────────────────────────
 
-    conn.commit()
-    cur.close()
-    conn.close()
-    print("All SQL scripts executed successfully.")
+def _wait_for_db_ready(
+    connector: Callable,
+    connect_cfg: dict,
+    max_wait: int,
+    print_errors: bool = False,
+    force_print_after: Optional[int] = 30,
+):
+    """Try to connect repeatedly until it succeeds or times out.
 
-def _wait_for_db_ready(connector: Callable, connect_cfg: dict, max_wait_seconds: int):
-    deadline = time.time() + max_wait_seconds
+    Args:
+        connector: A callable that attempts the DB connection using connect_cfg.
+        connect_cfg: Connection configuration passed to the connector.
+        max_wait: Max time to wait for DB (in seconds).
+        print_errors: Whether to print errors during retries.
+        force_print_after: Time after which errors are printed regardless of print_errors (in seconds).
+    """
+    print("Waiting for database to become ready...")
+    start_time = time.time()
+    deadline = start_time + max_wait
+    last_exc = None
+
     while time.time() < deadline:
         try:
             conn = connector(connect_cfg)
             conn.close()
-            print("DB is ready.")
+            print("\n✅ Database is ready.")
             return
-        except Exception:
-            print("Waiting for DB to be ready...")
-            time.sleep(3)
-    raise TimeoutError("Database did not become ready in time.")
+        except BaseException as exc:
+            last_exc = exc
+            root = exc
+            while root.__context__ or root.__cause__:
+                root = root.__context__ or root.__cause__
+            err_msg = f"{type(root).__name__}: {root}"
 
+            now = time.time()
+            past_force_threshold = (
+                force_print_after is not None and (now - start_time) >= force_print_after
+            )
+            if print_errors or past_force_threshold:
+                sys.stdout.write(
+                    f"\rLast connection attempt (errors are normal when DB is not yet ready, but sometimes may indicate a problem): {err_msg}".ljust(120)
+                )
+                sys.stdout.flush()
+
+            time.sleep(3)
+
+    raise TimeoutError(f"DB not ready after {max_wait}s; last error: {last_exc}")
+
+
+# ────────────────────────────────────────────────────────────────────────────────
+# Optional SQL bootstrap
+# ────────────────────────────────────────────────────────────────────────────────
+def _run_sql_scripts(sql_folder: Path, connector: Callable, connect_cfg: dict):
+    for sql_file in sorted(sql_folder.glob("*.sql")):
+        print(f"Running {sql_file.name}…")
+        conn = connector(connect_cfg); cur = conn.cursor()
+        cur.execute(sql_file.read_text(encoding="utf-8"))
+        conn.commit(); cur.close(); conn.close()
+    print("All SQL scripts executed successfully.")
+    
+
+# ────────────────────────────────────────────────────────────────────────────────
+# Public helpers
+# ────────────────────────────────────────────────────────────────────────────────
 def get_connection(
     db_type: str = "postgres",
     db_name: str = "mydb",
     user: str = "admin",
     password: str = "ChangeMe123!",
     port: int | None = None,
-    max_wait_seconds: int = 120,
+    max_wait_seconds: int | None = None,
     sql_folder: str | Path | None = None,
     print_tables: bool = True,
+    *,
+    container_name: str | None = None,
+    volume_name: str | None = None,
+    force_refresh: bool = False,
 ):
+    print()
     db_type = db_type.lower()
     if db_type not in SETTINGS:
         raise ValueError(f"Unsupported db_type: {db_type}")
 
-    cfg, port, was_created = _ensure_container_running(db_type, user, password, db_name, port)
+    cfg = SETTINGS[db_type]
+    port_effective = port or cfg["default_port"]
+    container_name = container_name or f"{db_type}-docker-db-{port_effective}"
+    volume_name = volume_name or f"{container_name}_data"
 
-    connect_cfg = dict(
-        dbname=db_name,
-        user=user,
-        password=password,
-        host="localhost",
-        port=port,
+    if max_wait_seconds is None:
+        max_wait_seconds = 600 if db_type == "oracle" else 120
+
+    # start or reuse the container
+    cfg, host_port, was_created = _ensure_container_running(
+        db_type, user, password, db_name, port_effective,
+        container_name, volume_name, force_refresh
     )
-    _wait_for_db_ready(cfg["connector"], connect_cfg, max_wait_seconds)
 
-    # only run SQL initialization if container was just created and sql_folder was provided
+    # Prepare configs for master and target DB
+    master_cfg = {
+        "dbname":   "master",
+        "user":      user,
+        "password":  password,
+        "host":      "localhost",
+        "port":      host_port,
+    }
+    target_cfg = {
+        "dbname":    db_name,
+        "user":      user,
+        "password":  password,
+        "host":      "localhost",
+        "port":      host_port,
+    }
+
+    if db_type == "sqlserver":
+        # Wait until SQL Server is up (using master)
+        _wait_for_db_ready(cfg["connector"], master_cfg, max_wait_seconds)
+
+        # 2) On first init, auto-create the target DB
+        if was_created:
+            conn = cfg["connector"](master_cfg)
+            conn.autocommit = True
+            cur = conn.cursor()
+            cur.execute(f"IF DB_ID(N'{db_name}') IS NULL CREATE DATABASE [{db_name}]")
+            cur.close(); conn.close()
+
+        # 3) Wait until the new DB is ready
+        _wait_for_db_ready(cfg["connector"], target_cfg, max_wait_seconds)
+    else:
+        # For Oracle/Postgres/MySQL/MariaDB, wait normally against the target DB
+        _wait_for_db_ready(cfg["connector"], target_cfg, max_wait_seconds)
+
+    # Run initial SQL scripts if provided
     if was_created and sql_folder is not None:
-        _run_sql_scripts(sql_folder, cfg["connector"], connect_cfg)
+        _run_sql_scripts(Path(sql_folder), cfg["connector"], target_cfg)
+
+    # Build SQLAlchemy URL
+    if db_type == "oracle":
+        url = URL.create(
+            drivername="oracle+oracledb",
+            username=user,
+            password=password,
+            host="localhost",
+            port=host_port,
+            query={"service_name": "FREEPDB1"},
+        )
+    elif db_type == "sqlserver":
+        url = URL.create(
+            drivername="mssql+pyodbc",
+            username=user,
+            password=password,
+            host="localhost",
+            port=host_port,
+            database=db_name,
+            query={
+                "driver": SQL_SERVER_DRIVER,
+                "TrustServerCertificate": "yes"
+            },
+        )
+    elif db_type == "postgres":
+        url = URL.create(
+            drivername="postgresql+psycopg2",
+            username=user,
+            password=password,
+            host="localhost",
+            port=host_port,
+            database=db_name,
+        )
+    elif db_type in ("mysql", "mariadb"):
+        url = URL.create(
+            drivername="mysql+pymysql",
+            username=user,
+            password=password,
+            host="localhost",
+            port=host_port,
+            database=db_name,
+        )    
+    else:
+        raise ValueError(f"Unsupported db_type: {db_type}")
+
+    engine = create_engine(url, echo=False, future=True)
 
     if print_tables:
-    # Print tables in the database
-        conn = cfg["connector"](connect_cfg)
-        cur = conn.cursor()
-        cur.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';")
-        tables = cur.fetchall()
-        print("Tables in the database:", [table[0] for table in tables])
-        cur.close()
-        conn.close()
+        with engine.connect() as conn:
+            if db_type == "oracle":
+                query = "SELECT table_name FROM user_tables"
+            elif db_type == "postgres":
+                query = "SELECT table_name FROM information_schema.tables WHERE table_schema='public'"
+            elif db_type in ("mysql", "mariadb"):
+                # MariaDB uses the same information_schema layout as MySQL
+                query = f"SELECT table_name FROM information_schema.tables WHERE table_schema='{db_name}'"
+            elif db_type == "sqlserver":
+                query = "SELECT table_name FROM information_schema.tables WHERE table_schema='dbo'"
+            else:
+                # unlikely to happen since you validated db_type at the top
+                raise ValueError(f"Unsupported db_type for printing tables: {db_type!r}")
+            result = conn.execute(text(query))
+            print("Tables:", [r[0] for r in result.fetchall()])
 
-    return cfg["connector"](connect_cfg)
+    return engine
 
-
-def run_container_and_execute_sql(
-    db_type: str = "postgres",
-    db_name: str = "mydb",
-    user: str = "admin",
-    password: str = "ChangeMe123!",
-    port: int | None = None,
-    volume_name: str | None = None,
-    sql_folder: str | Path = "./sql",
-    max_wait_seconds: int = 120,
-) -> None:
-    db_type = db_type.lower()
-    sql_folder = Path(sql_folder).expanduser().resolve()
-    if not sql_folder.is_dir():
-        raise FileNotFoundError(sql_folder)
-
-    if db_type not in SETTINGS:
-        raise ValueError(f"Unsupported db_type: {db_type}")
-
-    cfg, port = _ensure_container_running(db_type, user, password, db_name, port)
-
-    connect_cfg = dict(
-        dbname=db_name,
-        user=user,
-        password=password,
-        host="localhost",
-        port=port,
-    )
-    _wait_for_db_ready(cfg["connector"], connect_cfg, max_wait_seconds)
-
-    conn = cfg["connector"](connect_cfg)
-    cur = conn.cursor()
-
-    for sql_file in sorted(sql_folder.glob("*.sql")):
-        print(f"Running {sql_file.name} …")
-        with sql_file.open("r", encoding="utf-8") as f:
-            sql = f.read()
-            cur.execute(sql)
-
-    conn.commit()
-    cur.close()
-    conn.close()
-    print("All SQL scripts executed successfully.")
-
-# Demonstration
+# ────────────────────────────────────────────────────────────────────────────────
+# Demo
+# ────────────────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    conn = get_connection(
-        db_type="postgres",
+    # Try MariaDB
+    conn_mariadb = get_connection(
+        db_type="mariadb",
         db_name="ggm",
         user="sa",
         password="SecureP@ss1!24323482349",
-        sql_folder="./ggm_db/sql/selectie"
+        # sql_folder="./ggm_dev_server/sql/selectie",
+        force_refresh=True,
+        port=3706,  # Custom port for MariaDB to avoid conflict with MySQL
+    )
+
+    # Try MySQL
+    conn_mysql = get_connection(
+        db_type="mysql",
+        db_name="ggm",
+        user="sa",
+        password="SecureP@ss1!24323482349",
+        # sql_folder="./ggm_dev_server/sql/selectie",
+        force_refresh=True,
+    )
+
+    # Try Postgres
+    conn_postgres = get_connection(
+        db_type="postgres",
+        db_name="ggm",
+        user ="sa",
+        password="SecureP@ss1!24323482349",
+        sql_folder="./ggm_dev_server/sql/selectie",
+        force_refresh=True,
+    )
+
+    # Try Oracle
+    conn_oracle = get_connection(
+        db_type="oracle",
+        db_name="ggm",
+        user="sa",
+        password="SecureP@ss1!24323482349",
+        # sql_folder="./ggm_dev_server/sql/selectie",
+        force_refresh=True,
+    )
+
+    # Try SQL Server
+    conn_sqlserver = get_connection(
+        db_type="sqlserver",
+        db_name="ggm",
+        user="sa",
+        password="SecureP@ss1!24323482349",
+        # sql_folder="./ggm_dev_server/sql/selectie",
+        force_refresh=True,
     )

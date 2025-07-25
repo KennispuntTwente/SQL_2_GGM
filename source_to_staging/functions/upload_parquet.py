@@ -1,48 +1,108 @@
-# source_to_staging/functions/upload_parquet.py
-
 import os
-import polars as pl
 from collections import defaultdict
-from sqlalchemy import text
+
+import polars as pl
+from sqlalchemy import create_engine, text
+from sqlalchemy.exc import ProgrammingError
+from sqlalchemy.schema import CreateSchema
 
 def upload_parquet_to_db(
-    engine, schema, input_dir="data",
+    engine,
+    database=None,
+    schema=None,
+    input_dir="data",
     cleanup=True
 ):
     """
     Uploads (possibly chunked) Parquet files into destination DB.
-    Creates schema if it doesn't exist.
+    Ensures the target database and schema exist before loading.
     """
-    # Create schema if it doesn't exist
-    with engine.connect() as conn:
-        conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema}"))
-        conn.commit()
+    dialect = engine.dialect.name.lower()
 
-    # Group files by base table name (before _partXXXX or .parquet)
-    grouped_files = defaultdict(list)
-    for file in os.listdir(input_dir):
-        if file.endswith(".parquet"):
-            base = file.split("_part")[0].replace(".parquet", "")
-            grouped_files[base].append(file)
+    # 1) Determine and create target database if needed
+    db_name = database or engine.url.database
+    if db_name:
+        if dialect == "postgresql":
+            # connect to 'postgres' admin DB
+            admin_url = engine.url.set(database="postgres")
+            admin_eng = create_engine(admin_url)
+            with admin_eng.begin() as conn:
+                exists = conn.execute(
+                    text("SELECT 1 FROM pg_database WHERE datname = :db"),
+                    {"db": db_name}
+                ).scalar()
+                if not exists:
+                    conn.execute(text(f'CREATE DATABASE "{db_name}"'))
+            admin_eng.dispose()
 
-    for table_name, files in grouped_files.items():
-        print(f"📦 Uploading {len(files)} part(s) to table {schema}.{table_name}")
-        full_table_name = f"{schema}.{table_name}"
+        elif dialect in ("mssql", "sql server"):
+            # connect to 'master' admin DB
+            admin_url = engine.url.set(database="master")
+            admin_eng = create_engine(admin_url)
+            with admin_eng.begin() as conn:
+                conn.execute(text(f"""
+                    IF DB_ID(N'{db_name}') IS NULL
+                    BEGIN
+                        CREATE DATABASE [{db_name}];
+                    END
+                """))
+            admin_eng.dispose()
 
-        for idx, file in enumerate(sorted(files)):
-            parquet_path = os.path.join(input_dir, file)
-            print(f"🔹 Processing {parquet_path}")
-            df = pl.read_parquet(parquet_path)
+    # 2) Re‑bind engine to the (now created) target database if needed
+    if db_name and engine.url.database != db_name:
+        engine = create_engine(engine.url.set(database=db_name))
 
+    # 3) Ensure the schema exists
+    if schema:
+        with engine.begin() as conn:
+            if dialect == "postgresql":
+                conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema}"))
+            elif dialect in ("mssql", "sql server"):
+                conn.execute(text(f"""
+                    IF SCHEMA_ID(N'{schema}') IS NULL
+                    BEGIN
+                        EXEC(N'CREATE SCHEMA {schema}');
+                    END
+                """))
+            elif dialect == "oracle":
+                pass
+            elif dialect in ("mysql", "mariadb"):
+                # MySQL doesn't support schemas other than databases
+                pass
+            else:
+                try:
+                    conn.execute(CreateSchema(schema))
+                except ProgrammingError as e:
+                    if "already exists" not in str(e).lower():
+                        raise
+
+    # 4) Group Parquet files by table base name
+    grouped = defaultdict(list)
+    for fname in os.listdir(input_dir):
+        if fname.endswith(".parquet"):
+            base = fname.split("_part")[0].replace(".parquet", "")
+            grouped[base].append(fname)
+
+    # 5) Write each group into its table
+    for table_name, files in grouped.items():
+        full_table = f"{schema}.{table_name}" if schema else table_name
+        print(f"📦 Uploading {len(files)} part(s) to table {full_table}")
+
+        for idx, fname in enumerate(sorted(files)):
+            path = os.path.join(input_dir, fname)
+            print(f"🔹 Processing {path}")
+            df = pl.read_parquet(path)
             df.write_database(
-                table_name=full_table_name,
+                table_name=full_table,
                 connection=engine,
                 if_table_exists="replace" if idx == 0 else "append",
                 engine="sqlalchemy"
             )
-        print(f"✅ Ingeladen: {table_name}")
 
+        print(f"✅ Loaded: {table_name}")
+
+        # 6) Cleanup parquet files
         if cleanup:
-            for file in files:
-                os.remove(os.path.join(input_dir, file))
-            print(f"🗑️ Schoonmaak voltooid voor {table_name}")
+            for fname in files:
+                os.remove(os.path.join(input_dir, fname))
+            print(f"🗑️ Cleanup completed for {table_name}")
