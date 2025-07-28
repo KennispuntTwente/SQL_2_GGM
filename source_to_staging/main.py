@@ -30,6 +30,10 @@ if 'ipykernel' in sys.modules or 'IPython' in sys.modules:
 else:
     args = parser.parse_args()
 
+# For debugging:
+args.source_config = "source_to_staging/source_config.ini.example"  # your actual config file
+args.destination_config = "source_to_staging/dest_config.ini.example"  # your actual config file
+
 # Read config files if provided
 source_cfg = configparser.ConfigParser()
 if args.source_config:
@@ -39,17 +43,19 @@ dest_cfg = configparser.ConfigParser()
 if args.destination_config:
     dest_cfg.read(args.destination_config)
 
-
 def get_config_value(key, section="database", cfg_parser=None):
     """
     Get configuration value from INI file if present, otherwise from environment variable.
     """
     # Try INI first
     if cfg_parser and cfg_parser.has_option(section, key):
-        return cfg_parser.get(section, key)
+        ini_value = cfg_parser.get(section, key)
+        print(f"Using {key} from INI config: {ini_value}")
+        return ini_value
 
     # Fallback to environment variable
     env_value = os.environ.get(key)
+    print(f"Using {key} from environment variable: {env_value}")    
     return env_value
 
 # Get tables list from source config (or env fallback)
