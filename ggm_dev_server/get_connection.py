@@ -26,11 +26,14 @@ def _connect_postgres(cfg: Dict[str, Any]):
     return psycopg2.connect(**cfg)
 
 def _connect_oracle(cfg: Dict[str, Any]):
-    """Connect to Oracle PDB FREEPDB1."""
+    """Connect to the PDB named in cfg['dbname']."""
     oracledb.defaults.fetch_lobs = False
-    dsn = f"{cfg['host']}:{cfg['port']}/FREEPDB1"
+    # Use the dynamic service_name instead of the fixed FREEPDB1
+    dsn = f"{cfg['host']}:{cfg['port']}/{cfg['dbname']}"
     return oracledb.connect(
-        user=cfg["user"], password=cfg["password"], dsn=dsn
+        user=cfg["user"],
+        password=cfg["password"],
+        dsn=dsn
     )
 
 SQL_SERVER_DRIVER = "ODBC Driver 18 for SQL Server"  # Ensure this is installed
@@ -71,12 +74,14 @@ SETTINGS = {
         connector=_connect_postgres,
     ),
     "oracle": dict(
-        image="gvenzl/oracle-free:latest-faststart",  # fastest first start
+        image="gvenzl/oracle-free:latest-faststart",
         default_port=1521,
+        # Pass ORACLE_DATABASE so the container will create a PDB with that name
         env=lambda user, password, db_name: {
-            "ORACLE_PASSWORD": password,
-            "APP_USER": user,
-            "APP_USER_PASSWORD": password,
+            "ORACLE_PASSWORD":    password,
+            "ORACLE_DATABASE":    db_name, 
+            "APP_USER":           user,
+            "APP_USER_PASSWORD":  password,
         },
         connector=_connect_oracle,
     ),
@@ -322,7 +327,7 @@ def get_connection(
             password=password,
             host="localhost",
             port=host_port,
-            query={"service_name": "FREEPDB1"},
+            query={"service_name": db_name},
         )
     elif db_type == "sqlserver":
         url = URL.create(
