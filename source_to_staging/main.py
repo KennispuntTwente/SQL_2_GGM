@@ -16,7 +16,6 @@ load_dotenv(dotenv_path="source_to_staging/.env")
 parser = argparse.ArgumentParser(description='Run source to staging data migration')
 parser.add_argument(
     '--source-config', '-s', 
-    default = "source_to_staging/source_config_ini.example",
     help='Settings for source (credentials, tables to extract) in INI format (optional - will use .env if not provided)'
 )
 parser.add_argument(
@@ -31,8 +30,8 @@ else:
     args = parser.parse_args()
 
 # For debugging:
-args.source_config = "source_to_staging/source_config.ini.example"  # your actual config file
-args.destination_config = "source_to_staging/dest_config.ini.example"  # your actual config file
+# args.source_config = "source_to_staging/source_config.ini.example"  # your actual config file
+# args.destination_config = "source_to_staging/dest_config.ini.example"  # your actual config file
 
 # Read config files if provided
 source_cfg = configparser.ConfigParser()
@@ -61,6 +60,21 @@ def get_config_value(key, section="database", cfg_parser=None):
 # Get tables list from source config (or env fallback)
 tables_str = get_config_value("SRC_TABLES", section="settings", cfg_parser=source_cfg)
 tables = [t.strip() for t in tables_str.split(",")]
+
+# TODO: functie van Rien implementeren
+# Engine(oracle+cx_oracle://***:***@RSNORA8:1526/PGWS)
+# Engine = Engine(oracle+cx_oracle://***:***@RSNORA8:1526/?service_name=PGWS)
+def maak_con_string(db_config: dict, db_type: str) -> str:
+    if db_type.upper() == "ORACLE":
+        return f"oracle+cx_oracle://{db_config['USER']}:{db_config['PW']}@{db_config['SRV']}:{db_config['PORT']}/?service_name={db_config['DB']}"
+    elif db_type.upper() == "POSTGRES":
+        return f"postgresql://{db_config['USER']}:{db_config['PW']}@{db_config['SRV']}:{db_config['PORT']}/{db_config['DB']}"
+    elif db_type.upper() == "MSSQL":
+        return f"mssql+pyodbc://{db_config['USER']}:{db_config['PW']}@{db_config['SRV']}/{db_config['DB']}?driver={db_config['PORT']}"
+    else:
+        logging.error(f"Onbekende database type: {db_type}")
+        logging.info("Einde log\n")
+        sys.exit()
 
 # Create source SQLAlchemy engine
 source_url = URL.create(

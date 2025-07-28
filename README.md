@@ -24,3 +24,15 @@ Om een development-database te maken, is installatie van Docker nodig. Installee
 ### GGM-development-database draaien
 
 [ggm_dev_server/get_connection.py](ggm_dev_server/get_connection.py) bevat de functie get_connection() die een development-databaes binnen een Docker-container kan aanmaken en hiermee kan verbinden. Hierbij kan een map met SQL-scripts worden opgegeven, welke zullen worden uitgevoerd bij het aanmaken van de database. Hiermee kan de database geinitialiseerd worden met de tabellen van het GGM. [ggm_dev_server/sql](ggm_dev_server/sql) bevat de SQL-scripts die tabellen van het GGM aanmaken; is nu nog WIP om deze geschikt te maken voor onze pilot.
+
+### Tijdelijke documentatie: source_to_staging runnen
+
+Activeer de virtual env:
+```
+.venv\Scripts\activate
+```
+
+Run script met verwijzing naar .ini-bestanden (source, destination):
+```
+python source_to_staging/main.py --source-config h:/python/secrets/bron_svhsd.ini --destination-config h:/python/secrets/doel_dhw_brons.ini
+```
