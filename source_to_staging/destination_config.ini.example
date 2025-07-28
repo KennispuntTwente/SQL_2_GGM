@@ -1,0 +1,11 @@
+[database]
+DST_HOST = localhost
+DST_HOST = 5432
+DST_DB = sd_brons
+DST_USERNAME = pg_user
+DST_PASSWORD = your_password_here
+DST_DRIVER = postgresql+psycopg2
+
+# DST schema where tables will be created
+DST_DB = staging
+DST_SCHEMA = staging
