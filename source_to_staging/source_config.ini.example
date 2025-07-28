@@ -1,11 +1,11 @@
-
 [database]
 SRC_DRIVER = oracle+cx_oracle
-SRC_USERNAME = oracle_user
-SRC_PASSWORD = your_oracle_password
 SRC_HOST = rsnora8
 SRC_PORT = 1526
+SRC_USERNAME = oracle_user
+SRC_PASSWORD = your_oracle_password
 SRC_DB = PGWS
+SRC_SCHEMA = 
 
 [settings]
 # Comma-separated list of tables to extract from source database
