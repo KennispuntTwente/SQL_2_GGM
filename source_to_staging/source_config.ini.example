@@ -1,8 +1,8 @@
 
 [database]
 SRC_DRIVER = oracle+cx_oracle
-SRC_USER = oracle_user
-SRC_PW = your_oracle_password
+SRC_USERNAME = oracle_user
+SRC_PASSWORD = your_oracle_password
 SRC_HOST = rsnora8
 SRC_PORT = 1526
 SRC_DB = PGWS

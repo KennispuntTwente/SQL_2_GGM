@@ -8,7 +8,6 @@ from sqlalchemy.schema import CreateSchema
 
 def upload_parquet_to_db(
     engine,
-    database=None,
     schema=None,
     input_dir="data",
     cleanup=True
@@ -20,7 +19,7 @@ def upload_parquet_to_db(
     dialect = engine.dialect.name.lower()
 
     # 1) Determine and create target database if needed
-    db_name = database or engine.url.database
+    db_name = engine.url.database
     if db_name:
         if dialect == "postgresql":
             # connect to 'postgres' admin DB

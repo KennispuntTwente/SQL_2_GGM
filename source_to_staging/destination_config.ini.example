@@ -1,6 +1,6 @@
 [database]
 DST_HOST = localhost
-DST_HOST = 5432
+DST_PORT = 5432
 DST_DB = sd_brons
 DST_USERNAME = pg_user
 DST_PASSWORD = your_password_here
