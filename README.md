@@ -32,7 +32,12 @@ Activeer de virtual env:
 .venv\Scripts\activate
 ```
 
-Run script met verwijzing naar .ini-bestanden (source, destination):
+Run script met verwijzing naar .ini-bestanden (source, destination), bijv.:
 ```
-python source_to_staging/main.py --source-config h:/python/secrets/bron_svhsd.ini --destination-config h:/python/secrets/doel_dhw_brons.ini
+python -m source_to_staging.main --source-config source_to_staging/source_config.ini.example --destination-config source_to_staging/destination_config.ini.example
+```
+
+Voor Rien:
+```
+python -m source_to_staging/main.py --source-config h:/python/secrets/bron_svhsd.ini --destination-config h:/python/secrets/doel_dhw_brons.ini
 ```

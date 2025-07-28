@@ -1,10 +1,10 @@
 [database]
-SRC_DRIVER = oracle+cx_oracle
-SRC_HOST = rsnora8
-SRC_PORT = 1526
-SRC_USERNAME = oracle_user
-SRC_PASSWORD = your_oracle_password
-SRC_DB = PGWS
+SRC_DRIVER = oracle+oracledb
+SRC_HOST = localhost
+SRC_PORT = 1521
+SRC_USERNAME = sa
+SRC_PASSWORD = SecureP@ss1!24323482349
+SRC_DB = ggm
 SRC_SCHEMA = 
 
 [settings]

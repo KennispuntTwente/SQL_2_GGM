@@ -1,8 +1,8 @@
 [database]
+DST_DRIVER = postgresql+psycopg2
 DST_HOST = localhost
 DST_PORT = 5432
-DST_USERNAME = pg_user
-DST_PASSWORD = your_password_here
-DST_DRIVER = postgresql+psycopg2
-DST_DB = staging
-DST_SCHEMA = staging
+DST_USERNAME = sa
+DST_PASSWORD = SecureP@ss1!24323482349
+DST_DB = ggm
+DST_SCHEMA = ggm
