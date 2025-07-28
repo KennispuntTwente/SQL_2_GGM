@@ -55,7 +55,7 @@ def run_migration_for_db_type(db_type: str):
         conn.execute(text(f"DROP TABLE IF EXISTS {table_name}"))
         conn.execute(text(create_sql))
         conn.execute(text(insert_sql))
-    print("Source table created and data inserted.")
+    print("Source table created and data inserted")
 
     # Dump to Parquet
     dump_tables_to_parquet(source_engine, [table_name], output_dir=str(dump_dir))
@@ -80,7 +80,7 @@ def run_migration_for_db_type(db_type: str):
 
     # Upload Parquet to destination
     upload_parquet_to_db(dest_engine, schema=schema, input_dir=str(dump_dir))
-    print("Uploaded parquet data into destination database.")
+    print("Uploaded parquet data into destination database")
 
     # Verify results
     with dest_engine.connect() as conn:

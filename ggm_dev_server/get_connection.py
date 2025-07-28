@@ -204,7 +204,7 @@ def _wait_for_db_ready(
         try:
             conn = connector(connect_cfg)
             conn.close()
-            print("\n✅ Database is ready.")
+            print("✅ Database is ready")
             return
         except BaseException as exc:
             last_exc = exc
