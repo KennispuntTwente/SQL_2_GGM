@@ -15,6 +15,8 @@ uv sync
 
 Zorg daarna dat je in je IDE (bijv. VSCode) de Python-interpreter hebt ingesteld die hoort bij de '.venv' die door `uv sync` is aangemaakt.
 
+Alle scripts in deze repisotry zijn ingesteld op de project root als werkmap. Dit betekent dat je de scripts moet runnen vanuit de project root, of dat je de werkmap in je IDE moet instellen op de project root. (Als je bijv. een script uitvoert in de map source_to_staging, en hierbij de werkmap source_to_staging wordt aangenomen in plaats van de project root, dan krijg je een foutmelding omdat de imports niet gevonden kunnen worden.)
+
 ### Docker
 
 Om een development-database te maken, is installatie van Docker nodig. Installeer bijvoorbeeld [Docker Desktop](https://www.docker.com/products/docker-desktop/). Zorg dat de Docker daemon draait (bijvoorbeeld door Docker Desktop te starten).
