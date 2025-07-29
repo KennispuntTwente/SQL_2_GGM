@@ -41,5 +41,5 @@ python -m source_to_staging.main --source-config source_to_staging/source_config
 
 Voor Rien:
 ```
-python -m source_to_staging/main.py --source-config h:/python/secrets/bron_svhsd.ini --destination-config h:/python/secrets/doel_dhw_brons.ini
+python -m source_to_staging.main --source-config h:/python/secrets/bron_svhsd.ini --destination-config h:/python/secrets/doel_dhw_brons.ini
 ```
