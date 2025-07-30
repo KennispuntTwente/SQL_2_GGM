@@ -1,8 +1,10 @@
-from sqlalchemy.engine import URL
-import logging
 import sys
+import logging
 
-def create_database_url(
+from sqlalchemy.engine import URL
+
+
+def create_sqlalchemy_engine(
     driver: str,
     username: str,
     password: str,

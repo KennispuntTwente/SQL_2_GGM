@@ -4,9 +4,9 @@ from sqlalchemy import create_engine
 
 from source_to_staging.functions.parse_args_and_load_parsers import parse_args_and_load_parsers
 from source_to_staging.functions.get_config_value import get_config_value
-from source_to_staging.functions.create_database_url import create_database_url
-from source_to_staging.functions.source_dump import dump_tables_to_parquet
-from source_to_staging.functions.upload_parquet import upload_parquet_to_db
+from source_to_staging.functions.create_sqlalchemy_engine import create_sqlalchemy_engine
+from source_to_staging.functions.download_parquet import download_parquet
+from source_to_staging.functions.upload_parquet import upload_parquet
 
 # Load environment variables from .env file if .env exists
 if os.path.exists("source_to_staging/.env"):
@@ -21,7 +21,7 @@ if os.path.exists("source_to_staging/.env"):
 args, source_cfg, dest_cfg = parse_args_and_load_parsers()
 
 # Build connection to source database
-source_url = create_database_url(
+source_url = create_sqlalchemy_engine(
     driver = get_config_value("SRC_DRIVER", cfg_parser=source_cfg),
     username = get_config_value("SRC_USERNAME", cfg_parser=source_cfg),
     password = get_config_value("SRC_PASSWORD", cfg_parser=source_cfg),
@@ -32,7 +32,7 @@ source_url = create_database_url(
 source_engine = create_engine(source_url)
 
 # Build connection to destination database
-dest_url = create_database_url(
+dest_url = create_sqlalchemy_engine(
     driver = get_config_value("DST_DRIVER", cfg_parser=dest_cfg),
     username = get_config_value("DST_USERNAME", cfg_parser=dest_cfg),
     password = get_config_value("DST_PASSWORD", cfg_parser=dest_cfg),
@@ -47,7 +47,7 @@ tables_str = get_config_value("SRC_TABLES", section="settings", cfg_parser=sourc
 tables = [t.strip() for t in tables_str.split(",")]
 
 # Step 1/2: Dump tables from source to parquet files
-dump_tables_to_parquet(
+download_parquet(
     source_engine,
     schema = get_config_value("SRC_SCHEMA", cfg_parser=source_cfg),
     tables = tables,
@@ -55,7 +55,7 @@ dump_tables_to_parquet(
 )
 
 # Step 2/2: Upload parquet files into destination database
-upload_parquet_to_db(
+upload_parquet(
     dest_engine,
     schema = get_config_value("DST_SCHEMA", cfg_parser=dest_cfg),
     input_dir = "data",

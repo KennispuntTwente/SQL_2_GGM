@@ -6,7 +6,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.schema import CreateSchema
 
-def upload_parquet_to_db(
+def upload_parquet(
     engine,
     schema=None,
     input_dir="data",
@@ -47,11 +47,7 @@ def upload_parquet_to_db(
                 """))
             admin_eng.dispose()
 
-    # 2) Re‑bind engine to the (now created) target database if needed
-    if db_name and engine.url.database != db_name:
-        engine = create_engine(engine.url.set(database=db_name))
-
-    # 3) Ensure the schema exists
+    # 2) Ensure the schema exists
     if schema:
         with engine.begin() as conn:
             if dialect == "postgresql":
@@ -75,14 +71,14 @@ def upload_parquet_to_db(
                     if "already exists" not in str(e).lower():
                         raise
 
-    # 4) Group Parquet files by table base name
+    # 3) Group Parquet files by table base name
     grouped = defaultdict(list)
     for fname in os.listdir(input_dir):
         if fname.endswith(".parquet"):
             base = fname.split("_part")[0].replace(".parquet", "")
             grouped[base].append(fname)
 
-    # 5) Write each group into its table
+    # 4) Write each group into its table
     for table_name, files in grouped.items():
         full_table = f"{schema}.{table_name}" if schema else table_name
         print(f"📦 Uploading {len(files)} part(s) to table {full_table}")
@@ -100,7 +96,7 @@ def upload_parquet_to_db(
 
         print(f"✅ Loaded: {table_name}")
 
-        # 6) Cleanup parquet files
+        # 5) Cleanup parquet files
         if cleanup:
             for fname in files:
                 os.remove(os.path.join(input_dir, fname))

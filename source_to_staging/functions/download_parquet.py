@@ -4,7 +4,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
 
-def dump_tables_to_parquet(
+def download_parquet(
     engine: Engine,
     tables,
     output_dir: str = "data",
@@ -57,7 +57,9 @@ def dump_tables_to_parquet(
                 if not rows:
                     break
 
-                df = pl.from_records(rows, schema=result.keys())
+                df = pl.from_records(
+                    rows, schema=result.keys(), infer_schema_length=len(rows) if rows else None
+                )
                 out_path = os.path.join(output_dir, f"{table}_part{chunk_idx:04d}.parquet")
                 df.write_parquet(out_path)
                 print(f"✅ Chunk {chunk_idx} written: {out_path}")

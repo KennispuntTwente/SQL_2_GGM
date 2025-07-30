@@ -1,13 +1,13 @@
 # Test migration functions across multiple database types using the demo logic
-# Run `pytest tests/test_source_to_staging.py -v` to execute this test
+# Run `pytest -v tests/test_source_to_staging.py` to execute this test
 
 import shutil
 from pathlib import Path
 import pytest
 from sqlalchemy import text
 
-from source_to_staging.functions.source_dump import dump_tables_to_parquet
-from source_to_staging.functions.upload_parquet import upload_parquet_to_db
+from source_to_staging.functions.download_parquet import download_parquet
+from source_to_staging.functions.upload_parquet import upload_parquet
 from ggm_dev_server.get_connection import get_connection
 
 # Configuration for different database types and ports
@@ -58,7 +58,7 @@ def run_migration_for_db_type(db_type: str):
     print("Source table created and data inserted")
 
     # Dump to Parquet
-    dump_tables_to_parquet(source_engine, [table_name], output_dir=str(dump_dir))
+    download_parquet(source_engine, [table_name], output_dir=str(dump_dir))
     print(f"Dumped table to parquet under {dump_dir}")
 
     # Start destination container & get engine
@@ -79,7 +79,7 @@ def run_migration_for_db_type(db_type: str):
 
 
     # Upload Parquet to destination
-    upload_parquet_to_db(dest_engine, schema=schema, input_dir=str(dump_dir))
+    upload_parquet(dest_engine, schema=schema, input_dir=str(dump_dir))
     print("Uploaded parquet data into destination database")
 
     # Verify results
