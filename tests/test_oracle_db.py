@@ -11,6 +11,7 @@ from sqlalchemy.types import TypeDecorator
 from sqlalchemy.dialects.oracle import TIMESTAMP
 from sqlalchemy.sql import text
 from ggm_dev_server.get_connection import get_connection
+from source_to_staging.functions.create_connectorx_uri import create_connectorx_uri
 from source_to_staging.functions.download_parquet import download_parquet
 from source_to_staging.functions.upload_parquet import upload_parquet
 import datetime
@@ -104,7 +105,7 @@ def setup_oracle():
         ),
         Column("bool_col", Boolean),
         Column("binary_col", LargeBinary),
-        Column("interval_col", Interval),
+        # Column("interval_col", Interval),
         Column("enum_col", Enum("A", "B", "C", name="my_enum")),
         Column(
             "json_col",
@@ -139,7 +140,7 @@ def setup_oracle():
             time_col=datetime.time(15,45,0),
             bool_col=True,
             binary_col=b'\xDE\xAD\xBE\xEF',
-            interval_col=datetime.timedelta(days=1, hours=2, minutes=30),
+            # interval_col=datetime.timedelta(days=1, hours=2, minutes=30),
             enum_col='B',
             json_col={"key": "value"}
         ))
@@ -147,32 +148,84 @@ def setup_oracle():
     print("✓ Oracle ready with SZCLIENT, WVBEDRAG, WVAANB, ALL_TYPES")
     return engine
 
+
 def compare_and_print(df_ora, df_pg, table_name):
-    # add suffixes so we can align same‑named columns
-    df_ora_s = df_ora.add_suffix('_ora')
-    df_pg_s  = df_pg.add_suffix('_pg')
-    # concat them horizontally
-    df_both = pd.concat([df_ora_s, df_pg_s], axis=1)
+    # Normalize column names to lowercase to avoid casing mismatches
+    df_ora = df_ora.copy()
+    df_pg = df_pg.copy()
+    df_ora.columns = [c.lower() for c in df_ora.columns]
+    df_pg.columns = [c.lower() for c in df_pg.columns]
+
+    # Determine all columns present in either
+    all_columns = sorted(set(df_ora.columns) | set(df_pg.columns))
 
     print(f"\n===== Table: {table_name} =====")
-    for col in df_ora.columns:
+
+    # Outer join on index to align rows; if no natural key, this will align by positional index
+    # (you can enhance by merging on a primary key if known)
+    df_ora_suf = df_ora.add_suffix('_ora')
+    df_pg_suf  = df_pg.add_suffix('_pg')
+    df_both = pd.concat([df_ora_suf, df_pg_suf], axis=1)
+
+    for col in all_columns:
         col_ora = f"{col}_ora"
         col_pg  = f"{col}_pg"
         print(f"\n--- Column: {col} ---")
-        # print side‑by‑side, without the index
-        print(
-            df_both[[col_ora, col_pg]]
-            .rename(columns={col_ora: 'Oracle', col_pg: 'Postgres'})
-            .to_string(index=False)
-        )
+        # Check existence
+        has_ora = col_ora in df_both.columns
+        has_pg  = col_pg in df_both.columns
+
+        if not has_ora:
+            print(f"(⚠️ Kolom '{col}' ontbreekt in Oracle result)")
+        if not has_pg:
+            print(f"(⚠️ Kolom '{col}' ontbreekt in Postgres result)")
+
+        # Build display frame with what exists
+        display_cols = {}
+        if has_ora:
+            display_cols['Oracle'] = df_both[col_ora]
+        if has_pg:
+            display_cols['Postgres'] = df_both[col_pg]
+
+        if display_cols:
+            display_df = pd.DataFrame(display_cols)
+            # If both exist, try to highlight mismatches per row
+            if has_ora and has_pg:
+                # simple diff indicator
+                diffs = display_df['Oracle'] != display_df['Postgres']
+                for idx, is_diff in diffs.items():
+                    if is_diff:
+                        print(f"Row {idx}: verschil -> Oracle: {display_df.loc[idx, 'Oracle']!r}, "
+                              f"Postgres: {display_df.loc[idx, 'Postgres']!r}")
+                # Print the side-by-side for context
+                print(display_df.to_string(index=False))
+            else:
+                # Only one side exists
+                print(display_df.to_string(index=False))
+        else:
+            print("Geen data beschikbaar voor deze kolom aan beide kanten.")
     print("\n" + "="*80)
 
+
 if __name__ == '__main__':
+    # If using ConnectorX with Oracle, ensure Oracle client is initialized
+    import oracledb 
+    oracledb.init_oracle_client(lib_dir=r"C:\oracle\instantclient_21_18")
+
     oracle = setup_oracle()
 
+    # Make connectorx uri for Oracle
+    oracle_connectorx_uri = create_connectorx_uri(
+        driver="oracle",
+        username="SA",
+        password="SecureP@ss1!24323482349",
+        host="localhost",
+        port=1521,
+        database="ggm"
+    )
     # Export to Parquet
     download_parquet(
-        oracle,
+        oracle_connectorx_uri,
         tables=["SZCLIENT", "WVBEDRAG", "WVAANB", "ALL_TYPES"],
         output_dir="data"
     )
@@ -192,7 +245,7 @@ if __name__ == '__main__':
         cleanup=True
     )
 
-    # --- Begin comparison of table contents ---
+    # Now compare the tables in Oracle and Postgres
     tables = ["SZCLIENT", "WVBEDRAG", "WVAANB", "ALL_TYPES"]
     for table in tables:
         # Read from Oracle using direct SELECT

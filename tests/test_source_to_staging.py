@@ -9,6 +9,10 @@ from sqlalchemy import text
 from source_to_staging.functions.download_parquet import download_parquet
 from source_to_staging.functions.upload_parquet import upload_parquet
 from ggm_dev_server.get_connection import get_connection
+from source_to_staging.functions.create_connectorx_uri import create_connectorx_uri
+
+import oracledb 
+oracledb.init_oracle_client(lib_dir=r"C:\oracle\instantclient_21_18")
 
 # Configuration for different database types and ports
 db_types = ["mariadb", "mysql", "postgres", "oracle", "sqlserver"]
@@ -33,7 +37,10 @@ username = "sa"
 password = "S3cureP@ssw0rd!23243"
 
 # Define procedure
-def run_migration_for_db_type(db_type: str):
+def run_migration_for_db_type(
+    db_type: str,
+    connectorx: bool = False,
+):
     print()
     print(f"\n--- DEMO for {db_type.upper()} ---")
     port = ports[db_type]
@@ -56,6 +63,17 @@ def run_migration_for_db_type(db_type: str):
         conn.execute(text(create_sql))
         conn.execute(text(insert_sql))
     print("Source table created and data inserted")
+
+    if connectorx:
+        # Set ConnectorX URI (instead of current SQLAlchemy engine)
+        source_engine = create_connectorx_uri(
+            driver=db_type,
+            username=username,
+            password=password,
+            host="localhost",
+            port=port,
+            database="test_source"
+        )
 
     # Dump to Parquet
     download_parquet(source_engine, [table_name], output_dir=str(dump_dir))
@@ -88,7 +106,13 @@ def run_migration_for_db_type(db_type: str):
 
     assert rows == [(1, 'foo'), (2, 'bar')]
 
-# Define test which runs procedure for each db_type
+# Define test which runs procedure for each db_type and for both with/without ConnectorX
+# ConnectorX support varies by driver; exclude those it doesn't support.
+supported_by_connectorx = {"mariadb", "mysql", "postgres", "sqlserver", "oracle"}  
+
 @pytest.mark.parametrize("db_type", db_types)
-def test_migration_roundtrip(db_type, tmp_path):
-    run_migration_for_db_type(db_type)
+@pytest.mark.parametrize("connectorx", [False, True])
+def test_migration_roundtrip(db_type, connectorx, tmp_path):
+    if connectorx and db_type not in supported_by_connectorx:
+        pytest.skip(f"ConnectorX is not supported for {db_type}")
+    run_migration_for_db_type(db_type, connectorx=connectorx)

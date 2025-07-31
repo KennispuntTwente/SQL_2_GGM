@@ -1,10 +1,11 @@
 import os
 from dotenv import load_dotenv
-from sqlalchemy import create_engine
+import oracledb
 
 from source_to_staging.functions.parse_args_and_load_parsers import parse_args_and_load_parsers
 from source_to_staging.functions.get_config_value import get_config_value
 from source_to_staging.functions.create_sqlalchemy_engine import create_sqlalchemy_engine
+from source_to_staging.functions.create_connectorx_uri import create_connectorx_uri
 from source_to_staging.functions.download_parquet import download_parquet
 from source_to_staging.functions.upload_parquet import upload_parquet
 
@@ -21,18 +22,44 @@ if os.path.exists("source_to_staging/.env"):
 args, source_cfg, dest_cfg = parse_args_and_load_parsers()
 
 # Build connection to source database
-source_url = create_sqlalchemy_engine(
-    driver = get_config_value("SRC_DRIVER", cfg_parser=source_cfg),
-    username = get_config_value("SRC_USERNAME", cfg_parser=source_cfg),
-    password = get_config_value("SRC_PASSWORD", cfg_parser=source_cfg),
-    host = get_config_value("SRC_HOST", cfg_parser=source_cfg),
-    port = int(get_config_value("SRC_PORT", cfg_parser=source_cfg)),
-    database = get_config_value("SRC_DB", cfg_parser=source_cfg)
-)
-source_engine = create_engine(source_url)
+if get_config_value("SRC_CONNECTORX", section="settings", cfg_parser=source_cfg):
+    # Use ConnectorX URI
+    source_connection = create_connectorx_uri(
+        driver = get_config_value("SRC_DRIVER", cfg_parser=source_cfg),
+        username = get_config_value("SRC_USERNAME", cfg_parser=source_cfg),
+        password = get_config_value("SRC_PASSWORD", cfg_parser=source_cfg),
+        host = get_config_value("SRC_HOST", cfg_parser=source_cfg),
+        port = int(get_config_value("SRC_PORT", cfg_parser=source_cfg)),
+        database = get_config_value("SRC_DB", cfg_parser=source_cfg)
+    )
+
+    # If SRC_CONNECTORX_ORACLE_CLIENT_PATH is set, use it to try to initialize Oracle client
+    oracle_client_path = get_config_value("SRC_CONNECTORX_ORACLE_CLIENT_PATH", cfg_parser=source_cfg)
+    if oracle_client_path:
+        print(f"Initializing Oracle client with path: {oracle_client_path}")
+        oracledb.init_oracle_client(lib_dir=oracle_client_path)
+    # If driver contains "oracle", warn user to set SRC_CONNECTORX_ORACLE_CLIENT_PATH
+    elif "oracle" in get_config_value("SRC_DRIVER", cfg_parser=source_cfg).lower():
+        print(
+            "Warning: using CONNECTORX & Oracle, but SRC_CONNECTORX_ORACLE_CLIENT_PATH is not set, "
+            "which means ConnectorX may not work correctly with Oracle databases. "
+            "Download here: https://www.oracle.com/database/technologies/instant-client/downloads.html; "
+            "then unzip, and set SRC_CONNECTORX_ORACLE_CLIENT_PATH to the path of the unzipped folder "
+            "(e.g., 'C:\\oracle\\instantclient_21_18') "
+        )
+else:
+    # Use SQLAlchemy engine
+    source_connection = create_sqlalchemy_engine(
+        driver = get_config_value("SRC_DRIVER", cfg_parser=source_cfg),
+        username = get_config_value("SRC_USERNAME", cfg_parser=source_cfg),
+        password = get_config_value("SRC_PASSWORD", cfg_parser=source_cfg),
+        host = get_config_value("SRC_HOST", cfg_parser=source_cfg),
+        port = int(get_config_value("SRC_PORT", cfg_parser=source_cfg)),
+        database = get_config_value("SRC_DB", cfg_parser=source_cfg)
+    )
 
 # Build connection to destination database
-dest_url = create_sqlalchemy_engine(
+dest_engine = create_sqlalchemy_engine(
     driver = get_config_value("DST_DRIVER", cfg_parser=dest_cfg),
     username = get_config_value("DST_USERNAME", cfg_parser=dest_cfg),
     password = get_config_value("DST_PASSWORD", cfg_parser=dest_cfg),
@@ -40,7 +67,6 @@ dest_url = create_sqlalchemy_engine(
     port = int(get_config_value("DST_PORT", cfg_parser=dest_cfg)),
     database = get_config_value("DST_DB", cfg_parser=dest_cfg)
 )
-dest_engine = create_engine(dest_url)
 
 # Read which tables to dump from source database
 tables_str = get_config_value("SRC_TABLES", section="settings", cfg_parser=source_cfg)
@@ -48,10 +74,11 @@ tables = [t.strip() for t in tables_str.split(",")]
 
 # Step 1/2: Dump tables from source to parquet files
 download_parquet(
-    source_engine,
+    source_connection,
     schema = get_config_value("SRC_SCHEMA", cfg_parser=source_cfg),
     tables = tables,
-    output_dir = "data"
+    output_dir = "data",
+    chunk_size = int(get_config_value("SRC_CHUNK_SIZE", section="settings", cfg_parser=source_cfg, default=100_000))
 )
 
 # Step 2/2: Upload parquet files into destination database
