@@ -3,15 +3,15 @@ from sqlalchemy import MetaData, select, and_, or_, func
 
 def BESCHIKTE_VOORZIENING(engine, source_schema=None):
     table_names = ["WVIND_B","SZREGEL","WVBESL","WVDOS","ABC_REFCOD"]
-    
+
     metadata = MetaData()
     metadata.reflect(bind=engine,
                      schema=source_schema,
                      only=table_names)
 
     # grab them (SQLAlchemy keys them as f"{schema}.{name}")
-    fq_names = [f"{source_schema}.{n}" for n in table_names]
-    wvind_b, szregel, wvbsel, wvdos, abc_refcod = (
+    fq_names = [f"{source_schema + '.' if source_schema else ''}{n}" for n in table_names]
+    wvind_b, szregel, wvbesl, wvdos, abc_refcod = (
         metadata.tables[name] for name in fq_names
     )
 
@@ -28,12 +28,12 @@ def BESCHIKTE_VOORZIENING(engine, source_schema=None):
                 wvind_b.c.BESLUITNR,
                 wvind_b.c.VOLGNR_IND
             ).label("BeschikteVoorzieningID"),
-            wvbsel.c.BESLUITNR.label("BeschikkingID"),
+            wvbesl.c.BESLUITNR.label("BeschikkingID"),
             abc_refcod.c.OMSCHRYVING.label("Redeneinde"),
         )
         .select_from(wvind_b)
         .outerjoin(szregel, wvind_b.c.KODE_REGELING == szregel.c.KODE_REGELING)
-        .outerjoin(wvbsel,  wvind_b.c.BESLUITNR   == wvbsel.c.BESLUITNR)
+        .outerjoin(wvbesl,  wvind_b.c.BESLUITNR   == wvbesl.c.BESLUITNR)
         .outerjoin(
             wvdos,
             and_(
@@ -59,7 +59,7 @@ def BESCHIKTE_VOORZIENING(engine, source_schema=None):
         )
     )
 
-ALL = {
+queries = {
     'BESCHIKTE_VOORZIENING': BESCHIKTE_VOORZIENING,
     # ...
 }
