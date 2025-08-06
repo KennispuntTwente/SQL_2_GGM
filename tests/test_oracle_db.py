@@ -10,13 +10,17 @@ from sqlalchemy import (
 from sqlalchemy.types import TypeDecorator
 from sqlalchemy.dialects.oracle import TIMESTAMP
 from sqlalchemy.sql import text
+
 from ggm_dev_server.get_connection import get_connection
 from source_to_staging.functions.create_connectorx_uri import create_connectorx_uri
 from source_to_staging.functions.download_parquet import download_parquet
 from source_to_staging.functions.upload_parquet import upload_parquet
+from source_to_staging.functions.initialize_oracle_client import initialize_oracle_client
+
 import datetime
 import json
 import pandas as pd
+from dotenv import load_dotenv
 
 # Custom TypeDecorator to handle Python time objects on Oracle
 class OracleTime(TypeDecorator):
@@ -208,13 +212,14 @@ def compare_and_print(df_ora, df_pg, table_name):
 
 
 if __name__ == '__main__':
+    # Load .env    
+    load_dotenv("source_to_staging\\.env")
+
     # If using ConnectorX with Oracle, ensure Oracle client is initialized
-    import oracledb 
-    oracledb.init_oracle_client(lib_dir=r"C:\oracle\instantclient_21_18")
+    initialize_oracle_client(config_key="SRC_CONNECTORX_ORACLE_CLIENT_PATH")
 
+    # Setup Oracle database with required tables
     oracle = setup_oracle()
-
-
 
     # Make connectorx uri for Oracle
     oracle_connectorx_uri = create_connectorx_uri(
@@ -225,6 +230,7 @@ if __name__ == '__main__':
         port=1521,
         database="ggm"
     )
+
     # Export to Parquet
     download_parquet(
         oracle_connectorx_uri,
