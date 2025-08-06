@@ -5,7 +5,7 @@ from sqlalchemy import (
     MetaData, Table, Column,
     Integer, BigInteger, SmallInteger, Float, Numeric,
     String, Text, DateTime, Date, Time, Boolean,
-    LargeBinary, Interval, Enum, JSON
+    LargeBinary, Enum, JSON
 )
 from sqlalchemy.types import TypeDecorator
 from sqlalchemy.dialects.oracle import TIMESTAMP
@@ -213,6 +213,8 @@ if __name__ == '__main__':
     oracledb.init_oracle_client(lib_dir=r"C:\oracle\instantclient_21_18")
 
     oracle = setup_oracle()
+
+
 
     # Make connectorx uri for Oracle
     oracle_connectorx_uri = create_connectorx_uri(

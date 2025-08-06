@@ -1,0 +1,55 @@
+LICENTIEVERKLARING – GEMEENTELIJK GEGEVENSMODEL (GGM)
+Copyright © 2025 Gemeente Delft
+https://github.com/Gemeente-Delft/Gemeentelijk-Gegevensmodel
+
+Het Gemeentelijk Gegevensmodel (GGM) is een informatiemodel ontwikkeld door de Gemeente Delft. Het model is bedoeld om gegevensuitwisseling en semantische interoperabiliteit te ondersteunen binnen en tussen gemeenten.
+
+Dit werk bestaat uit:
+- semantische modellen in UML, JSON, en andere formele representaties;
+- bijbehorende documentatie, figuren, visualisaties en toelichtingen.
+
+LICENTIE-INFORMATIE
+
+1. Het informatiemodel zelf (UML-bestanden/repositories, JSON-schema’s, tabellen en definities) valt onder de:
+
+    **European Union Public Licence (EUPL), versie 1.2**
+
+    U bent vrij om dit werk te gebruiken, te wijzigen en te herdistribueren, mits afgeleide werken worden verspreid onder de EUPL of een compatibele licentie.
+    Zie de volledige licentietekst: https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12
+
+2. De visuele elementen (zoals figuren, diagrammen en toelichtende tekst) vallen onder de:
+
+    **Creative Commons Attribution 4.0 International (CC-BY 4.0)**
+
+    U bent vrij om dit materiaal te kopiëren, verspreiden, bewerken en combineren, ook voor commerciële doeleinden, mits correcte bronvermelding wordt gedaan (bijv. "Bron: Gemeentelijk Gegevensmodel, Gemeente Delft").
+    Zie: https://creativecommons.org/licenses/by/4.0/
+
+---
+
+LICENSE NOTICE – MUNICIPAL INFORMATION MODEL (GGM)
+Copyright © 2025 Municipality of Delft
+https://github.com/Gemeente-Delft/Gemeentelijk-Gegevensmodel
+
+The Gemeentelijk Gegevensmodel (GGM) is an information model developed by the Municipality of Delft. It aims to support semantic interoperability and data exchange within and between Dutch municipalities.
+
+This work includes:
+- semantic models in UML, JSON, and other formal representations;
+- accompanying documentation, illustrations, and explanatory content.
+
+LICENSE TERMS
+
+1. The core information model (UML files/repositories, JSON schemas, tables and definitions) is licensed under the:
+
+    **European Union Public Licence (EUPL), version 1.2**
+
+    You are free to use, modify and redistribute this work, provided that derivative works are shared under the EUPL or a compatible license.
+    Full license text: https://joinup.ec.europa.eu/collection/eupl/eupl-text-eupl-12
+
+2. Visual elements (such as figures, diagrams and explanatory documentation) are licensed under the:
+
+    **Creative Commons Attribution 4.0 International (CC-BY 4.0)**
+
+    You are free to copy, distribute, modify and remix this content, including for commercial purposes, as long as appropriate credit is given (e.g. “Source: Gemeentelijk Gegevensmodel, Municipality of Delft”).
+    See: https://creativecommons.org/licenses/by/4.0/
+
+---
