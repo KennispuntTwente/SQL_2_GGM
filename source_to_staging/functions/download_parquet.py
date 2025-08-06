@@ -51,7 +51,7 @@ def download_parquet(
         if not schema:
             return tbl
         if scheme == "oracle":
-            return f"{schema.upper()}.{tbl.upper()}"
+            return tbl
         if scheme in ("mysql", "mariadb"):
             # MySQL URL already fixes the database; schema prefix breaks things
             return tbl
