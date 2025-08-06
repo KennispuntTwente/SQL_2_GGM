@@ -46,14 +46,9 @@ def download_parquet(
     else:
         raise ValueError("connection must be a SQLAlchemy Engine or a ConnectorX URI string")
 
-    # Helper: qualify table names by schema & dialect quirks
+    # Helper: qualify table names by schema
     def qualify(tbl: str) -> str:
         if not schema:
-            return tbl
-        if scheme == "oracle":
-            return tbl
-        if scheme in ("mysql", "mariadb"):
-            # MySQL URL already fixes the database; schema prefix breaks things
             return tbl
         return f"{schema}.{tbl}"
 
