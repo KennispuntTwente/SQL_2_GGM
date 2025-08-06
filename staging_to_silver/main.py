@@ -31,18 +31,23 @@ metadata_dest = MetaData()
 metadata_dest.reflect(bind=engine, schema=target_schema)
 
 # ─── run & load loop ────────────────────────────────────────────────────────
+write_modes = {
+    "BESCHIKTE_VOORZIENING": "append",
+    "ANOTHER_TABLE"       : "overwrite",
+    "YET_ANOTHER"         : "upsert",
+    # …
+}
+
 with engine.begin() as conn:
     for name, query_fn in queries.items():
-        # 1) build the SELECT from the source schema
+        # 1) extract the rows
         stmt   = query_fn(engine, source_schema=source_schema)
-        result = conn.execute(stmt)
-        rows   = [dict(r) for r in result.fetchall()]
+        rows   = [dict(r) for r in conn.execute(stmt).fetchall()]
         print(f"Fetched {len(rows)} rows from {source_schema}.{name}")
 
-        # 2) reflect or lookup the destination table in target schema
+        # 2) reflect or lookup the destination Table object
         full_dest = f"{target_schema}.{name}"
         if full_dest not in metadata_dest.tables:
-            # pull it in on the fly if it wasn’t in our initial reflect
             Table(
                 name,
                 metadata_dest,
@@ -51,6 +56,33 @@ with engine.begin() as conn:
             )
         dest_table = metadata_dest.tables[full_dest]
 
-        # 3) append new rows
-        conn.execute(dest_table.insert(), rows)
-        print(f"Appended {len(rows)} rows into {target_schema}.{name}")
+        # 3) decide what to do with these rows
+        mode = write_modes.get(name, "append").lower()
+
+        if mode == "overwrite":
+            # delete everything, then insert
+            conn.execute(dest_table.delete())
+            conn.execute(dest_table.insert(), rows)
+            print(f"Overwrote {target_schema}.{name} with {len(rows)} rows")
+
+        elif mode == "truncate":
+            # (if your DB supports TRUNCATE via SQLAlchemy text())
+            conn.execute(f"TRUNCATE TABLE {target_schema}.{name}")
+            conn.execute(dest_table.insert(), rows)
+            print(f"Truncated and loaded {len(rows)} rows into {target_schema}.{name}")
+
+        elif mode == "upsert":
+            # requires a primary key or unique constraint on dest_table
+            ins = dest_table.insert().values(rows)
+            # for Postgres:
+            upsert = ins.on_conflict_do_update(
+                index_elements=[dest_table.primary_key.columns.keys()[0]],
+                set_={c.name: c for c in ins.excluded if c.name not in dest_table.primary_key.columns}
+            )
+            conn.execute(upsert)
+            print(f"Upserted {len(rows)} rows into {target_schema}.{name}")
+
+        else:
+            # default: append
+            conn.execute(dest_table.insert(), rows)
+            print(f"Appended {len(rows)} rows into {target_schema}.{name}")
