@@ -15,13 +15,13 @@ import oracledb
 oracledb.init_oracle_client(lib_dir=r"C:\oracle\instantclient_21_18")
 
 # Configuration for different database types and ports
-db_types = ["mariadb", "mysql", "postgres", "oracle", "sqlserver"]
+db_types = ["mariadb", "mysql", "postgres", "oracle", "mssql"]
 ports = {
     "mariadb": 3307, 
     "mysql": 2053,
     "postgres": 5433,
     "oracle": 1522,
-    "sqlserver": 1434
+    "mssql": 1434
 }
 
 # Temporary dump directory
@@ -90,7 +90,7 @@ def run_migration_for_db_type(
         schema = username
     elif db_type == "postgres":
         schema = "public"
-    elif db_type == "sqlserver":
+    elif db_type == "mssql":
         schema = "dbo"
     else:
         schema = None  # MySQL and others don't typically use named schemas
@@ -108,7 +108,7 @@ def run_migration_for_db_type(
 
 # Define test which runs procedure for each db_type and for both with/without ConnectorX
 # ConnectorX support varies by driver; exclude those it doesn't support.
-supported_by_connectorx = {"mariadb", "mysql", "postgres", "sqlserver", "oracle"}  
+supported_by_connectorx = {"mariadb", "mysql", "postgres", "mssql", "oracle"}  
 
 @pytest.mark.parametrize("db_type", db_types)
 @pytest.mark.parametrize("connectorx", [False, True])

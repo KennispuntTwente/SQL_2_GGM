@@ -39,7 +39,7 @@ def _connect_oracle(cfg: Dict[str, Any]):
     )
 
 SQL_SERVER_DRIVER = "ODBC Driver 18 for SQL Server"  # Ensure this is installed
-def _connect_sqlserver(cfg: Dict[str, Any]):
+def _connect_mssql(cfg: Dict[str, Any]):
     conn_str = (
         f"DRIVER={{{SQL_SERVER_DRIVER}}};"
         f"SERVER={cfg['host']},{cfg['port']};"
@@ -87,7 +87,7 @@ SETTINGS = {
         },
         connector=_connect_oracle,
     ),
-    "sqlserver": dict(
+    "mssql": dict(
         image="mcr.microsoft.com/mssql/server:2022-latest",
         default_port=1433,
         env=lambda user, password, db_name: {
@@ -95,7 +95,7 @@ SETTINGS = {
             "MSSQL_PID": "Developer",
             "SA_PASSWORD": password,
         },
-        connector=_connect_sqlserver,
+        connector=_connect_mssql,
     ),
     "mysql": dict(
         image="mysql:8.0",
@@ -336,7 +336,7 @@ def get_connection(
         "port":      host_port,
     }
 
-    if db_type == "sqlserver":
+    if db_type == "mssql":
         # Wait until SQL Server is up (using master)
         _wait_for_db_ready(cfg["connector"], master_cfg, max_wait_seconds)
 
@@ -374,7 +374,7 @@ def get_connection(
             port=host_port,
             query={"service_name": db_name},
         )
-    elif db_type == "sqlserver":
+    elif db_type == "mssql":
         url = URL.create(
             drivername="mssql+pyodbc",
             username=user,
@@ -419,7 +419,7 @@ def get_connection(
             elif db_type in ("mysql", "mariadb"):
                 # MariaDB uses the same information_schema layout as MySQL
                 query = f"SELECT table_name FROM information_schema.tables WHERE table_schema='{db_name}'"
-            elif db_type == "sqlserver":
+            elif db_type == "mssql":
                 query = "SELECT table_name FROM information_schema.tables WHERE table_schema='dbo'"
             else:
                 # unlikely to happen since you validated db_type at the top
@@ -475,9 +475,9 @@ if __name__ == "__main__":
     #     force_refresh=True,
     # )
 
-    # # Try SQL Server
-    # conn_sqlserver = get_connection(
-    #     db_type="sqlserver",
+    # # Try Microsoft SQL Server
+    # conn_mssql = get_connection(
+    #     db_type="mssql",
     #     db_name="ggm",
     #     user="sa",
     #     password="SecureP@ss1!24323482349",
