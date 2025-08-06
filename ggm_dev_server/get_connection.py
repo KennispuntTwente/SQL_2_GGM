@@ -18,6 +18,8 @@ import pymysql
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import URL
 
+from ggm_dev_server.preprocess_sql import preprocess_sql
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Driver‑specific helpers
@@ -234,17 +236,53 @@ def _wait_for_db_ready(
 
 
 # ────────────────────────────────────────────────────────────────────────────────
-# Optional SQL bootstrap
+# Optional SQL bootstrap (extra-verbose: totals + filtered list)
 # ────────────────────────────────────────────────────────────────────────────────
-def _run_sql_scripts(sql_folder: Path, connector: Callable, connect_cfg: dict):
-    for sql_file in sorted(sql_folder.glob("*.sql")):
-        print(f"Running {sql_file.name}…")
-        conn = connector(connect_cfg); cur = conn.cursor()
-        cur.execute(sql_file.read_text(encoding="utf-8"))
-        conn.commit(); cur.close(); conn.close()
-    print("All SQL scripts executed successfully.")
-    
+def _run_sql_scripts(
+    sql_folder: Path,
+    connector: Callable[[Dict[str, Any]], Any],
+    connect_cfg: Dict[str, Any],
+    db_type: str,
+    suffix_filter: bool = True,
+):
+    # ── 1. discover files ───────────────────────────────────
+    if not sql_folder.exists():
+        print(f"⚠️  Folder {sql_folder.resolve()} does not exist – nothing to do.")
+        return
 
+    all_sql_files = sorted(sql_folder.glob("*.sql"))
+    print(f"📂 Found {len(all_sql_files)} .sql file(s) in {sql_folder.resolve()}")
+
+    db_suffix = f"_{db_type}.sql".lower()
+    run_files = [
+        f for f in all_sql_files
+        if not suffix_filter or f.name.lower().endswith(db_suffix)
+    ]
+
+    print(f"🗂️  {len(run_files)} file(s) remain after filtering:")
+    for f in run_files:
+        print(f"   • {f.name}")
+    if not run_files:
+        print("⏭️  Nothing to execute after filtering.")
+        return
+
+    # ── 2. open one connection and cursor ───────────────────
+    with connector(connect_cfg) as conn, conn.cursor() as cur:
+        for file in run_files:
+            raw_sql = file.read_text(encoding="utf-8")
+            sql     = preprocess_sql(raw_sql, db_type)
+
+            try:
+                cur.execute(sql)
+                conn.commit()
+                print(f"✅ {file.name} executed successfully.")
+            except Exception as exc:
+                conn.rollback()
+                print(f"❌ ERROR executing {file.name}: {exc}")
+                raise  # or `continue` if you’d rather skip the rest
+
+    print("🏁 SQL boot-strap finished.\n")
+    
 # ────────────────────────────────────────────────────────────────────────────────
 # Public helpers
 # ────────────────────────────────────────────────────────────────────────────────
@@ -255,7 +293,8 @@ def get_connection(
     password: str = "ChangeMe123!",
     port: int | None = None,
     max_wait_seconds: int | None = None,
-    sql_folder: str | Path | None = None,
+    sql_folder: str | Path | None = None, # Map met SQL-scripts die moeten worden uitgevoerd bij de eerste keer starten van de DB
+    sql_suffix_filter: bool = True, # Of alleen de SQL-scripts moeten worden uitgevoerd die eindigen op _<db_type>.sql
     print_tables: bool = True,
     *,
     container_name: str | None = None,
@@ -317,7 +356,13 @@ def get_connection(
 
     # Run initial SQL scripts if provided
     if was_created and sql_folder is not None:
-        _run_sql_scripts(Path(sql_folder), cfg["connector"], target_cfg)
+        _run_sql_scripts(
+            sql_folder=Path(sql_folder),
+            connector=cfg["connector"],
+            connect_cfg=target_cfg,
+            db_type=db_type, # bv. "postgres"
+            suffix_filter=sql_suffix_filter # alleen *_postgres.sql
+        )
 
     # Build SQLAlchemy URL
     if db_type == "oracle":
@@ -388,53 +433,54 @@ def get_connection(
 # Demo
 # ────────────────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    # Try MariaDB
-    conn_mariadb = get_connection(
-        db_type="mariadb",
-        db_name="ggm",
-        user="sa",
-        password="SecureP@ss1!24323482349",
-        # sql_folder="./ggm_dev_server/sql/selectie",
-        force_refresh=True,
-        port=3706,  # Custom port for MariaDB to avoid conflict with MySQL
-    )
-
-    # Try MySQL
-    conn_mysql = get_connection(
-        db_type="mysql",
-        db_name="ggm",
-        user="sa",
-        password="SecureP@ss1!24323482349",
-        # sql_folder="./ggm_dev_server/sql/selectie",
-        force_refresh=True,
-    )
-
     # Try Postgres
     conn_postgres = get_connection(
         db_type="postgres",
         db_name="ggm",
         user ="sa",
         password="SecureP@ss1!24323482349",
-        sql_folder="./ggm_dev_server/sql/selectie",
-        force_refresh=True,
+        sql_folder="./ggm_selectie",
+        sql_suffix_filter=True,
+        force_refresh=True,        
     )
 
-    # Try Oracle
-    conn_oracle = get_connection(
-        db_type="oracle",
-        db_name="ggm",
-        user="sa",
-        password="SecureP@ss1!24323482349",
-        # sql_folder="./ggm_dev_server/sql/selectie",
-        force_refresh=True,
-    )
+    # # Try MariaDB
+    # conn_mariadb = get_connection(
+    #     db_type="mariadb",
+    #     db_name="ggm",
+    #     user="sa",
+    #     password="SecureP@ss1!24323482349",
+    #     # sql_folder="./ggm_dev_server/sql/selectie",
+    #     force_refresh=True,
+    #     port=3706,  # Custom port for MariaDB to avoid conflict with MySQL
+    # )
 
-    # Try SQL Server
-    conn_sqlserver = get_connection(
-        db_type="sqlserver",
-        db_name="ggm",
-        user="sa",
-        password="SecureP@ss1!24323482349",
-        # sql_folder="./ggm_dev_server/sql/selectie",
-        force_refresh=True,
-    )
+    # # Try MySQL
+    # conn_mysql = get_connection(
+    #     db_type="mysql",
+    #     db_name="ggm",
+    #     user="sa",
+    #     password="SecureP@ss1!24323482349",
+    #     # sql_folder="./ggm_dev_server/sql/selectie",
+    #     force_refresh=True,
+    # )
+
+    # # Try Oracle
+    # conn_oracle = get_connection(
+    #     db_type="oracle",
+    #     db_name="ggm",
+    #     user="sa",
+    #     password="SecureP@ss1!24323482349",
+    #     # sql_folder="./ggm_dev_server/sql/selectie",
+    #     force_refresh=True,
+    # )
+
+    # # Try SQL Server
+    # conn_sqlserver = get_connection(
+    #     db_type="sqlserver",
+    #     db_name="ggm",
+    #     user="sa",
+    #     password="SecureP@ss1!24323482349",
+    #     # sql_folder="./ggm_dev_server/sql/selectie",
+    #     force_refresh=True,
+    # )
