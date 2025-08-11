@@ -1,8 +1,8 @@
 # staging_to_silver/functions/queries.py
-from sqlalchemy import MetaData, select, and_, or_, func
+from sqlalchemy import MetaData, select, and_, or_, func, literal
 
 def RECHTSPERSOON(engine, source_schema=None):
-    table_names = ["WVAANB"]
+    table_names = ["WVAANB", "SZCRED"]
 
     metadata = MetaData()
     metadata.reflect(bind=engine,
@@ -11,45 +11,50 @@ def RECHTSPERSOON(engine, source_schema=None):
 
     # grab them (SQLAlchemy keys them as f"{schema}.{name}")
     fq_names = [f"{source_schema + '.' if source_schema else ''}{n}" for n in table_names]
-    wvaanb = (
+    wvaanb, szcred = (
         metadata.tables[name] for name in fq_names
     )
 
     return (
         select(
             wvaanb.c.VOORZNR.label("RECHTSPERSOON_ID"),
-            wvaanb.c.DD_BEGIN.label("ADRESBINNENLAND"),
             wvaanb.c.EMAIL.label("EMAILADRES"),
             wvaanb.c.FAX.label("FAXNUMMER"),
             wvaanb.c.AGB_NR.label("IDENTIFICATIE"),
-            wvaanb.c.DD_BEGIN.label("KVKNUMMER"),
+            szcred.c.KVK_NR.label("KVKNUMMER"),
             wvaanb.c.NAAM.label("NAAM"),
-            wvaanb.c.CODE_FREQUENTIE.label("RECHTSVORM"),
-            wvaanb.c.VOLUME.label("REKENINGNUMMER"),
-            wvaanb.c.STATUS_INDICATIE.label("TELEFOONNUMMER"),
+            # wvaanb.c.??.label("RECHTSVORM"),
+            szcred.c.IBAN.label("REKENINGNUMMER"),
+            wvaanb.c.TELEFOON.label("TELEFOONNUMMER"),
 
             func.concat(
-                wvaanb.c.WOONPLAATS,
-                wvaanb.c.STRAAT,
-                wvaanb.c.HUISNUMMER,
-                wvaanb.c.HUISLETTER,
-                wvaanb.c.HUISNR_TOEV,
-                wvaanb.c.AAND_HUISNR,
-                wvaanb.c.POSTCODE,
-            ).label("ADRESBINNENLAND"),
+                func.coalesce(wvaanb.c.STRAAT, literal('')),
+                literal(' '),
+                func.coalesce(wvaanb.c.HUISNUMMER, literal('')),
+                func.coalesce(wvaanb.c.HUISLETTER, literal('')),
+                func.coalesce(wvaanb.c.HUISNR_TOEV, literal('')),
+                func.coalesce(wvaanb.c.AAND_HUISNR, literal('')),
+                literal(', '),
+                func.coalesce(wvaanb.c.POSTCODE, literal('')),
+                literal(' '),
+                func.coalesce(wvaanb.c.WOONPLAATS, literal(''))
+            ).label("ADRESBINNENLAND")
 
             func.concat(
-                wvaanb.c.WOONPLAATS,
-                wvaanb.c.STRAAT,
-                wvaanb.c.HUISNUMMER,
-                wvaanb.c.HUISLETTER,
-                wvaanb.c.HUISNR_TOEV,
-                wvaanb.c.AAND_HUISNR,
-                wvaanb.c.POSTCODE,
-            ).label("ADRESCORRESPONDENTIE"),
-            
-            )
-        )
+                func.coalesce(wvaanb.c.STRAAT, literal('')),
+                literal(' '),
+                func.coalesce(wvaanb.c.HUISNUMMER, literal('')),
+                func.coalesce(wvaanb.c.HUISLETTER, literal('')),
+                func.coalesce(wvaanb.c.HUISNR_TOEV, literal('')),
+                func.coalesce(wvaanb.c.AAND_HUISNR, literal('')),
+                literal(', '),
+                func.coalesce(wvaanb.c.POSTCODE, literal('')),
+                literal(' '),
+                func.coalesce(wvaanb.c.WOONPLAATS, literal(''))
+            ).label("ADRESCORRESPONDENTIE")
+
+        .select_from(wvaanb)
+        .outerjoin(szcred, wvaanb.c.KODE_CREDITEUR == szcred.c.KODE_CREDITEUR)
    
 
 queries = {
