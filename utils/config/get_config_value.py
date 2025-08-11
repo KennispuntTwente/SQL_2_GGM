@@ -1,5 +1,6 @@
 import os
 
+
 def interpret_value(value):
     """
     Converts string representations of booleans/numbers to actual bools if applicable.
@@ -17,12 +18,12 @@ def interpret_value(value):
 
 
 def get_config_value(
-    key, 
-    section="database", 
+    key,
+    section="database",
     cfg_parser=None,
-    default=None, 
+    default=None,
     print_value=True,
-    section_is_prefix_for_env=False
+    section_is_prefix_for_env=False,
 ):
     """
     Get configuration value from INI file if present and non-empty, otherwise from environment variable
@@ -39,11 +40,15 @@ def get_config_value(
         if ini_value.strip() == "":
             ini_value = None
         else:
-            if (print):
-                print(f"INI value for {key} in section [{section}]: {interpret_value(ini_value)}")
+            if print:
+                print(
+                    f"INI value for {key} in section [{section}]: {interpret_value(ini_value)}"
+                )
             return interpret_value(ini_value)
 
-        print(f"Warning: {key} in section [{section}] is not set or empty in INI file (falling back).")
+        print(
+            f"Warning: {key} in section [{section}] is not set or empty in INI file (falling back)."
+        )
 
     # Fallback to environment variable
     print(f"Using environment variable for {key}")
@@ -53,7 +58,9 @@ def get_config_value(
     env_value = os.environ.get(key)
 
     if env_value is None or env_value.strip() == "":
-        print(f"Warning: {key} is not set or is empty in environment variables (falling back).")
+        print(
+            f"Warning: {key} is not set or is empty in environment variables (falling back)."
+        )
     else:
         if print:
             print(f"Environment variable for {key}: {interpret_value(env_value)}")

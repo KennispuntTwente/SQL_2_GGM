@@ -1,7 +1,10 @@
 import oracledb
 from source_to_staging.functions.get_config_value import get_config_value
 
-def initialize_oracle_client(config_key="SRC_CONNECTORX_ORACLE_CLIENT_PATH", cfg_parser=None):
+
+def initialize_oracle_client(
+    config_key="SRC_CONNECTORX_ORACLE_CLIENT_PATH", cfg_parser=None
+):
     """
     Initialize the Oracle client using a path specified in configuration.
 

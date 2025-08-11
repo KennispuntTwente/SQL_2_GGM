@@ -44,7 +44,9 @@ def download_parquet(
         engine = connection
         scheme = engine.dialect.name.lower()
     else:
-        raise ValueError("connection must be a SQLAlchemy Engine or a ConnectorX URI string")
+        raise ValueError(
+            "connection must be a SQLAlchemy Engine or a ConnectorX URI string"
+        )
 
     # Helper: qualify table names by schema
     def qualify(tbl: str) -> str:
@@ -92,9 +94,13 @@ def download_parquet(
             print(f"📥 Dumping table via SQLAlchemy: {qualified}")
             with engine.connect() as conn:
                 try:
-                    row_count = conn.execute(text(f"SELECT COUNT(*) FROM {qualified}")).scalar()
+                    row_count = conn.execute(
+                        text(f"SELECT COUNT(*) FROM {qualified}")
+                    ).scalar()
                 except Exception as err:
-                    raise RuntimeError(f"Failed to count rows for {qualified}: {err}") from err
+                    raise RuntimeError(
+                        f"Failed to count rows for {qualified}: {err}"
+                    ) from err
 
                 print(f"   (total rows: {row_count:,})")
 

@@ -6,6 +6,7 @@ import argparse
 import configparser
 from typing import Tuple, Optional
 
+
 def parse_and_load_ini_configs(
     prog_desc: str = "Run source to staging data migration",
     src_arg: Tuple[str, str] = ("--source-config", "-s"),
@@ -66,7 +67,7 @@ def parse_and_load_ini_configs(
         return cfg
 
     source_cfg = _load(getattr(args, "source_config", None), "source")
-    dest_cfg   = _load(getattr(args, "destination_config", None), "destination")
+    dest_cfg = _load(getattr(args, "destination_config", None), "destination")
     return args, source_cfg, dest_cfg
 
 

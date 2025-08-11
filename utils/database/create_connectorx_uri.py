@@ -10,19 +10,19 @@ def create_connectorx_uri(
     port: Optional[int] = None,
     database: Optional[str] = None,
     *,
-    #—extra knobs taken straight from the docs —
-    protocol: Optional[str] = None,          # MySQL / Postgres
-    sslmode: Optional[str] = None,           # Postgres
-    trusted_connection: bool = False,        # MsSQL
-    encrypt: bool = False,                   # MsSQL
-    alias: bool = False,                     # Oracle TNS alias
+    # —extra knobs taken straight from the docs —
+    protocol: Optional[str] = None,  # MySQL / Postgres
+    sslmode: Optional[str] = None,  # Postgres
+    trusted_connection: bool = False,  # MsSQL
+    encrypt: bool = False,  # MsSQL
+    alias: bool = False,  # Oracle TNS alias
     extra: Optional[Mapping[str, str]] = None,  # any other key=value pairs
 ) -> str:
     """
     Build a ConnectorX connection‑URI.
 
     Args:
-        driver: A hint such as 'mssql', 'sqlserver', 'mysql', 'oracle', 
+        driver: A hint such as 'mssql', 'sqlserver', 'mysql', 'oracle',
                 'postgres', 'redshift', or 'sqlite'.
         username/password/host/port/database: familiar pieces of the DSN.
         protocol: 'binary' or 'text' for MySQL; 'binary', 'csv', or 'cursor' for Postgres.

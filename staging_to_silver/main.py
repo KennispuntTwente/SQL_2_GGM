@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 from sqlalchemy import MetaData, Table, text
 
-from utils.config.cli_ini_config import load_single_ini_config 
+from utils.config.cli_ini_config import load_single_ini_config
 from utils.config.get_config_value import get_config_value
 
 from utils.database.create_sqlalchemy_engine import create_sqlalchemy_engine
@@ -18,23 +18,28 @@ args, cfg = load_single_ini_config()
 
 # ─── Build connection to database ──────────────────────────────────────────────
 engine = create_sqlalchemy_engine(
-    driver   = get_config_value("DRIVER", cfg_parser=cfg),
-    username = get_config_value("USER", cfg_parser=cfg),
-    password = get_config_value("PASSWORD", cfg_parser=cfg, print_value=False),
-    host     = get_config_value("HOST", cfg_parser=cfg),
-    port     = int(get_config_value("PORT", cfg_parser=cfg)),
-    database = get_config_value("DB", cfg_parser=cfg),
+    driver=get_config_value("DRIVER", cfg_parser=cfg),
+    username=get_config_value("USER", cfg_parser=cfg),
+    password=get_config_value("PASSWORD", cfg_parser=cfg, print_value=False),
+    host=get_config_value("HOST", cfg_parser=cfg),
+    port=int(get_config_value("PORT", cfg_parser=cfg)),
+    database=get_config_value("DB", cfg_parser=cfg),
 )
 
 # ─── Read source/target schema from config ─────────────────────────────────────
-source_schema = get_config_value("SOURCE_SCHEMA", section="settings", cfg_parser=cfg, default="staging")
-target_schema = get_config_value("TARGET_SCHEMA", section="settings", cfg_parser=cfg, default="silver")
+source_schema = get_config_value(
+    "SOURCE_SCHEMA", section="settings", cfg_parser=cfg, default="staging"
+)
+target_schema = get_config_value(
+    "TARGET_SCHEMA", section="settings", cfg_parser=cfg, default="silver"
+)
 
 # ─── Fill engine with data for testing (optional) ─────────────────────────────
 
 if get_config_value("TEST_MODE", cfg_parser=cfg, default=False):
     from ggm_dev_server.get_connection import get_connection
     from staging_to_silver.functions.test_silver_to_staging import fill_engine_with_data
+
     engine = get_connection(
         db_type="postgres",
         db_name=get_config_value("DB", cfg_parser=cfg),
@@ -53,8 +58,8 @@ metadata_dest = MetaData()
 # ─── Define write‑modes per destination (GGM) table ─────────────────────────────
 write_modes = {
     "BESCHIKTE_VOORZIENING": "append",
-    "ANOTHER_TABLE"       : "overwrite",
-    "YET_ANOTHER"         : "upsert",
+    "ANOTHER_TABLE": "overwrite",
+    "YET_ANOTHER": "upsert",
     # … add / override as required
 }
 
@@ -76,7 +81,7 @@ with engine.begin() as conn:  # single, atomic transaction
     for name, query_fn in queries.items():
         # 1) build the SELECT statement that extracts from the source schema
         select_stmt = query_fn(engine, source_schema=source_schema)
-        
+
         # Get the column names from the select statement
         select_col_order = [col.name for col in select_stmt.selected_columns]
 
@@ -88,7 +93,7 @@ with engine.begin() as conn:  # single, atomic transaction
             autoload_with=engine,
             extend_existing=True,
         )
-        
+
         # Get the actual Column objects from the destination table
         dest_cols = [dest_table.columns[col_name] for col_name in select_col_order]
         print(f"Reordered destination columns: {[col.name for col in dest_cols]}")
@@ -114,8 +119,11 @@ with engine.begin() as conn:  # single, atomic transaction
             # On PostgreSQL – adjust index_elements to your PK/UK definition
             upsert_stmt = insert_from_select.on_conflict_do_update(
                 index_elements=list(dest_table.primary_key.columns.keys()),
-                set_={c.name: insert_from_select.excluded[c.name]
-                      for c in dest_table.columns if not c.primary_key}
+                set_={
+                    c.name: insert_from_select.excluded[c.name]
+                    for c in dest_table.columns
+                    if not c.primary_key
+                },
             )
             conn.execute(upsert_stmt)
             print(f"Upserted → {full_name}")

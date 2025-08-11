@@ -1,6 +1,6 @@
 # Dit Python-script legt verbinding met een ontwikkel-database die draait in een Docker-container
 # De get_connection legt verbindnding met de container; deze functie start de container indien nodig,
-#   en als de container voor de eerste keer wordt gestart, worden ook alle SQL-scripts uitgevoerd uit een 
+#   en als de container voor de eerste keer wordt gestart, worden ook alle SQL-scripts uitgevoerd uit een
 #   opgegeven map (deze kunnen de database initialiseren met tabellen naar het GGM, bijv.)
 
 from __future__ import annotations
@@ -28,18 +28,18 @@ from ggm_dev_server.preprocess_sql import preprocess_sql
 def _connect_postgres(cfg: Dict[str, Any]):
     return psycopg2.connect(**cfg)
 
+
 def _connect_oracle(cfg: Dict[str, Any]):
     """Connect to the PDB named in cfg['dbname']."""
     oracledb.defaults.fetch_lobs = False
     # Use the dynamic service_name instead of the fixed FREEPDB1
     dsn = f"{cfg['host']}:{cfg['port']}/{cfg['dbname']}"
-    return oracledb.connect(
-        user=cfg["user"],
-        password=cfg["password"],
-        dsn=dsn
-    )
+    return oracledb.connect(user=cfg["user"], password=cfg["password"], dsn=dsn)
+
 
 SQL_SERVER_DRIVER = "ODBC Driver 18 for SQL Server"  # Ensure this is installed
+
+
 def _connect_mssql(cfg: Dict[str, Any]):
     conn_str = (
         f"DRIVER={{{SQL_SERVER_DRIVER}}};"
@@ -50,15 +50,16 @@ def _connect_mssql(cfg: Dict[str, Any]):
     )
     return pyodbc.connect(conn_str)
 
+
 def _connect_mysql(cfg: Dict[str, Any]):
     """Connect to MySQL."""
     return pymysql.connect(
-        host=cfg['host'],
-        port=cfg['port'],
-        user=cfg['user'],
-        password=cfg['password'],
-        database=cfg['dbname'],
-        autocommit=True
+        host=cfg["host"],
+        port=cfg["port"],
+        user=cfg["user"],
+        password=cfg["password"],
+        database=cfg["dbname"],
+        autocommit=True,
     )
 
 
@@ -81,10 +82,10 @@ SETTINGS = {
         default_port=1521,
         # Pass ORACLE_DATABASE so the container will create a PDB with that name
         env=lambda user, password, db_name: {
-            "ORACLE_PASSWORD":    password,
-            "ORACLE_DATABASE":    db_name, 
-            "APP_USER":           user,
-            "APP_USER_PASSWORD":  password,
+            "ORACLE_PASSWORD": password,
+            "ORACLE_DATABASE": db_name,
+            "APP_USER": user,
+            "APP_USER_PASSWORD": password,
         },
         connector=_connect_oracle,
     ),
@@ -109,7 +110,7 @@ SETTINGS = {
         },
         connector=_connect_mysql,
     ),
-    "mariadb": dict(             
+    "mariadb": dict(
         image="mariadb:latest",
         default_port=3306,
         env=lambda user, password, db_name: {
@@ -127,6 +128,7 @@ SETTINGS = {
 # ────────────────────────────────────────────────────────────────────────────────
 # Docker helpers
 # ────────────────────────────────────────────────────────────────────────────────
+
 
 def _ensure_container_running(
     db_type: str,
@@ -153,7 +155,8 @@ def _ensure_container_running(
         # blow away everything and start from scratch
         try:
             old = client.containers.get(container_name)
-            old.stop(); old.remove()
+            old.stop()
+            old.remove()
         except docker.errors.NotFound:
             pass
         try:
@@ -175,7 +178,9 @@ def _ensure_container_running(
             environment=cfg["env"](user, password, db_name),
             ports={f"{cfg['default_port']}/tcp": port},
             volumes={volume_name: {"bind": "/var/lib/data", "mode": "rw"}},
-            healthcheck={"test": ["CMD", "healthcheck.sh"]} if db_type == "oracle" else None,
+            healthcheck={"test": ["CMD", "healthcheck.sh"]}
+            if db_type == "oracle"
+            else None,
             detach=True,
         )
         was_created = True
@@ -186,6 +191,7 @@ def _ensure_container_running(
 # ────────────────────────────────────────────────────────────────────────────────
 # Generic “wait until DB accepts connections” helper
 # ────────────────────────────────────────────────────────────────────────────────
+
 
 def _wait_for_db_ready(
     connector: Callable,
@@ -223,11 +229,14 @@ def _wait_for_db_ready(
 
             now = time.time()
             past_force_threshold = (
-                force_print_after is not None and (now - start_time) >= force_print_after
+                force_print_after is not None
+                and (now - start_time) >= force_print_after
             )
             if print_errors or past_force_threshold:
                 sys.stdout.write(
-                    f"\rLast connection attempt (errors are normal when DB is not yet ready, but sometimes may indicate a problem): {err_msg}".ljust(120)
+                    f"\rLast connection attempt (errors are normal when DB is not yet ready, but sometimes may indicate a problem): {err_msg}".ljust(
+                        120
+                    )
                 )
                 sys.stdout.flush()
 
@@ -262,7 +271,8 @@ def _run_sql_scripts(
 
     db_suffix = f"_{db_type}.sql".lower()
     run_files = [
-        f for f in all_sql_files
+        f
+        for f in all_sql_files
         if not suffix_filter or f.name.lower().endswith(db_suffix)
     ]
 
@@ -275,7 +285,6 @@ def _run_sql_scripts(
 
         # ── 2. open one connection and cursor ───────────────────
     with connector(connect_cfg) as conn, conn.cursor() as cur:
-
         # ── 2a. ensure/use target schema per backend ────────
         if schema:
             if db_type == "postgres":
@@ -294,19 +303,23 @@ def _run_sql_scripts(
                 )
 
             elif db_type == "oracle":
-                print("⚠️ Oracle: schemas are users. To CREATE objects in a schema named "
-                      f"{schema!r}, connect as that user or qualify objects "
-                      f"explicitly (e.g., {schema}.table_name). "
-                      "ALTER SESSION SET CURRENT_SCHEMA only affects name resolution, "
-                      "not the target of CREATE statements.")
+                print(
+                    "⚠️ Oracle: schemas are users. To CREATE objects in a schema named "
+                    f"{schema!r}, connect as that user or qualify objects "
+                    f"explicitly (e.g., {schema}.table_name). "
+                    "ALTER SESSION SET CURRENT_SCHEMA only affects name resolution, "
+                    "not the target of CREATE statements."
+                )
 
             elif db_type in ("mysql", "mariadb"):
-                print("⚠️ MySQL/MariaDB: a SCHEMA == a DATABASE. Use a separate database "
-                      f"named {schema!r} and pass it as db_name, or qualify objects.")
+                print(
+                    "⚠️ MySQL/MariaDB: a SCHEMA == a DATABASE. Use a separate database "
+                    f"named {schema!r} and pass it as db_name, or qualify objects."
+                )
 
         for file in run_files:
             raw_sql = file.read_text(encoding="utf-8")
-            sql     = preprocess_sql(raw_sql, db_type)
+            sql = preprocess_sql(raw_sql, db_type)
             try:
                 cur.execute(sql)
                 conn.commit()
@@ -317,7 +330,8 @@ def _run_sql_scripts(
                 raise
 
     print("🏁 SQL boot-strap finished.\n")
-    
+
+
 # ────────────────────────────────────────────────────────────────────────────────
 # Public helpers
 # ────────────────────────────────────────────────────────────────────────────────
@@ -328,9 +342,12 @@ def get_connection(
     password: str = "ChangeMe123!",
     port: int | None = None,
     max_wait_seconds: int | None = None,
-    sql_folder: str | Path | None = None, # Map met SQL-scripts die moeten worden uitgevoerd bij de eerste keer starten van de DB
-    sql_suffix_filter: bool = True, # Of alleen de SQL-scripts moeten worden uitgevoerd die eindigen op _<db_type>.sql
-    sql_schema: str | None = None, # Schema waarin de SQL-scripts moeten worden uitgevoerd
+    sql_folder: str
+    | Path
+    | None = None,  # Map met SQL-scripts die moeten worden uitgevoerd bij de eerste keer starten van de DB
+    sql_suffix_filter: bool = True,  # Of alleen de SQL-scripts moeten worden uitgevoerd die eindigen op _<db_type>.sql
+    sql_schema: str
+    | None = None,  # Schema waarin de SQL-scripts moeten worden uitgevoerd
     print_tables: bool = True,
     *,
     container_name: str | None = None,
@@ -352,24 +369,30 @@ def get_connection(
 
     # start or reuse the container
     cfg, host_port, was_created = _ensure_container_running(
-        db_type, user, password, db_name, port_effective,
-        container_name, volume_name, force_refresh
+        db_type,
+        user,
+        password,
+        db_name,
+        port_effective,
+        container_name,
+        volume_name,
+        force_refresh,
     )
 
     # Prepare configs for master and target DB
     master_cfg = {
-        "dbname":   "master",
-        "user":      user,
-        "password":  password,
-        "host":      "localhost",
-        "port":      host_port,
+        "dbname": "master",
+        "user": user,
+        "password": password,
+        "host": "localhost",
+        "port": host_port,
     }
     target_cfg = {
-        "dbname":    db_name,
-        "user":      user,
-        "password":  password,
-        "host":      "localhost",
-        "port":      host_port,
+        "dbname": db_name,
+        "user": user,
+        "password": password,
+        "host": "localhost",
+        "port": host_port,
     }
 
     if db_type == "mssql":
@@ -382,7 +405,8 @@ def get_connection(
             conn.autocommit = True
             cur = conn.cursor()
             cur.execute(f"IF DB_ID(N'{db_name}') IS NULL CREATE DATABASE [{db_name}]")
-            cur.close(); conn.close()
+            cur.close()
+            conn.close()
 
         # 3) Wait until the new DB is ready
         _wait_for_db_ready(cfg["connector"], target_cfg, max_wait_seconds)
@@ -396,9 +420,9 @@ def get_connection(
             sql_folder=Path(sql_folder),
             connector=cfg["connector"],
             connect_cfg=target_cfg,
-            db_type=db_type, # bv. "postgres"
-            suffix_filter=sql_suffix_filter, # alleen *_postgres.sql,
-            schema=sql_schema, # uitvoeren in schema sql_schema
+            db_type=db_type,  # bv. "postgres"
+            suffix_filter=sql_suffix_filter,  # alleen *_postgres.sql,
+            schema=sql_schema,  # uitvoeren in schema sql_schema
         )
 
     # Build SQLAlchemy URL
@@ -419,10 +443,7 @@ def get_connection(
             host="localhost",
             port=host_port,
             database=db_name,
-            query={
-                "driver": SQL_SERVER_DRIVER,
-                "TrustServerCertificate": "yes"
-            },
+            query={"driver": SQL_SERVER_DRIVER, "TrustServerCertificate": "yes"},
         )
     elif db_type == "postgres":
         url = URL.create(
@@ -441,7 +462,7 @@ def get_connection(
             host="localhost",
             port=host_port,
             database=db_name,
-        )    
+        )
     else:
         raise ValueError(f"Unsupported db_type: {db_type}")
 
@@ -509,12 +530,15 @@ def get_connection(
                         ORDER BY table_name
                     """)
             else:
-                raise ValueError(f"Unsupported db_type for printing tables: {db_type!r}")
+                raise ValueError(
+                    f"Unsupported db_type for printing tables: {db_type!r}"
+                )
 
             rows = conn.execute(stmt).fetchall()
             print("Tables:", [r[0] for r in rows])
 
     return engine
+
 
 # ────────────────────────────────────────────────────────────────────────────────
 # Demo
@@ -524,11 +548,11 @@ if __name__ == "__main__":
     conn_postgres = get_connection(
         db_type="postgres",
         db_name="ggm",
-        user ="sa",
+        user="sa",
         password="SecureP@ss1!24323482349",
         sql_folder="./ggm_selectie",
         sql_suffix_filter=True,
-        force_refresh=True,        
+        force_refresh=True,
     )
 
     # # Try MariaDB
