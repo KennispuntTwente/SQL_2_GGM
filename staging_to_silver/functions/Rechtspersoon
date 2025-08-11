@@ -52,7 +52,7 @@ def RECHTSPERSOON(engine, source_schema=None):
                 literal(' '),
                 func.coalesce(wvaanb.c.WOONPLAATS, literal(''))
             ).label("ADRESCORRESPONDENTIE")
-
+        )
         .select_from(wvaanb)
         .outerjoin(szcred, wvaanb.c.KODE_CREDITEUR == szcred.c.KODE_CREDITEUR)
    
