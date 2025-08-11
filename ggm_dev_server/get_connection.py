@@ -198,7 +198,7 @@ def _wait_for_db_ready(
     connect_cfg: dict,
     max_wait: int,
     print_errors: bool = False,
-    force_print_after: Optional[int] = 30,
+    force_print_after: int | None = 30,
 ):
     """Try to connect repeatedly until it succeeds or times out.
 
