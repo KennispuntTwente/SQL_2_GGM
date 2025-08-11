@@ -1,6 +1,6 @@
 # staging_to_silver/functions/queries.py
 from sqlalchemy import MetaData, select, and_, or_, func, text
-from sqlalchemy import cast, null, Date, BIGINT
+from sqlalchemy import cast, null, Date, BIGINT, literal
 
 def BESCHIKTE_VOORZIENING(engine, source_schema=None):
     # table_names = ["WVIND_B","SZREGEL","WVBESL","WVDOS","ABC_REFCOD"]
@@ -31,18 +31,20 @@ def BESCHIKTE_VOORZIENING(engine, source_schema=None):
                 wvind_b.c.besluitnr,
                 wvind_b.c.volgnr_ind
             ).label("beschikte_voorziening_id"),
-            abc_refcod.c.omschrijving.label("redeneinde"),
+            # 'redeneinde' moet date zijn?
+            # abc_refcod.c.omschrijving.label("redeneinde"),
+            literal(None).label("redeneinde"),
 
             # Add missing columns as cast(null)
-            cast(null(), wvind_b.c.besluitnr.type).label("code"),
-            cast(null(), wvind_b.c.dd_eind.type).label("datumeindeoorspronkelijk"),
-            cast(null(), wvind_b.c.eenheid.type).label("eenheid_enum_id"),
-            cast(null(), wvind_b.c.code_frequentie.type).label("frequentie_enum_id"),
-            cast(null(), wvind_b.c.besluitnr.type).label("heeft_leveringsvorm_293_id"),
-            cast(null(), wvind_b.c.besluitnr.type).label("is_voorziening_voorziening_id"),
-            cast(null(), wvind_b.c.eenheid.type).label("leveringsvorm_287_enum_id"),
-            cast(null(), wvind_b.c.besluitnr.type).label("toegewezen_product_toewijzing_id"),
-            cast(null(), wvind_b.c.eenheid.type).label("wet_enum_id"),
+            literal(None).label("code"),
+            literal(None).label("datumeindeoorspronkelijk"),
+            literal(None).label("eenheid_enum_id"),
+            literal(None).label("frequentie_enum_id"),
+            literal(None).label("heeft_leveringsvorm_293_id"),
+            literal(None).label("is_voorziening_voorziening_id"),
+            literal(None).label("leveringsvorm_287_enum_id"),
+            literal(None).label("toegewezen_product_toewijzing_id"),
+            literal(None).label("wet_enum_id"),
         )
         .select_from(wvind_b)
         .outerjoin(szregel, wvind_b.c.kode_regeling == szregel.c.kode_regeling)
