@@ -7,8 +7,6 @@ from utils.config.get_config_value import get_config_value
 
 from utils.database.create_sqlalchemy_engine import create_sqlalchemy_engine
 
-from staging_to_silver.functions.queries import queries
-
 # ─── Load .env & .ini from command line ────────────────────────────────────────
 if os.path.exists("staging_to_silver/.env"):
     print("Loading environment variables…")
@@ -18,12 +16,12 @@ args, cfg = load_single_ini_config()
 
 # ─── Build connection to database ──────────────────────────────────────────────
 engine = create_sqlalchemy_engine(
-    driver   = get_config_value("DRIVER"),
-    username = get_config_value("USERNAME"),
-    password = get_config_value("PASSWORD", print_value=False),
-    host     = get_config_value("HOST"),
-    port     = int(get_config_value("PORT")),
-    database = get_config_value("DB"),
+    driver   = get_config_value("DRIVER", cfg_parser=cfg),
+    username = get_config_value("USER", cfg_parser=cfg),
+    password = get_config_value("PASSWORD", cfg_parser=cfg, print_value=False),
+    host     = get_config_value("HOST", cfg_parser=cfg),
+    port     = int(get_config_value("PORT", cfg_parser=cfg)),
+    database = get_config_value("DB", cfg_parser=cfg),
 )
 
 # ─── Read source/target schema from config ─────────────────────────────────────

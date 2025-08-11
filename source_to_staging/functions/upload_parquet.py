@@ -87,6 +87,7 @@ def upload_parquet(
             path = os.path.join(input_dir, fname)
             print(f"🔹 Processing {path}")
             df = pl.read_parquet(path)
+            df = df.rename({col: col.lower() for col in df.columns})
             df.write_database(
                 table_name=full_table,
                 connection=engine,

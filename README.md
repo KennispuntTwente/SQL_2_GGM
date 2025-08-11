@@ -37,9 +37,15 @@ Activeer de virtual env:
 Run script met verwijzing naar .ini-bestanden (source, destination), bijv.:
 ```
 python -m source_to_staging.main --source-config source_to_staging/source_config.ini.example --destination-config source_to_staging/destination_config.ini.example
+
 ```
 
 Voor Rien:
 ```
+Van SvhSD naar brons
 python -m source_to_staging.main --source-config h:/python/secrets/bron_svhsd.ini --destination-config h:/python/secrets/doel_dhw_brons.ini
+
+Van brons naar zilver
+python -m staging_to_silver.main --config h:/python/secrets/Brons_Zilver.ini
+
 ```
