@@ -15,6 +15,7 @@ import oracledb
 import psycopg2
 import pyodbc
 import pymysql
+import re
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import URL
 
@@ -244,7 +245,13 @@ def _run_sql_scripts(
     connect_cfg: Dict[str, Any],
     db_type: str,
     suffix_filter: bool = True,
+    schema: str | None = None,
 ):
+    # ── 0. (optional) validate schema name ─────────────────
+    if schema is not None:
+        if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", schema):
+            raise ValueError(f"Invalid schema name: {schema!r}")
+
     # ── 1. discover files ───────────────────────────────────
     if not sql_folder.exists():
         print(f"⚠️  Folder {sql_folder.resolve()} does not exist – nothing to do.")
@@ -266,12 +273,40 @@ def _run_sql_scripts(
         print("⏭️  Nothing to execute after filtering.")
         return
 
-    # ── 2. open one connection and cursor ───────────────────
+        # ── 2. open one connection and cursor ───────────────────
     with connector(connect_cfg) as conn, conn.cursor() as cur:
+
+        # ── 2a. ensure/use target schema per backend ────────
+        if schema:
+            if db_type == "postgres":
+                cur.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema}"')
+                # Make sure unqualified DDL/DML goes into that schema
+                cur.execute(f'SET search_path TO "{schema}", public')
+
+            elif db_type == "mssql":
+                # Create schema if needed, and set the user's default schema
+                cur.execute(
+                    f"IF SCHEMA_ID(N'{schema}') IS NULL "
+                    f"EXEC('CREATE SCHEMA [{schema}]')"
+                )
+                cur.execute(
+                    f"ALTER USER [{connect_cfg['user']}] WITH DEFAULT_SCHEMA=[{schema}]"
+                )
+
+            elif db_type == "oracle":
+                print("⚠️ Oracle: schemas are users. To CREATE objects in a schema named "
+                      f"{schema!r}, connect as that user or qualify objects "
+                      f"explicitly (e.g., {schema}.table_name). "
+                      "ALTER SESSION SET CURRENT_SCHEMA only affects name resolution, "
+                      "not the target of CREATE statements.")
+
+            elif db_type in ("mysql", "mariadb"):
+                print("⚠️ MySQL/MariaDB: a SCHEMA == a DATABASE. Use a separate database "
+                      f"named {schema!r} and pass it as db_name, or qualify objects.")
+
         for file in run_files:
             raw_sql = file.read_text(encoding="utf-8")
             sql     = preprocess_sql(raw_sql, db_type)
-
             try:
                 cur.execute(sql)
                 conn.commit()
@@ -279,7 +314,7 @@ def _run_sql_scripts(
             except Exception as exc:
                 conn.rollback()
                 print(f"❌ ERROR executing {file.name}: {exc}")
-                raise  # or `continue` if you’d rather skip the rest
+                raise
 
     print("🏁 SQL boot-strap finished.\n")
     
@@ -295,6 +330,7 @@ def get_connection(
     max_wait_seconds: int | None = None,
     sql_folder: str | Path | None = None, # Map met SQL-scripts die moeten worden uitgevoerd bij de eerste keer starten van de DB
     sql_suffix_filter: bool = True, # Of alleen de SQL-scripts moeten worden uitgevoerd die eindigen op _<db_type>.sql
+    sql_schema: str | None = None, # Schema waarin de SQL-scripts moeten worden uitgevoerd
     print_tables: bool = True,
     *,
     container_name: str | None = None,
@@ -361,7 +397,8 @@ def get_connection(
             connector=cfg["connector"],
             connect_cfg=target_cfg,
             db_type=db_type, # bv. "postgres"
-            suffix_filter=sql_suffix_filter # alleen *_postgres.sql
+            suffix_filter=sql_suffix_filter, # alleen *_postgres.sql,
+            schema=sql_schema, # uitvoeren in schema sql_schema
         )
 
     # Build SQLAlchemy URL
@@ -412,20 +449,70 @@ def get_connection(
 
     if print_tables:
         with engine.connect() as conn:
-            if db_type == "oracle":
-                query = "SELECT table_name FROM user_tables"
-            elif db_type == "postgres":
-                query = "SELECT table_name FROM information_schema.tables WHERE table_schema='public'"
-            elif db_type in ("mysql", "mariadb"):
-                # MariaDB uses the same information_schema layout as MySQL
-                query = f"SELECT table_name FROM information_schema.tables WHERE table_schema='{db_name}'"
+            if db_type == "postgres":
+                # Als schema is opgegeven: gebruik dat; anders: current_schema() (eerste in search_path)
+                if sql_schema:
+                    stmt = text("""
+                        SELECT table_name
+                        FROM information_schema.tables
+                        WHERE table_schema = :schema AND table_type = 'BASE TABLE'
+                        ORDER BY table_name
+                    """).bindparams(schema=sql_schema)
+                else:
+                    stmt = text("""
+                        SELECT table_name
+                        FROM information_schema.tables
+                        WHERE table_schema = current_schema() AND table_type = 'BASE TABLE'
+                        ORDER BY table_name
+                    """)
+
             elif db_type == "mssql":
-                query = "SELECT table_name FROM information_schema.tables WHERE table_schema='dbo'"
+                # Val terug op dbo als er geen schema is opgegeven
+                schema = sql_schema or "dbo"
+                stmt = text("""
+                    SELECT table_name
+                    FROM information_schema.tables
+                    WHERE table_schema = :schema AND table_type = 'BASE TABLE'
+                    ORDER BY table_name
+                """).bindparams(schema=schema)
+
+            elif db_type in ("mysql", "mariadb"):
+                # In MySQL/MariaDB == "database". Zonder schema: gebruik de huidige database (DATABASE()).
+                if sql_schema:
+                    stmt = text("""
+                        SELECT table_name
+                        FROM information_schema.tables
+                        WHERE table_schema = :schema
+                        ORDER BY table_name
+                    """).bindparams(schema=sql_schema)
+                else:
+                    stmt = text("""
+                        SELECT table_name
+                        FROM information_schema.tables
+                        WHERE table_schema = DATABASE()
+                        ORDER BY table_name
+                    """)
+
+            elif db_type == "oracle":
+                # Zonder schema: user_tables (huidige gebruiker). Met schema: filter op eigenaar.
+                if sql_schema:
+                    stmt = text("""
+                        SELECT table_name
+                        FROM all_tables
+                        WHERE owner = UPPER(:owner)
+                        ORDER BY table_name
+                    """).bindparams(owner=sql_schema)
+                else:
+                    stmt = text("""
+                        SELECT table_name
+                        FROM user_tables
+                        ORDER BY table_name
+                    """)
             else:
-                # unlikely to happen since you validated db_type at the top
                 raise ValueError(f"Unsupported db_type for printing tables: {db_type!r}")
-            result = conn.execute(text(query))
-            print("Tables:", [r[0] for r in result.fetchall()])
+
+            rows = conn.execute(stmt).fetchall()
+            print("Tables:", [r[0] for r in rows])
 
     return engine
 
