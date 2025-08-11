@@ -35,7 +35,6 @@ target_schema = get_config_value(
 )
 
 # ─── Fill engine with data for testing (optional) ─────────────────────────────
-
 if get_config_value("TEST_MODE", cfg_parser=cfg, default=False):
     from ggm_dev_server.get_connection import get_connection
     from staging_to_silver.functions.test_silver_to_staging import fill_engine_with_data
@@ -50,7 +49,7 @@ if get_config_value("TEST_MODE", cfg_parser=cfg, default=False):
         sql_suffix_filter=True,
         sql_schema=target_schema,
     )
-    fill_engine_with_data(engine, schema=source_schema)
+    fill_engine_with_data(engine, schema=source_schema, date_mode="timestamp")
 
 # ─── Reflect destination metadata lazily ──────────────────────────────────────
 metadata_dest = MetaData()
