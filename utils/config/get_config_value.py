@@ -16,7 +16,14 @@ def interpret_value(value):
     return value  # Leave as-is (likely a string)
 
 
-def get_config_value(key, section="database", cfg_parser=None, default=None, print_value=True):
+def get_config_value(
+    key, 
+    section="database", 
+    cfg_parser=None,
+    default=None, 
+    print_value=True,
+    section_is_prefix_for_env=False
+):
     """
     Get configuration value from INI file if present and non-empty, otherwise from environment variable
     if present and non-empty, otherwise return `default`.
@@ -40,6 +47,9 @@ def get_config_value(key, section="database", cfg_parser=None, default=None, pri
 
     # Fallback to environment variable
     print(f"Using environment variable for {key}")
+    if section_is_prefix_for_env:
+        key = f"{section.upper()}_{key.upper()}"
+        print(f"Applied section prefix to environment variable key: {key}")
     env_value = os.environ.get(key)
 
     if env_value is None or env_value.strip() == "":
