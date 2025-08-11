@@ -1,0 +1,45 @@
+# staging_to_silver/functions/queries.py
+from sqlalchemy import MetaData, select, and_, or_, func
+
+def RECHTSPERSOON(engine, source_schema=None):
+    table_names = ["WVAANB"]
+
+    metadata = MetaData()
+    metadata.reflect(bind=engine,
+                     schema=source_schema,
+                     only=table_names)
+
+    # grab them (SQLAlchemy keys them as f"{schema}.{name}")
+    fq_names = [f"{source_schema + '.' if source_schema else ''}{n}" for n in table_names]
+    wvaanb = (
+        metadata.tables[name] for name in fq_names
+    )
+
+    return (
+        select(
+            wvaanb.c.VOORZNR.label("RECHTSPERSOON_ID"),
+            wvaanb.c.DD_BEGIN.label("ADRESBINNENLAND"),
+            wvaanb.c.EENHEID.label("ADRESBUITENLAND"),
+            wvaanb.c.CODE_FREQUENTIE.label("ADRESCORRESPONDENTIE"),
+            wvaanb.c.EMAIL.label("EMAILADRES"),
+            wvaanb.c.FAX.label("FAXNUMMER"),
+            wvaanb.c.AGB_NR.label("IDENTIFICATIE"),
+            wvaanb.c.DD_BEGIN.label("KVKNUMMER"),
+            wvaanb.c.NAAM.label("NAAM"),
+            wvaanb.c.CODE_FREQUENTIE.label("RECHTSVORM"),
+            wvaanb.c.VOLUME.label("REKENINGNUMMER"),
+            wvaanb.c.STATUS_INDICATIE.label("TELEFOONNUMMER"),
+
+            func.concat(
+                wvind_b.c.BESLUITNR,
+                wvind_b.c.VOLGNR_IND
+            ).label("BeschikteVoorzieningID"),
+            
+            )
+        )
+   
+
+queries = {
+    'BESCHIKTE_VOORZIENING': BESCHIKTE_VOORZIENING,
+    # ...
+}
