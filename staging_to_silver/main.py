@@ -30,6 +30,23 @@ engine = create_sqlalchemy_engine(
 source_schema = get_config_value("SOURCE_SCHEMA", section="settings", cfg_parser=cfg, default="staging")
 target_schema = get_config_value("TARGET_SCHEMA", section="settings", cfg_parser=cfg, default="silver")
 
+# ─── Fill engine with data for testing (optional) ─────────────────────────────
+
+if get_config_value("TEST_MODE", cfg_parser=cfg, default=False):
+    from ggm_dev_server.get_connection import get_connection
+    from staging_to_silver.functions.test_silver_to_staging import fill_engine_with_data
+    engine = get_connection(
+        db_type="postgres",
+        db_name=get_config_value("DB", cfg_parser=cfg),
+        user=get_config_value("USER", cfg_parser=cfg),
+        password=get_config_value("PASSWORD", cfg_parser=cfg, print_value=False),
+        force_refresh=True,
+        sql_folder="./ggm_selectie",
+        sql_suffix_filter=True,
+        sql_schema=target_schema,
+    )
+    fill_engine_with_data(engine, schema=source_schema)
+
 # ─── Reflect destination metadata lazily ──────────────────────────────────────
 metadata_dest = MetaData()
 
