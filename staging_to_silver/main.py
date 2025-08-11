@@ -7,6 +7,8 @@ from utils.config.get_config_value import get_config_value
 
 from utils.database.create_sqlalchemy_engine import create_sqlalchemy_engine
 
+from staging_to_silver.functions.queries import queries
+
 # ─── Load .env & .ini from command line ────────────────────────────────────────
 if os.path.exists("staging_to_silver/.env"):
     print("Loading environment variables…")
@@ -57,6 +59,9 @@ with engine.begin() as conn:  # single, atomic transaction
     for name, query_fn in queries.items():
         # 1) build the SELECT statement that extracts from the source schema
         select_stmt = query_fn(engine, source_schema=source_schema)
+        
+        # Get the column names from the select statement
+        select_col_order = [col.name for col in select_stmt.selected_columns]
 
         # 2) reflect (or cache‑lookup) the destination table definition
         dest_table = Table(
@@ -66,7 +71,10 @@ with engine.begin() as conn:  # single, atomic transaction
             autoload_with=engine,
             extend_existing=True,
         )
-        dest_cols = [c.name for c in dest_table.columns]
+        
+        # Get the actual Column objects from the destination table
+        dest_cols = [dest_table.columns[col_name] for col_name in select_col_order]
+        print(f"Reordered destination columns: {[col.name for col in dest_cols]}")
 
         # 3) determine how we load into the destination
         mode = write_modes.get(name, "append").lower()
