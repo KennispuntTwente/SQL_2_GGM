@@ -40,12 +40,12 @@ python -m source_to_staging.main --source-config source_to_staging/source_config
 
 ```
 
-Voor Rien:
+Voor Rien; van SvhSD naar brons:
 ```
-Van SvhSD naar brons
 python -m source_to_staging.main --source-config h:/python/secrets/bron_svhsd.ini --destination-config h:/python/secrets/doel_dhw_brons.ini
+```
 
-Van brons naar zilver
-python -m staging_to_silver.main --config h:/python/secrets/Brons_Zilver.ini
-
+Voor Rien; van brons naar zilver:
+```
+python -m staging_to_silver.main --config h:/python/secrets/Brons_Zilver.ini`
 ```
