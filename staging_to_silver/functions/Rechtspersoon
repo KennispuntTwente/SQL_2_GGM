@@ -19,8 +19,6 @@ def RECHTSPERSOON(engine, source_schema=None):
         select(
             wvaanb.c.VOORZNR.label("RECHTSPERSOON_ID"),
             wvaanb.c.DD_BEGIN.label("ADRESBINNENLAND"),
-            wvaanb.c.EENHEID.label("ADRESBUITENLAND"),
-            wvaanb.c.CODE_FREQUENTIE.label("ADRESCORRESPONDENTIE"),
             wvaanb.c.EMAIL.label("EMAILADRES"),
             wvaanb.c.FAX.label("FAXNUMMER"),
             wvaanb.c.AGB_NR.label("IDENTIFICATIE"),
@@ -31,15 +29,29 @@ def RECHTSPERSOON(engine, source_schema=None):
             wvaanb.c.STATUS_INDICATIE.label("TELEFOONNUMMER"),
 
             func.concat(
-                wvind_b.c.BESLUITNR,
-                wvind_b.c.VOLGNR_IND
-            ).label("BeschikteVoorzieningID"),
+                wvaanb.c.WOONPLAATS,
+                wvaanb.c.STRAAT,
+                wvaanb.c.HUISNUMMER,
+                wvaanb.c.HUISLETTER,
+                wvaanb.c.HUISNR_TOEV,
+                wvaanb.c.AAND_HUISNR,
+                wvaanb.c.POSTCODE,
+            ).label("ADRESBINNENLAND"),
+
+            func.concat(
+                wvaanb.c.WOONPLAATS,
+                wvaanb.c.STRAAT,
+                wvaanb.c.HUISNUMMER,
+                wvaanb.c.HUISLETTER,
+                wvaanb.c.HUISNR_TOEV,
+                wvaanb.c.AAND_HUISNR,
+                wvaanb.c.POSTCODE,
+            ).label("ADRESCORRESPONDENTIE"),
             
             )
         )
    
 
 queries = {
-    'BESCHIKTE_VOORZIENING': BESCHIKTE_VOORZIENING,
-    # ...
+    'RECHTSPERSOON': RECHTSPERSOON,
 }
