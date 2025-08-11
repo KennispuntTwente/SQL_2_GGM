@@ -2,10 +2,12 @@ import os
 from dotenv import load_dotenv
 import oracledb
 
-from source_to_staging.functions.parse_args_and_load_parsers import parse_args_and_load_parsers
-from source_to_staging.functions.get_config_value import get_config_value
-from source_to_staging.functions.create_sqlalchemy_engine import create_sqlalchemy_engine
-from source_to_staging.functions.create_connectorx_uri import create_connectorx_uri
+from utils.config.cli_ini_config import parse_and_load_ini_configs
+from utils.config.get_config_value import get_config_value
+
+from utils.database.create_sqlalchemy_engine import create_sqlalchemy_engine
+from utils.database.create_connectorx_uri import create_connectorx_uri
+
 from source_to_staging.functions.download_parquet import download_parquet
 from source_to_staging.functions.upload_parquet import upload_parquet
 
@@ -19,7 +21,7 @@ if os.path.exists("source_to_staging/.env"):
 #   paths to INI files with database credentials and settings
 # These take priority over environment variables;
 #   get_config_value() will first check INI files, then environment variables
-args, source_cfg, dest_cfg = parse_args_and_load_parsers()
+args, source_cfg, dest_cfg = parse_and_load_ini_configs()
 
 # Build connection to source database
 if get_config_value("SRC_CONNECTORX", section="settings", cfg_parser=source_cfg):
@@ -27,7 +29,7 @@ if get_config_value("SRC_CONNECTORX", section="settings", cfg_parser=source_cfg)
     source_connection = create_connectorx_uri(
         driver = get_config_value("SRC_DRIVER", cfg_parser=source_cfg),
         username = get_config_value("SRC_USERNAME", cfg_parser=source_cfg),
-        password = get_config_value("SRC_PASSWORD", cfg_parser=source_cfg),
+        password = get_config_value("SRC_PASSWORD", cfg_parser=source_cfg, print_value=False),
         host = get_config_value("SRC_HOST", cfg_parser=source_cfg),
         port = int(get_config_value("SRC_PORT", cfg_parser=source_cfg)),
         database = get_config_value("SRC_DB", cfg_parser=source_cfg)
@@ -52,7 +54,7 @@ else:
     source_connection = create_sqlalchemy_engine(
         driver = get_config_value("SRC_DRIVER", cfg_parser=source_cfg),
         username = get_config_value("SRC_USERNAME", cfg_parser=source_cfg),
-        password = get_config_value("SRC_PASSWORD", cfg_parser=source_cfg),
+        password = get_config_value("SRC_PASSWORD", cfg_parser=source_cfg, print_value=False),
         host = get_config_value("SRC_HOST", cfg_parser=source_cfg),
         port = int(get_config_value("SRC_PORT", cfg_parser=source_cfg)),
         database = get_config_value("SRC_DB", cfg_parser=source_cfg)
@@ -62,7 +64,7 @@ else:
 dest_engine = create_sqlalchemy_engine(
     driver = get_config_value("DST_DRIVER", cfg_parser=dest_cfg),
     username = get_config_value("DST_USERNAME", cfg_parser=dest_cfg),
-    password = get_config_value("DST_PASSWORD", cfg_parser=dest_cfg),
+    password = get_config_value("DST_PASSWORD", cfg_parser=dest_cfg, print_value=False),
     host = get_config_value("DST_HOST", cfg_parser=dest_cfg),
     port = int(get_config_value("DST_PORT", cfg_parser=dest_cfg)),
     database = get_config_value("DST_DB", cfg_parser=dest_cfg)

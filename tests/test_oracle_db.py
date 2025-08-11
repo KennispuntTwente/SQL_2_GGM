@@ -1,6 +1,11 @@
 # Tijdelijk script om te testen of verschillende datatypes vanuit Oracle goed worden
 #   overgebracht naar Postgres
 
+import datetime
+import json
+import pandas as pd
+from dotenv import load_dotenv
+
 from sqlalchemy import (
     MetaData, Table, Column,
     Integer, BigInteger, SmallInteger, Float, Numeric,
@@ -12,15 +17,12 @@ from sqlalchemy.dialects.oracle import TIMESTAMP
 from sqlalchemy.sql import text
 
 from ggm_dev_server.get_connection import get_connection
-from source_to_staging.functions.create_connectorx_uri import create_connectorx_uri
+
+from utils.database.create_connectorx_uri import create_connectorx_uri
+from utils.database.initialize_oracle_client import initialize_oracle_client
+
 from source_to_staging.functions.download_parquet import download_parquet
 from source_to_staging.functions.upload_parquet import upload_parquet
-from source_to_staging.functions.initialize_oracle_client import initialize_oracle_client
-
-import datetime
-import json
-import pandas as pd
-from dotenv import load_dotenv
 
 # Custom TypeDecorator to handle Python time objects on Oracle
 class OracleTime(TypeDecorator):

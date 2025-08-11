@@ -1,31 +1,34 @@
 import os
 from dotenv import load_dotenv
-
 from sqlalchemy import MetaData, Table, text
-from source_to_staging.functions.get_config_value import get_config_value
-from source_to_staging.functions.create_sqlalchemy_engine import create_sqlalchemy_engine
+
+from utils.config.cli_ini_config import load_single_ini_config 
+from utils.config.get_config_value import get_config_value
+
+from utils.database.create_sqlalchemy_engine import create_sqlalchemy_engine
+
 from staging_to_silver.functions.queries import queries
 
-# ─── Load .env ────────────────────────────────────────────────────────────────
+# ─── Load .env & .ini from command line ────────────────────────────────────────
 if os.path.exists("staging_to_silver/.env"):
     print("Loading environment variables…")
     load_dotenv(dotenv_path="staging_to_silver/.env")
 
-# TODO: load .ini config file if provided via CLI argument
+args, cfg = load_single_ini_config()
 
 # ─── Build connection to database ──────────────────────────────────────────────
 engine = create_sqlalchemy_engine(
-    driver   = get_config_value("DRIVER",   None),
-    username = get_config_value("USERNAME", None),
-    password = get_config_value("PASSWORD", None),
-    host     = get_config_value("HOST",     None),
-    port     = int(get_config_value("PORT", None)),
-    database = get_config_value("DB",       None),
+    driver   = get_config_value("DRIVER"),
+    username = get_config_value("USERNAME"),
+    password = get_config_value("PASSWORD", print_value=False),
+    host     = get_config_value("HOST"),
+    port     = int(get_config_value("PORT")),
+    database = get_config_value("DB"),
 )
 
 # ─── Read source/target schema from config ─────────────────────────────────────
-source_schema = get_config_value("SOURCE_SCHEMA", None)  # e.g. "staging"
-target_schema = get_config_value("TARGET_SCHEMA", None)  # e.g. "silver"
+source_schema = get_config_value("SOURCE_SCHEMA", section="settings", cfg_parser=cfg, default="staging")
+target_schema = get_config_value("TARGET_SCHEMA", section="settings", cfg_parser=cfg, default="silver")
 
 # ─── Reflect destination metadata lazily ──────────────────────────────────────
 metadata_dest = MetaData()
