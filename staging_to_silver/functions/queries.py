@@ -20,8 +20,11 @@ def BESCHIKTE_VOORZIENING(engine, source_schema=None):
     return (
         select(
             # Convert BIGINT epoch to date
-            cast(wvind_b.c.dd_eind, null()).label("datumeinde"),
-            cast(wvind_b.c.dd_begin, null()).label("datumstart"),
+            func.to_timestamp(wvind_b.c.dd_eind).cast(Date).label("datumeinde"),
+            func.to_timestamp(wvind_b.c.dd_begin).cast(Date).label("datumstart"),
+            # Of mogelijk:
+            # func.to_timestamp(wvind_b.c.dd_eind / 1000.0).cast(Date),
+            # func.to_timestamp(wvind_b.c.dd_begin / 1000.0).cast(Date),
             wvind_b.c.volume.label("omvang"),
             wvind_b.c.status_indicatie.label("status"),
             func.concat(
