@@ -1,5 +1,5 @@
 import oracledb
-from source_to_staging.functions.get_config_value import get_config_value
+from utils.config.get_config_value import get_config_value
 
 
 def initialize_oracle_client(
