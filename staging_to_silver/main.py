@@ -18,12 +18,12 @@ args, cfg = load_single_ini_config()
 
 # ─── Build connection to database ──────────────────────────────────────────────
 engine = create_sqlalchemy_engine(
-    driver   = get_config_value("DRIVER"),
-    username = get_config_value("USERNAME"),
-    password = get_config_value("PASSWORD", print_value=False),
-    host     = get_config_value("HOST"),
-    port     = int(get_config_value("PORT")),
-    database = get_config_value("DB"),
+    driver   = get_config_value("DRIVER", cfg_parser=cfg),
+    username = get_config_value("USER", cfg_parser=cfg),
+    password = get_config_value("PASSWORD", cfg_parser=cfg, print_value=False),
+    host     = get_config_value("HOST", cfg_parser=cfg),
+    port     = int(get_config_value("PORT", cfg_parser=cfg)),
+    database = get_config_value("DB", cfg_parser=cfg),
 )
 
 # ─── Read source/target schema from config ─────────────────────────────────────
@@ -59,6 +59,9 @@ with engine.begin() as conn:  # single, atomic transaction
     for name, query_fn in queries.items():
         # 1) build the SELECT statement that extracts from the source schema
         select_stmt = query_fn(engine, source_schema=source_schema)
+        
+        # Get the column names from the select statement
+        select_col_order = [col.name for col in select_stmt.selected_columns]
 
         # 2) reflect (or cache‑lookup) the destination table definition
         dest_table = Table(
@@ -68,7 +71,10 @@ with engine.begin() as conn:  # single, atomic transaction
             autoload_with=engine,
             extend_existing=True,
         )
-        dest_cols = [c.name for c in dest_table.columns]
+        
+        # Get the actual Column objects from the destination table
+        dest_cols = [dest_table.columns[col_name] for col_name in select_col_order]
+        print(f"Reordered destination columns: {[col.name for col in dest_cols]}")
 
         # 3) determine how we load into the destination
         mode = write_modes.get(name, "append").lower()
