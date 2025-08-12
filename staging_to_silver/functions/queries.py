@@ -20,18 +20,23 @@ def BESCHIKTE_VOORZIENING(engine, source_schema=None):
 
     return (
         select(
-            # Convert BIGINT epoch to date
-            func.to_timestamp(wvind_b.c.dd_eind).cast(Date).label("datumeinde"),
-            func.to_timestamp(wvind_b.c.dd_begin).cast(Date).label("datumstart"),
-            # Of mogelijk:
-            # func.to_timestamp(wvind_b.c.dd_eind / 1000.0).cast(Date),
-            # func.to_timestamp(wvind_b.c.dd_begin / 1000.0).cast(Date),
+            # Timestamp zonder timezone (aanname is UTC-timezone; TODO: check of dit klopt) -> 
+            # UTC-timezone op zetten; dan omzetten naar Amsterdam-tijdzone ->
+            # dan casten naar Date
+            cast(func.timezone('Europe/Amsterdam', func.timezone('UTC', wvind_b.c.dd_eind)),  Date).label('datumeinde'),
+            cast(func.timezone('Europe/Amsterdam', func.timezone('UTC', wvind_b.c.dd_begin)), Date).label('datumstart'),
+            # Alternatief:
+            # cast(wvind_b.c.dd_eind.op("AT TIME ZONE")("UTC").op("AT TIME ZONE")("Europe/Amsterdam"), Date).label("datumeinde"),
+            # cast(wvind_b.c.dd_begin.op("AT TIME ZONE")("UTC").op("AT TIME ZONE")("Europe/Amsterdam"), Date).label("datumstart"),
+            # Of misschien:
+            # cast(func.to_timestamp(wvind_b.c.dd_eind ).op("AT TIME ZONE")("Europe/Amsterdam"), Date).label("datumeinde"),
+            # cast(func.to_timestamp(wvind_b.c.dd_begin).op("AT TIME ZONE")("Europe/Amsterdam"), Date).label("datumstart"),
             wvind_b.c.volume.label("omvang"),
             wvind_b.c.status_indicatie.label("status"),
             func.concat(wvind_b.c.besluitnr, wvind_b.c.volgnr_ind).label(
                 "beschikte_voorziening_id"
             ),
-            # 'redeneinde' moet date zijn?
+            # 'redeneinde' lijkt date te zijn in target? (Is tekst in bron, wat logisch lijkt)
             # abc_refcod.c.omschrijving.label("redeneinde"),
             literal(None).label("redeneinde"),
             # Add missing columns as cast(null)
