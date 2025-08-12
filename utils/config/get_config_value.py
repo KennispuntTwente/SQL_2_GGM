@@ -40,7 +40,7 @@ def get_config_value(
         if ini_value.strip() == "":
             ini_value = None
         else:
-            if print:
+            if print_value:
                 print(
                     f"INI value for {key} in section [{section}]: {interpret_value(ini_value)}"
                 )
@@ -62,12 +62,12 @@ def get_config_value(
             f"Warning: {key} is not set or is empty in environment variables (falling back)."
         )
     else:
-        if print:
+        if print_value:
             print(f"Environment variable for {key}: {interpret_value(env_value)}")
         return interpret_value(env_value)
 
     # Final fallback to default
     print(f"Using default value for {key}")
-    if print:
+    if print_value:
         print(f"Default value for {key}: {default}")
     return default
