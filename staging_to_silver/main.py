@@ -20,7 +20,10 @@ args, cfg = load_single_ini_config()
 engine = create_sqlalchemy_engine(
     driver=get_config_value("DRIVER", cfg_parser=cfg),
     username=get_config_value("USER", cfg_parser=cfg),
-    password=get_config_value("PASSWORD", cfg_parser=cfg, print_value=False),
+    password=get_config_value(
+        "PASSWORD", cfg_parser=cfg, print_value=False,
+        ask_in_command_line=get_config_value("ASK_PASSWORD_IN_CLI", section="settings", cfg_parser=cfg, default=False)
+    ),
     host=get_config_value("HOST", cfg_parser=cfg),
     port=int(get_config_value("PORT", cfg_parser=cfg)),
     database=get_config_value("DB", cfg_parser=cfg),

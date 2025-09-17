@@ -30,7 +30,8 @@ if get_config_value("SRC_CONNECTORX", section="settings", cfg_parser=source_cfg)
         driver=get_config_value("SRC_DRIVER", cfg_parser=source_cfg),
         username=get_config_value("SRC_USERNAME", cfg_parser=source_cfg),
         password=get_config_value(
-            "SRC_PASSWORD", cfg_parser=source_cfg, print_value=False
+            "SRC_PASSWORD", cfg_parser=source_cfg, print_value=False,
+            ask_in_command_line=get_config_value("ASK_PASSWORD_IN_CLI", section="settings", cfg_parser=source_cfg, default=False)
         ),
         host=get_config_value("SRC_HOST", cfg_parser=source_cfg),
         port=int(get_config_value("SRC_PORT", cfg_parser=source_cfg)),
@@ -59,7 +60,8 @@ else:
         driver=get_config_value("SRC_DRIVER", cfg_parser=source_cfg),
         username=get_config_value("SRC_USERNAME", cfg_parser=source_cfg),
         password=get_config_value(
-            "SRC_PASSWORD", cfg_parser=source_cfg, print_value=False
+            "SRC_PASSWORD", cfg_parser=source_cfg, print_value=False,
+            ask_in_command_line=get_config_value("ASK_PASSWORD_IN_CLI", section="settings", cfg_parser=source_cfg, default=False)
         ),
         host=get_config_value("SRC_HOST", cfg_parser=source_cfg),
         port=int(get_config_value("SRC_PORT", cfg_parser=source_cfg)),
@@ -70,7 +72,10 @@ else:
 dest_engine = create_sqlalchemy_engine(
     driver=get_config_value("DST_DRIVER", cfg_parser=dest_cfg),
     username=get_config_value("DST_USERNAME", cfg_parser=dest_cfg),
-    password=get_config_value("DST_PASSWORD", cfg_parser=dest_cfg, print_value=False),
+    password=get_config_value(
+        "DST_PASSWORD", cfg_parser=dest_cfg, print_value=False,
+        ask_in_command_line=get_config_value("ASK_PASSWORD_IN_CLI", section="settings", cfg_parser=dest_cfg, default=False)
+    ),
     host=get_config_value("DST_HOST", cfg_parser=dest_cfg),
     port=int(get_config_value("DST_PORT", cfg_parser=dest_cfg)),
     database=get_config_value("DST_DB", cfg_parser=dest_cfg),

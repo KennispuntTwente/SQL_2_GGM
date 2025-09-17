@@ -24,6 +24,7 @@ def get_config_value(
     default=None,
     print_value=True,
     section_is_prefix_for_env=False,
+    ask_in_command_line=False,
 ):
     """
     Get configuration value from INI file if present and non-empty, otherwise from environment variable
@@ -32,6 +33,15 @@ def get_config_value(
     Priority: INI > ENV > default. Empty strings are treated as missing.
     Interprets boolean-like values as actual booleans.
     """
+    if ask_in_command_line:
+        user_input = input(f"Please enter value for {key} (or leave blank for INI/ENV/default): ")
+        if user_input.strip() != "":
+            if print_value:
+                print(f"Using command line input for {key}: {interpret_value(user_input)}")
+            return interpret_value(user_input)
+        else:
+            print(f"No input provided for {key}, falling back to INI/ENV/default.")
+
     # Try INI first
     if cfg_parser and cfg_parser.has_option(section, key):
         print(f"Using INI value for {key} in section [{section}]")

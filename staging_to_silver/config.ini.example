@@ -10,3 +10,5 @@ SCHEMA=ggm
 [settings]
 SOURCE_SCHEMA=staging
 TARGET_SCHEMA=silver
+# Of wachtwoord gevraagd wordt in CLI i.p.v. uit te lezen uit environment of .ini-config
+ASK_PASSWORD_IN_CLI=false
