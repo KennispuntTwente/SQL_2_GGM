@@ -7,7 +7,7 @@ from utils.config.get_config_value import get_config_value
 
 from utils.database.create_sqlalchemy_engine import create_sqlalchemy_engine
 
-from staging_to_silver.functions.queries import queries
+from staging_to_silver.functions.query_loader import load_queries
 
 # ─── Load .env & .ini from command line ────────────────────────────────────────
 if os.path.exists("staging_to_silver/.env"):
@@ -71,6 +71,9 @@ write_modes = {
 # Truncate means that the table is emptied before loading new data, but does not fire triggers
 
 # ─── Execute queries to go from staging (dump) to silver (GGM) ─────────────────────
+
+# Queries laden zoals gedefinieerd in staging_to_silver/queries/*.py
+queries = load_queries(package="staging_to_silver.queries")
 
 # All work happens **on the SQL server** and **inside one transaction**
 # Executing everything on the SQL server, we avoid issues with data volumes & performance
