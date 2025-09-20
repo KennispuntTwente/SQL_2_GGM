@@ -36,6 +36,7 @@ if get_config_value("SRC_CONNECTORX", section="settings", cfg_parser=source_cfg)
         host=get_config_value("SRC_HOST", cfg_parser=source_cfg),
         port=int(get_config_value("SRC_PORT", cfg_parser=source_cfg)),
         database=get_config_value("SRC_DB", cfg_parser=source_cfg),
+        alias=get_config_value("SRC_ORACLE_TNS_ALIAS", section="settings", cfg_parser=source_cfg, default=False)
     )
 
     # If SRC_CONNECTORX_ORACLE_CLIENT_PATH is set, use it to try to initialize Oracle client

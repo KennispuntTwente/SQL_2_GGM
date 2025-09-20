@@ -10,29 +10,15 @@ def create_connectorx_uri(
     port: Optional[int] = None,
     database: Optional[str] = None,
     *,
-    # —extra knobs taken straight from the docs —
-    protocol: Optional[str] = None,  # MySQL / Postgres
-    sslmode: Optional[str] = None,  # Postgres
-    trusted_connection: bool = False,  # MsSQL
-    encrypt: bool = False,  # MsSQL
-    alias: bool = False,  # Oracle TNS alias
+    protocol: Optional[str] = None,      # MySQL / Postgres
+    sslmode: Optional[str] = None,        # Postgres
+    trusted_connection: bool = False,     # MsSQL
+    encrypt: bool = False,                # MsSQL
+    alias: bool = False,                  # Oracle TNS alias/DNS
     extra: Optional[Mapping[str, str]] = None,  # any other key=value pairs
 ) -> str:
     """
-    Build a ConnectorX connection‑URI.
-
-    Args:
-        driver: A hint such as 'mssql', 'sqlserver', 'mysql', 'oracle',
-                'postgres', 'redshift', or 'sqlite'.
-        username/password/host/port/database: familiar pieces of the DSN.
-        protocol: 'binary' or 'text' for MySQL; 'binary', 'csv', or 'cursor' for Postgres.
-        sslmode: Postgres SSL mode ('require', 'disable', …).
-        trusted_connection / encrypt: MS‑SQL specific flags from the docs.
-        alias: When True, create an Oracle *TNS alias* URI and append 'alias=true'.
-        extra: dict of additional query‑string parameters.
-
-    Returns:
-        str – a ready‑to‑pass URI for cx.read_sql().
+    Build a ConnectorX connection-URI.
     """
     drv = driver.lower()
 
@@ -55,7 +41,7 @@ def create_connectorx_uri(
     if scheme == "sqlite":
         return f"sqlite://{database or ''}"
 
-    # credentials part – quote password for safety (esp. MsSQL tip).
+    # credentials part – quote for safety.
     cred = ""
     if username:
         cred = quote_plus(username)
@@ -63,32 +49,45 @@ def create_connectorx_uri(
             cred += f":{quote_plus(password)}"
         cred += "@"
 
-    # host:port
+    # collect query params as (k, v) pairs to preserve order
+    query_params: list[tuple[str, str]] = []
+
+    # scheme-specific switches
+    if scheme == "mssql":
+        if encrypt:
+            query_params.append(("encrypt", "true"))
+        if trusted_connection:
+            query_params.append(("trusted_connection", "true"))
+    elif scheme in ("mysql", "postgres"):
+        if protocol:
+            query_params.append(("protocol", protocol))
+    if scheme == "postgres" and sslmode:
+        query_params.append(("sslmode", sslmode))
+
+    # append arbitrary extras (before hard-coded flags so flags take precedence)
+    if extra:
+        for k, v in extra.items():
+            query_params.append((k, str(v)))
+
+    def build_query(pairs: list[tuple[str, str]]) -> str:
+        if not pairs:
+            return ""
+        return "?" + "&".join(f"{k}={quote_plus(v)}" for k, v in pairs)
+
+    # ORACLE alias form
+    if scheme == "oracle" and alias:
+        alias_name = host or database
+        if not alias_name:
+            raise ValueError("For Oracle alias URIs, provide alias name via `host` or `database`.")
+        # ensure alias=true is present (and wins)
+        query_params = [(k, v) for k, v in query_params if k.lower() != "alias"]
+        query_params.append(("alias", "true"))
+        return f"oracle://{cred}{alias_name}{build_query(query_params)}"
+
+    # Generic (and Oracle non-alias) host:port + /database path
     netloc = host or ""
     if port:
         netloc += f":{port}"
-
-    # database / service name / alias
     path = database or ""
-    query_params: list[str] = []
 
-    # scheme‑specific switches
-    if scheme == "mssql":
-        if encrypt:
-            query_params.append("encrypt=true")
-        if trusted_connection:
-            query_params.append("trusted_connection=true")
-    elif scheme in ("mysql", "postgres"):
-        if protocol:
-            query_params.append(f"protocol={protocol}")
-    if scheme == "postgres" and sslmode:
-        query_params.append(f"sslmode={sslmode}")
-    if scheme == "oracle" and alias:
-        query_params.append("alias=true")
-
-    # arbitrary extras
-    if extra:
-        query_params.extend([f"{k}={quote_plus(str(v))}" for k, v in extra.items()])
-
-    query_str = f"?{'&'.join(query_params)}" if query_params else ""
-    return f"{scheme}://{cred}{netloc}/{path}{query_str}"
+    return f"{scheme}://{cred}{netloc}/{path}{build_query(query_params)}"
