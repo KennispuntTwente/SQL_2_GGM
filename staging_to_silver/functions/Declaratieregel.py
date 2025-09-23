@@ -17,12 +17,12 @@ def DECLARATIEREGEL(engine, source_schema=None):
 
     return (
         select(
-            szclient.c.CLIENTNR.label("RECHTSPERSOON_ID"),
-            szclient.c.IND_GEZAG.label("GEZAGSDRAGERGEKEND_ENUM_ID"),
+            szukhis.c.BEDRAG.label("BEDRAG"),
+            szukhis.c.IND_GEZAG.label("IS_VOOR_BESCHIKKING_ID"),
             cast(literal(None), String(80)).label("CODE"),
             cast(literal(None), String(80)).label("JURIDISCHESTATUS"),
             cast(literal(None), String(80)).label("WETTELIJKEVERTEGENWOORDIGING"),
-       
+            
         )
            
         .select_from(szclient)
