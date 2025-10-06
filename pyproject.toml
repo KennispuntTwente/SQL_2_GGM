@@ -5,7 +5,6 @@ requires-python = ">= 3.12.10"
 dependencies = [
     "configparser>=7.2.0",
     "connectorx>=0.4.3",
-    "cx-oracle>=8.3.0",
     "docker>=7.1.0",
     "dotenv>=0.9.9",
     "mssql>=1.0.1",

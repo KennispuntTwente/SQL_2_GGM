@@ -1,9 +1,13 @@
-# Connection to SQL server which contains staging
+[database]
 DRIVER=postgresql+psycopg2
 HOST=localhost
 PORT=5432
 USER=sa
 PASSWORD=SecureP@ss1!24323482349
+DB=ggm
+SCHEMA=ggm
+
+[settings]
 SOURCE_SCHEMA=staging
 TARGET_SCHEMA=silver
 # Of wachtwoord gevraagd wordt in CLI i.p.v. uit te lezen uit environment of .ini-config

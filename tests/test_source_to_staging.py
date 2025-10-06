@@ -11,17 +11,18 @@ from source_to_staging.functions.upload_parquet import upload_parquet
 from ggm_dev_server.get_connection import get_connection
 from source_to_staging.functions.create_connectorx_uri import create_connectorx_uri
 
-import oracledb 
+import oracledb
+
 oracledb.init_oracle_client(lib_dir=r"C:\oracle\instantclient_21_18")
 
 # Configuration for different database types and ports
 db_types = ["mariadb", "mysql", "postgres", "oracle", "mssql"]
 ports = {
-    "mariadb": 3307, 
+    "mariadb": 3307,
     "mysql": 2053,
     "postgres": 5433,
     "oracle": 1522,
-    "mssql": 1434
+    "mssql": 1434,
 }
 
 # Temporary dump directory
@@ -35,6 +36,7 @@ insert_sql = f"INSERT INTO {table_name} (id, val) VALUES (1, 'foo'), (2, 'bar')"
 # Make fake credentials which meets SQL server requirements
 username = "sa"
 password = "S3cureP@ssw0rd!23243"
+
 
 # Define procedure
 def run_migration_for_db_type(
@@ -53,8 +55,14 @@ def run_migration_for_db_type(
 
     # Start source container & get engine
     source_engine = get_connection(
-        db_type=db_type, db_name="test_source", user=username, password=password,
-        port=port, force_refresh=True, sql_folder=None, print_tables=False
+        db_type=db_type,
+        db_name="test_source",
+        user=username,
+        password=password,
+        port=port,
+        force_refresh=True,
+        sql_folder=None,
+        print_tables=False,
     )
 
     # Create table and insert data in source
@@ -72,7 +80,7 @@ def run_migration_for_db_type(
             password=password,
             host="localhost",
             port=port,
-            database="test_source"
+            database="test_source",
         )
 
     # Dump to Parquet
@@ -81,8 +89,14 @@ def run_migration_for_db_type(
 
     # Start destination container & get engine
     dest_engine = get_connection(
-        db_type=db_type, db_name="test_dest", user=username, password=password,
-        port=port, force_refresh=True, sql_folder=None, print_tables=False
+        db_type=db_type,
+        db_name="test_dest",
+        user=username,
+        password=password,
+        port=port,
+        force_refresh=True,
+        sql_folder=None,
+        print_tables=False,
     )
 
     # Choose schema based on db_type
@@ -95,20 +109,23 @@ def run_migration_for_db_type(
     else:
         schema = None  # MySQL and others don't typically use named schemas
 
-
     # Upload Parquet to destination
     upload_parquet(dest_engine, schema=schema, input_dir=str(dump_dir))
     print("Uploaded parquet data into destination database")
 
     # Verify results
     with dest_engine.connect() as conn:
-        rows = conn.execute(text(f"SELECT id, val FROM {table_name} ORDER BY id")).fetchall()
+        rows = conn.execute(
+            text(f"SELECT id, val FROM {table_name} ORDER BY id")
+        ).fetchall()
 
-    assert rows == [(1, 'foo'), (2, 'bar')]
+    assert rows == [(1, "foo"), (2, "bar")]
+
 
 # Define test which runs procedure for each db_type and for both with/without ConnectorX
 # ConnectorX support varies by driver; exclude those it doesn't support.
-supported_by_connectorx = {"mariadb", "mysql", "postgres", "mssql", "oracle"}  
+supported_by_connectorx = {"mariadb", "mysql", "postgres", "mssql", "oracle"}
+
 
 @pytest.mark.parametrize("db_type", db_types)
 @pytest.mark.parametrize("connectorx", [False, True])

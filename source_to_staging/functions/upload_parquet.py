@@ -6,12 +6,8 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.schema import CreateSchema
 
-def upload_parquet(
-    engine,
-    schema=None,
-    input_dir="data",
-    cleanup=True
-):
+
+def upload_parquet(engine, schema=None, input_dir="data", cleanup=True):
     """
     Uploads (possibly chunked) Parquet files into destination DB.
     Ensures the target database and schema exist before loading.
@@ -28,7 +24,7 @@ def upload_parquet(
             with admin_eng.begin() as conn:
                 exists = conn.execute(
                     text("SELECT 1 FROM pg_database WHERE datname = :db"),
-                    {"db": db_name}
+                    {"db": db_name},
                 ).scalar()
                 if not exists:
                     conn.execute(text(f'CREATE DATABASE "{db_name}"'))
@@ -39,12 +35,14 @@ def upload_parquet(
             admin_url = engine.url.set(database="master")
             admin_eng = create_engine(admin_url)
             with admin_eng.begin() as conn:
-                conn.execute(text(f"""
+                conn.execute(
+                    text(f"""
                     IF DB_ID(N'{db_name}') IS NULL
                     BEGIN
                         CREATE DATABASE [{db_name}];
                     END
-                """))
+                """)
+                )
             admin_eng.dispose()
 
     # 2) Ensure the schema exists
@@ -53,12 +51,14 @@ def upload_parquet(
             if dialect == "postgresql":
                 conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema}"))
             elif dialect in ("mssql", "sql server"):
-                conn.execute(text(f"""
+                conn.execute(
+                    text(f"""
                     IF SCHEMA_ID(N'{schema}') IS NULL
                     BEGIN
                         EXEC(N'CREATE SCHEMA {schema}');
                     END
-                """))
+                """)
+                )
             elif dialect == "oracle":
                 pass
             elif dialect in ("mysql", "mariadb"):
@@ -87,11 +87,12 @@ def upload_parquet(
             path = os.path.join(input_dir, fname)
             print(f"🔹 Processing {path}")
             df = pl.read_parquet(path)
+            df = df.rename({col: col.lower() for col in df.columns})
             df.write_database(
                 table_name=full_table,
                 connection=engine,
                 if_table_exists="replace" if idx == 0 else "append",
-                engine="sqlalchemy"
+                engine="sqlalchemy",
             )
 
         print(f"✅ Loaded: {table_name}")

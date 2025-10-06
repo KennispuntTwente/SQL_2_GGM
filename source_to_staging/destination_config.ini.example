@@ -6,3 +6,7 @@ DST_USERNAME = sa
 DST_PASSWORD = SecureP@ss1!24323482349
 DST_DB = ggm
 DST_SCHEMA = ggm
+
+[settings]
+# Of wachtwoord gevraagd wordt in CLI i.p.v. uit te lezen uit environment of .ini-config
+ASK_PASSWORD_IN_CLI=false
