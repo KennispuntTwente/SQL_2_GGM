@@ -19,7 +19,6 @@ def build_medewerker(engine, source_schema=None):
             szwerker.c.IND_GESLACHT.label("GESLACHTSAANDUIDING"),
             szwerker.c.TOELICHTING.label("MEDEWERKERTOELICHTING"),
             szwerker.c.TELEFOON.label("TELEFOONNUMMER"),
-
             cast(literal(None), Date).label("DATUMINDIENST"),
             cast(literal(None), Date).label("DATUMUITDIENST"),
             cast(literal(None), String(80)).label("EXTERN"),

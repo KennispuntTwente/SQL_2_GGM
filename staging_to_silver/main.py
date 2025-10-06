@@ -160,6 +160,9 @@ with engine.begin() as conn:  # single, atomic transaction
             print(f"Loaded → {full_name} [{mode}]")
 
         elif mode == "upsert":
+            # NOTE: The following upsert logic uses PostgreSQL-specific SQLAlchemy features.
+            # This will only work with PostgreSQL databases. For other databases, you must implement
+            # a database-agnostic upsert or handle upserts differently.
             # On PostgreSQL – adjust index_elements to your PK/UK definition
             upsert_stmt = insert_from_select.on_conflict_do_update(  # type: ignore[attr-defined]
                 index_elements=list(dest_table.primary_key.columns.keys()),
