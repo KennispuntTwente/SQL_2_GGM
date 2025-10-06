@@ -74,5 +74,5 @@ def build_beschikte_voorziening(engine, source_schema=None):
 
 # Map target table names to query builder functions
 __query_exports__ = {
-    "beschikte_voorziening": build_beschikte_voorziening,
+    "BESCHIKTE_VOORZIENING": build_beschikte_voorziening,
 }

@@ -10,7 +10,8 @@ def build_beschikking(engine, source_schema=None):
     metadata.reflect(bind=engine, schema=source_schema, only=table_names)
 
     fq_names = [f"{source_schema + '.' if source_schema else ''}{n}" for n in table_names]
-    wvbesl = (metadata.tables[name] for name in fq_names)
+    # Only one table expected, unpack it
+    (wvbesl,) = (metadata.tables[name] for name in fq_names)
     
     return (
         select(

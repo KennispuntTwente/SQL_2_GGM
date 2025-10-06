@@ -73,7 +73,7 @@ write_modes = {
 # ─── Execute queries to go from staging (dump) to silver (GGM) ─────────────────────
 
 # Queries laden zoals gedefinieerd in staging_to_silver/queries/*.py
-queries = load_queries(package="staging_to_silver.queries")
+queries = load_queries(package="staging_to_silver.queries", normalize="upper")
 
 # All work happens **on the SQL server** and **inside one transaction**
 # Executing everything on the SQL server, we avoid issues with data volumes & performance
