@@ -1,4 +1,5 @@
 import os
+from typing import cast
 from dotenv import load_dotenv
 from sqlalchemy import MetaData, Table, text
 
@@ -17,24 +18,44 @@ if os.path.exists("staging_to_silver/.env"):
 args, cfg = load_single_ini_config()
 
 # ─── Build connection to database ──────────────────────────────────────────────
-engine = create_sqlalchemy_engine(
-    driver=get_config_value("DRIVER", cfg_parser=cfg),
-    username=get_config_value("USER", cfg_parser=cfg),
-    password=get_config_value(
-        "PASSWORD", cfg_parser=cfg, print_value=False,
-        ask_in_command_line=get_config_value("ASK_PASSWORD_IN_CLI", section="settings", cfg_parser=cfg, default=False)
+ask_password_in_cli = bool(
+    get_config_value("ASK_PASSWORD_IN_CLI", section="settings", cfg_parser=cfg, default=False)
+)
+driver = cast(str, get_config_value("DRIVER", cfg_parser=cfg))
+username = cast(str, get_config_value("USER", cfg_parser=cfg))
+host = cast(str, get_config_value("HOST", cfg_parser=cfg))
+port = int(cast(str, get_config_value("PORT", cfg_parser=cfg)))
+database = cast(str, get_config_value("DB", cfg_parser=cfg))
+password = cast(
+    str,
+    get_config_value(
+        "PASSWORD", cfg_parser=cfg, print_value=False, ask_in_command_line=ask_password_in_cli
     ),
-    host=get_config_value("HOST", cfg_parser=cfg),
-    port=int(get_config_value("PORT", cfg_parser=cfg)),
-    database=get_config_value("DB", cfg_parser=cfg),
+)
+
+engine = create_sqlalchemy_engine(
+    driver=driver,
+    username=username,
+    password=password,
+    host=host,
+    port=port,
+    database=database,
 )
 
 # ─── Read source/target schema from config ─────────────────────────────────────
-source_schema = get_config_value(
-    "SOURCE_SCHEMA", section="settings", cfg_parser=cfg, default="staging"
+source_schema = cast(
+    str, get_config_value("SOURCE_SCHEMA", section="settings", cfg_parser=cfg, default="staging")
 )
-target_schema = get_config_value(
-    "TARGET_SCHEMA", section="settings", cfg_parser=cfg, default="silver"
+target_schema = cast(
+    str, get_config_value("TARGET_SCHEMA", section="settings", cfg_parser=cfg, default="silver")
+)
+
+# ─── Read case-normalization settings ─────────────────────────────────────────
+table_name_case = get_config_value(
+    "TABLE_NAME_CASE", section="settings", cfg_parser=cfg, default=None
+)
+column_name_case = get_config_value(
+    "COLUMN_NAME_CASE", section="settings", cfg_parser=cfg, default=None
 )
 
 # ─── Fill engine with data for testing (optional) ─────────────────────────────
@@ -44,9 +65,9 @@ if get_config_value("TEST_MODE", cfg_parser=cfg, default=False):
 
     engine = get_connection(
         db_type="postgres",
-        db_name=get_config_value("DB", cfg_parser=cfg),
-        user=get_config_value("USER", cfg_parser=cfg),
-        password=get_config_value("PASSWORD", cfg_parser=cfg, print_value=False),
+        db_name=database,
+        user=username,
+        password=password,
         force_refresh=True,
         sql_folder="./ggm_selectie",
         sql_suffix_filter=True,
@@ -64,6 +85,7 @@ write_modes = {
     "YET_ANOTHER": "upsert",
     # … add / override as required
 }
+write_modes_ci = {k.lower(): v for k, v in write_modes.items()}
 
 # Append means that the table is loaded with new data, without deleting existing rows
 # Overwrite means that the table is emptied before loading new data
@@ -73,7 +95,11 @@ write_modes = {
 # ─── Execute queries to go from staging (dump) to silver (GGM) ─────────────────────
 
 # Queries laden zoals gedefinieerd in staging_to_silver/queries/*.py
-queries = load_queries(package="staging_to_silver.queries", normalize="upper")
+queries = load_queries(
+    package="staging_to_silver.queries",
+    table_name_case=table_name_case or "upper",  # default historical behavior
+    column_name_case=column_name_case,
+)
 
 # All work happens **on the SQL server** and **inside one transaction**
 # Executing everything on the SQL server, we avoid issues with data volumes & performance
@@ -100,11 +126,24 @@ with engine.begin() as conn:  # single, atomic transaction
         )
 
         # Get the actual Column objects from the destination table
-        dest_cols = [dest_table.columns[col_name] for col_name in select_col_order]
+        # Use case-insensitive matching to be resilient to different DB identifier casing
+        dest_cols_map_ci = {c.name.lower(): c for c in dest_table.columns}
+        dest_cols = []
+        for col_name in select_col_order:
+            try:
+                dest_cols.append(dest_table.columns[col_name])
+            except KeyError:
+                ci = dest_cols_map_ci.get(col_name.lower())
+                if ci is None:
+                    raise KeyError(
+                        f"Destination column '{col_name}' not found in table {dest_table.fullname}. "
+                        f"Available: {[c.name for c in dest_table.columns]}"
+                    )
+                dest_cols.append(ci)
         print(f"Reordered destination columns: {[col.name for col in dest_cols]}")
 
         # 3) determine how we load into the destination
-        mode = write_modes.get(name, "append").lower()
+        mode = write_modes_ci.get(name.lower(), "append").lower()
         full_name = f"{target_schema}.{name}"
 
         # 4a) pre‑action for destructive modes
@@ -122,10 +161,10 @@ with engine.begin() as conn:  # single, atomic transaction
 
         elif mode == "upsert":
             # On PostgreSQL – adjust index_elements to your PK/UK definition
-            upsert_stmt = insert_from_select.on_conflict_do_update(
+            upsert_stmt = insert_from_select.on_conflict_do_update(  # type: ignore[attr-defined]
                 index_elements=list(dest_table.primary_key.columns.keys()),
                 set_={
-                    c.name: insert_from_select.excluded[c.name]
+                    c.name: insert_from_select.excluded[c.name]  # type: ignore[attr-defined]
                     for c in dest_table.columns
                     if not c.primary_key
                 },

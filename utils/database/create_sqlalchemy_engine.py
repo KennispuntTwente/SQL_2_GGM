@@ -1,13 +1,13 @@
 import sys
 import logging
 
-from sqlalchemy.engine import URL
+from sqlalchemy.engine import URL, Engine
 from sqlalchemy import create_engine
 
 
 def create_sqlalchemy_engine(
     driver: str, username: str, password: str, host: str, port: int, database: str
-) -> URL:
+) -> Engine:
     """
     Create a SQLAlchemy Engine for Oracle, PostgreSQL, SQL Server, MySQL or MariaDB,
     based on the given driver name and connection parameters.

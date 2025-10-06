@@ -12,3 +12,8 @@ SOURCE_SCHEMA=staging
 TARGET_SCHEMA=silver
 # Of wachtwoord gevraagd wordt in CLI i.p.v. uit te lezen uit environment of .ini-config
 ASK_PASSWORD_IN_CLI=false
+
+# Case normalization for destination table names and projected column labels
+# Allowed values: upper, lower, (leave empty for no normalization)
+TABLE_NAME_CASE=upper
+COLUMN_NAME_CASE=
