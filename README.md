@@ -151,6 +151,24 @@ Tips en opmerkingen
 - Oracle: de image gebruikt oracledb in thin‑mode. Voor thick‑mode (Instant Client) mount de client en zet SRC_CONNECTORX_ORACLE_CLIENT_PATH in je .env of .ini.
 - Proxy/certificaten: plaats certificaten in een volume en exporteer de juiste env vars (bijv. REQUESTS_CA_BUNDLE) als je die nodig hebt.
 
+### Docker Compose smoke runs (automatische pass/fail)
+
+Wil je de meegeleverde smoke-scripts draaien en automatisch een pass/fail terugkrijgen (zodat je niet handmatig Ctrl+C hoeft te doen)? Gebruik dan:
+
+```bash
+# Run de source→staging smoke en exit met dezelfde exit code
+docker compose up --build --no-color --abort-on-container-exit --exit-code-from app app
+
+# Run de get-connection smoke en exit met dezelfde exit code
+docker compose up --build --no-color --abort-on-container-exit --exit-code-from app-getconn app-getconn
+```
+
+Of run beide sequentially via het helper script:
+
+```bash
+bash docker/smoke/run_all.sh
+```
+
 ## Een eigen versie van dit project gebruiken
 
 Dit project is zoveel mogelijk ingericht om een 'plug-and-play' toepassing van het GGM te zijn;

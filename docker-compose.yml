@@ -57,3 +57,22 @@ services:
         source: ./data
         target: /app/data
       - /var/run/docker.sock:/var/run/docker.sock
+
+  app-cx:
+    build: .
+    image: ggmpilot:latest
+    container_name: ggmpilot-app-cx
+    depends_on:
+      db:
+        condition: service_healthy
+    working_dir: /app
+    entrypoint: ["/app/.venv/bin/python", "docker/smoke/smoke_source_to_staging_cx.py"]
+    command: ["--source-config", "/app/docker/config/source.ini", "--destination-config", "/app/docker/config/dest.ini"]
+    environment:
+      IN_DOCKER: "1"
+      PIPELINE: source-to-staging-cx
+      PYTHONPATH: "/app"
+    volumes:
+      - type: bind
+        source: ./data
+        target: /app/data
