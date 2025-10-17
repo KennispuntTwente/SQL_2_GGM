@@ -1,5 +1,7 @@
-# Test migration functions across multiple database types using the demo logic
-# Run `pytest -v tests/test_source_to_staging.py` to execute this test
+# Dit script test de 'source_to_staging' migratiefuncties voor meerdere
+# database types (MariaDB, MySQL, Postgres, Oracle, MSSQL) met en zonder
+# ConnectorX ondersteuning
+# Run `pytest -v tests/test_source_to_staging.py` om deze test uit te voeren
 
 import shutil
 from pathlib import Path

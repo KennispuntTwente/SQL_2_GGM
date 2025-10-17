@@ -1,5 +1,6 @@
-# Tijdelijk script om te testen of verschillende datatypes vanuit Oracle goed worden
+# Dit script test of verschillende datatypes vanuit Oracle goed worden
 #   overgebracht naar Postgres
+# Run `python tests/test_oracle_db.py` om deze test uit te voeren
 
 import datetime
 import json
