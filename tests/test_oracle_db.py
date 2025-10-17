@@ -12,9 +12,10 @@ Notes
 """
 
 import datetime
-import importlib.util
 import json
 import os
+import shutil
+import subprocess
 
 import pandas as pd
 import pytest
@@ -43,8 +44,8 @@ from sqlalchemy.types import TypeDecorator
 from sqlalchemy.dialects.oracle import TIMESTAMP
 from sqlalchemy.sql import text
 
-from ggm_dev_server.get_connection import get_connection
 from utils.database.create_connectorx_uri import create_connectorx_uri
+from ggm_dev_server.get_connection import get_connection
 
 # Import heavy, optional deps inside the test to allow import-time skip handling.
 # from utils.database.initialize_oracle_client import initialize_oracle_client
@@ -248,12 +249,24 @@ def compare_and_print(df_ora, df_pg, table_name):
     print("\n" + "=" * 80)
 
 
-RUN_ORACLE_TESTS = os.getenv("RUN_ORACLE_TESTS", "0").lower() in {"1", "true", "yes", "on"}
-ORACLEDB_AVAILABLE = importlib.util.find_spec("oracledb") is not None
+def _docker_running() -> bool:
+    """Return True if Docker CLI is available and the daemon responds."""
+    if not shutil.which("docker"):
+        return False
+    try:
+        # 'docker info' fails fast when daemon isn't running
+        res = subprocess.run(["docker", "info"], capture_output=True, text=True, timeout=5)
+        return res.returncode == 0
+    except Exception:
+        return False
 
 
-@pytest.mark.skipif(not RUN_ORACLE_TESTS, reason="RUN_ORACLE_TESTS not enabled; set to 1 to run this integration test.")
-@pytest.mark.skipif(not ORACLEDB_AVAILABLE, reason="oracledb package not installed; required for Oracle integration test.")
+def _slow_tests_enabled() -> bool:
+    return os.getenv("RUN_SLOW_TESTS", "0").lower() in {"1", "true", "yes", "on"}
+
+
+@pytest.mark.skipif(not _slow_tests_enabled(), reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.")
+@pytest.mark.skipif(not _docker_running(), reason="Docker is not available/running; required for this integration test.")
 def test_oracle_to_postgres_roundtrip(tmp_path):
     """End-to-end Oracle → Parquet → Postgres validation for key types."""
     # Late imports to avoid import-time failures when test is skipped
