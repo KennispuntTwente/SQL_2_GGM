@@ -1,10 +1,23 @@
-# Dit script test of verschillende datatypes vanuit Oracle goed worden
-#   overgebracht naar Postgres
-# Run `python tests/test_oracle_db.py` om deze test uit te voeren
+"""
+Oracle → Parquet → Postgres roundtrip (opt-in integration test)
+
+This test provisions ephemeral Oracle and Postgres containers via
+`ggm_dev_server.get_connection`, creates a set of tables (including edge types),
+exports to Parquet, loads into Postgres, and asserts key values match.
+
+Notes
+- Skipped by default. Run with RUN_ORACLE_TESTS=1 to enable.
+- Also skips if the `oracledb` package isn't available.
+- Uses a tmp directory for Parquet output; no repo pollution.
+"""
 
 import datetime
+import importlib.util
 import json
+import os
+
 import pandas as pd
+import pytest
 from dotenv import load_dotenv
 
 from sqlalchemy import (
@@ -31,12 +44,12 @@ from sqlalchemy.dialects.oracle import TIMESTAMP
 from sqlalchemy.sql import text
 
 from ggm_dev_server.get_connection import get_connection
-
 from utils.database.create_connectorx_uri import create_connectorx_uri
-from utils.database.initialize_oracle_client import initialize_oracle_client
 
-from source_to_staging.functions.download_parquet import download_parquet
-from source_to_staging.functions.upload_parquet import upload_parquet
+# Import heavy, optional deps inside the test to allow import-time skip handling.
+# from utils.database.initialize_oracle_client import initialize_oracle_client
+# from source_to_staging.functions.download_parquet import download_parquet
+# from source_to_staging.functions.upload_parquet import upload_parquet
 
 
 # Custom TypeDecorator to handle Python time objects on Oracle
@@ -235,17 +248,27 @@ def compare_and_print(df_ora, df_pg, table_name):
     print("\n" + "=" * 80)
 
 
-if __name__ == "__main__":
-    # Load .env
-    load_dotenv("source_to_staging\\.env")
+RUN_ORACLE_TESTS = os.getenv("RUN_ORACLE_TESTS", "0").lower() in {"1", "true", "yes", "on"}
+ORACLEDB_AVAILABLE = importlib.util.find_spec("oracledb") is not None
 
-    # If using ConnectorX with Oracle, ensure Oracle client is initialized
+
+@pytest.mark.skipif(not RUN_ORACLE_TESTS, reason="RUN_ORACLE_TESTS not enabled; set to 1 to run this integration test.")
+@pytest.mark.skipif(not ORACLEDB_AVAILABLE, reason="oracledb package not installed; required for Oracle integration test.")
+def test_oracle_to_postgres_roundtrip(tmp_path):
+    """End-to-end Oracle → Parquet → Postgres validation for key types."""
+    # Late imports to avoid import-time failures when test is skipped
+    from utils.database.initialize_oracle_client import initialize_oracle_client
+    from source_to_staging.functions.download_parquet import download_parquet
+    from source_to_staging.functions.upload_parquet import upload_parquet
+
+    # Load optional env (e.g., Oracle client path for connectorx/oracledb thick mode)
+    load_dotenv("source_to_staging/.env")
     initialize_oracle_client(config_key="SRC_CONNECTORX_ORACLE_CLIENT_PATH")
 
-    # Setup Oracle database with required tables
+    # 1) Setup Oracle with test data
     oracle = setup_oracle()
 
-    # Make connectorx uri for Oracle
+    # 2) Export Oracle tables to Parquet in a temp dir
     oracle_connectorx_uri = create_connectorx_uri(
         driver="oracle",
         username="SA",
@@ -254,34 +277,93 @@ if __name__ == "__main__":
         port=1521,
         database="ggm",
     )
-
-    # Export to Parquet
+    out_dir = tmp_path / "parquet"
     download_parquet(
         oracle_connectorx_uri,
         tables=["SZCLIENT", "WVBEDRAG", "WVAANB", "ALL_TYPES"],
-        output_dir="data",
+        output_dir=str(out_dir),
     )
 
-    # Load into Postgres
+    # 3) Fresh Postgres and load Parquet
     postgres = get_connection(
         db_type="postgres",
         db_name="ggm",
         user="postgres",
         password="SecureP@ss1!24323482349",
         force_refresh=True,
+        print_tables=False,
     )
+    upload_parquet(postgres, input_dir=str(out_dir), cleanup=True)
 
-    upload_parquet(postgres, input_dir="data", cleanup=True)
+    # 4) Compare key values per table (concise, assertive)
+    # a) SZCLIENT
+    df_ora = pd.read_sql_query("SELECT id, name FROM SA.SZCLIENT ORDER BY id", con=oracle)
+    df_pg = pd.read_sql_query('SELECT id, name FROM public."SZCLIENT" ORDER BY id', con=postgres)
+    assert df_ora.shape == df_pg.shape == (2, 2)
+    assert df_pg["name"].tolist() == ["Client A", "Client B"]
 
-    # Now compare the tables in Oracle and Postgres
-    tables = ["SZCLIENT", "WVBEDRAG", "WVAANB", "ALL_TYPES"]
-    for table in tables:
-        # Read from Oracle using direct SELECT
-        oracle_query = f"SELECT * FROM SA.{table}"
-        df_oracle = pd.read_sql_query(oracle_query, con=oracle)
+    # b) WVBEDRAG
+    df_ora = pd.read_sql_query("SELECT id, bedrag FROM SA.WVBEDRAG ORDER BY id", con=oracle)
+    df_pg = pd.read_sql_query('SELECT id, bedrag FROM public."WVBEDRAG" ORDER BY id', con=postgres)
+    assert df_ora.shape == df_pg.shape == (2, 2)
+    # Ensure numeric survives the trip (allow coercion via Decimal/float to compare sums)
+    assert pytest.approx(float(df_pg["bedrag"].sum())) == 300.00
 
-        # Read from Postgres using direct SELECT with quoted table name
-        postgres_query = f'SELECT * FROM public."{table}"'
-        df_postgres = pd.read_sql_query(postgres_query, con=postgres)
+    # c) WVAANB
+    df_ora = pd.read_sql_query("SELECT id, description FROM SA.WVAANB ORDER BY id", con=oracle)
+    df_pg = pd.read_sql_query('SELECT id, description FROM public."WVAANB" ORDER BY id', con=postgres)
+    assert df_ora.equals(df_pg)
 
-        compare_and_print(df_oracle, df_postgres, table)
+    # d) ALL_TYPES (spot-check representative types)
+    df_ora = pd.read_sql_query("SELECT * FROM SA.ALL_TYPES WHERE id = 1", con=oracle)
+    df_pg = pd.read_sql_query('SELECT * FROM public."ALL_TYPES" WHERE id = 1', con=postgres)
+    assert df_ora.shape[0] == df_pg.shape[0] == 1
+    row_pg = df_pg.iloc[0].to_dict()
+
+    # Strings and enums
+    assert row_pg["string_col"] == "Sample str"
+    assert row_pg["enum_col"] == "B"
+
+    # Numeric types
+    assert int(row_pg["small_int"]) == 42
+    assert int(row_pg["big_int"]) == 123456789012345
+    assert pytest.approx(float(row_pg["float_col"])) == pytest.approx(3.14159, rel=1e-6)
+    assert pytest.approx(float(row_pg["numeric_col"])) == pytest.approx(2.7182, rel=1e-6)
+
+    # Date/time types (normalize to strings for robustness)
+    assert str(row_pg["date_col"]).startswith("2025-07-30")
+    # datetime stored should preserve this timestamp
+    assert "2025-07-30" in str(row_pg["datetime_col"]) and "15:45:00" in str(row_pg["datetime_col"]).replace(".000000", "")
+    # time_col may roundtrip as a datetime with an epoch date; ensure time-of-day is preserved
+    assert "15:45:00" in str(row_pg["time_col"])  # e.g., '1970-01-01 15:45:00' or '15:45:00'
+
+    # JSON and binary
+    # json may be a dict already or a JSON string; normalize
+    json_val = row_pg["json_col"]
+    if isinstance(json_val, str):
+        json_val = json.loads(json_val)
+    assert json_val == {"key": "value"}
+
+    # binary may come back as bytes or memoryview
+    bin_val = row_pg["binary_col"]
+    if isinstance(bin_val, memoryview):
+        bin_val = bin_val.tobytes()
+    elif isinstance(bin_val, str):
+        # Common representation from Postgres bytea: '\xdeadbeef'
+        s = bin_val.strip()
+        if s.startswith("\\x") and len(s) % 2 == 0:
+            try:
+                bin_val = bytes.fromhex(s[2:])
+            except ValueError:
+                # Fallback: treat as UTF-8 if not valid hex
+                bin_val = s.encode("utf-8")
+        else:
+            bin_val = s.encode("utf-8")
+    assert bin_val == b"\xde\xad\xbe\xef"
+
+    # If you need a full diff during debugging, uncomment:
+    # compare_and_print(
+    #     pd.read_sql_query("SELECT * FROM SA.ALL_TYPES", con=oracle),
+    #     pd.read_sql_query('SELECT * FROM public."ALL_TYPES"', con=postgres),
+    #     "ALL_TYPES",
+    # )
