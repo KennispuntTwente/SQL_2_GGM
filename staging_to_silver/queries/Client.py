@@ -1,4 +1,5 @@
 from sqlalchemy import MetaData, select, cast, literal, String
+from utils.database.naming import normalize_table_name, get_table_column, normalize_column_name
 
 
 def build_client(engine, source_schema=None):
@@ -6,7 +7,7 @@ def build_client(engine, source_schema=None):
     Returns a SELECT that matches the CLIENT destination schema.
     Based on previous implementation in staging_to_silver/functions/Client.py
     """
-    table_names = ["SZCLIENT"]
+    table_names = [normalize_table_name("SZCLIENT", kind="source")]
 
     metadata = MetaData()
     metadata.reflect(bind=engine, schema=source_schema, only=table_names)
@@ -16,11 +17,21 @@ def build_client(engine, source_schema=None):
 
     return (
         select(
-            szclient.c.CLIENTNR.label("RECHTSPERSOON_ID"),
-            szclient.c.IND_GEZAG.label("GEZAGSDRAGERGEKEND_ENUM_ID"),
-            cast(literal(None), String(80)).label("CODE"),
-            cast(literal(None), String(80)).label("JURIDISCHESTATUS"),
-            cast(literal(None), String(80)).label("WETTELIJKEVERTEGENWOORDIGING"),
+            get_table_column(szclient, "CLIENTNR").label(
+                normalize_column_name("RECHTSPERSOON_ID", kind="destination")
+            ),
+            get_table_column(szclient, "IND_GEZAG").label(
+                normalize_column_name("GEZAGSDRAGERGEKEND_ENUM_ID", kind="destination")
+            ),
+            cast(literal(None), String(80)).label(
+                normalize_column_name("CODE", kind="destination")
+            ),
+            cast(literal(None), String(80)).label(
+                normalize_column_name("JURIDISCHESTATUS", kind="destination")
+            ),
+            cast(literal(None), String(80)).label(
+                normalize_column_name("WETTELIJKEVERTEGENWOORDIGING", kind="destination")
+            ),
         )
         .select_from(szclient)
     )

@@ -51,9 +51,15 @@ target_schema = cast(
 )
 
 # ─── Read case-normalization settings ─────────────────────────────────────────
-table_name_case = get_config_value(
-    "TABLE_NAME_CASE", section="settings", cfg_parser=cfg, default=None
+dest_table_case = get_config_value(
+    "DESTINATION_TABLE_CASE", section="settings", cfg_parser=cfg, default=None
 )
+if not dest_table_case:
+    # Legacy fallback
+    dest_table_case = get_config_value(
+        "TABLE_NAME_CASE", section="settings", cfg_parser=cfg, default=None
+    )
+
 column_name_case = get_config_value(
     "COLUMN_NAME_CASE", section="settings", cfg_parser=cfg, default=None
 )
@@ -97,7 +103,7 @@ write_modes_ci = {k.lower(): v for k, v in write_modes.items()}
 # Queries laden zoals gedefinieerd in staging_to_silver/queries/*.py
 queries = load_queries(
     package="staging_to_silver.queries",
-    table_name_case=table_name_case or "upper",  # default historical behavior
+    table_name_case=dest_table_case or "upper",  # default historical behavior
     column_name_case=column_name_case,
 )
 

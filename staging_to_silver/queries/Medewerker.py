@@ -1,8 +1,9 @@
 from sqlalchemy import MetaData, select, cast, literal, Date, String
+from utils.database.naming import normalize_table_name, get_table_column, normalize_column_name
 
 
 def build_medewerker(engine, source_schema=None):
-    table_names = ["SZWERKER"]
+    table_names = [normalize_table_name("SZWERKER", kind="source")]
 
     metadata = MetaData()
     metadata.reflect(bind=engine, schema=source_schema, only=table_names)
@@ -12,20 +13,48 @@ def build_medewerker(engine, source_schema=None):
 
     return (
         select(
-            szwerker.c.KODE_WERKER.label("MEDEWERKER_ID"),
-            szwerker.c.NAAM.label("ACHTERNAAM"),
-            szwerker.c.KODE_INSTAN.label("FUNCTIE"),
-            szwerker.c.E_MAIL.label("EMAILADRES"),
-            szwerker.c.IND_GESLACHT.label("GESLACHTSAANDUIDING"),
-            szwerker.c.TOELICHTING.label("MEDEWERKERTOELICHTING"),
-            szwerker.c.TELEFOON.label("TELEFOONNUMMER"),
-            cast(literal(None), Date).label("DATUMINDIENST"),
-            cast(literal(None), Date).label("DATUMUITDIENST"),
-            cast(literal(None), String(80)).label("EXTERN"),
-            cast(literal(None), String(80)).label("MEDEWERKERIDENTIFICATIE"),
-            cast(literal(None), String(80)).label("ROEPNAAM"),
-            cast(literal(None), String(80)).label("VOORLETTERS"),
-            cast(literal(None), String(80)).label("VOORVOEGSELACHTERNAAM"),
+            get_table_column(szwerker, "KODE_WERKER").label(
+                normalize_column_name("MEDEWERKER_ID", kind="destination")
+            ),
+            get_table_column(szwerker, "NAAM").label(
+                normalize_column_name("ACHTERNAAM", kind="destination")
+            ),
+            get_table_column(szwerker, "KODE_INSTAN").label(
+                normalize_column_name("FUNCTIE", kind="destination")
+            ),
+            get_table_column(szwerker, "E_MAIL").label(
+                normalize_column_name("EMAILADRES", kind="destination")
+            ),
+            get_table_column(szwerker, "IND_GESLACHT").label(
+                normalize_column_name("GESLACHTSAANDUIDING", kind="destination")
+            ),
+            get_table_column(szwerker, "TOELICHTING").label(
+                normalize_column_name("MEDEWERKERTOELICHTING", kind="destination")
+            ),
+            get_table_column(szwerker, "TELEFOON").label(
+                normalize_column_name("TELEFOONNUMMER", kind="destination")
+            ),
+            cast(literal(None), Date).label(
+                normalize_column_name("DATUMINDIENST", kind="destination")
+            ),
+            cast(literal(None), Date).label(
+                normalize_column_name("DATUMUITDIENST", kind="destination")
+            ),
+            cast(literal(None), String(80)).label(
+                normalize_column_name("EXTERN", kind="destination")
+            ),
+            cast(literal(None), String(80)).label(
+                normalize_column_name("MEDEWERKERIDENTIFICATIE", kind="destination")
+            ),
+            cast(literal(None), String(80)).label(
+                normalize_column_name("ROEPNAAM", kind="destination")
+            ),
+            cast(literal(None), String(80)).label(
+                normalize_column_name("VOORLETTERS", kind="destination")
+            ),
+            cast(literal(None), String(80)).label(
+                normalize_column_name("VOORVOEGSELACHTERNAAM", kind="destination")
+            ),
         )
         .select_from(szwerker)
     )

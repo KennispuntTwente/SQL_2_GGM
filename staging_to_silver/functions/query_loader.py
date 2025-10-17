@@ -17,6 +17,7 @@ from functools import lru_cache
 from typing import Callable, Dict, Optional, Sequence
 
 from sqlalchemy.sql.elements import ColumnElement  # type: ignore
+from utils.database.naming import normalize_table_name, normalize_column_name
 
 def _load_exports(mod) -> Dict[str, Callable]:
     exports = getattr(mod, "__query_exports__", None)
@@ -39,14 +40,11 @@ def _load_exports(mod) -> Dict[str, Callable]:
     return out
 
 def _normalize_key(name: str, mode: Optional[str]) -> str:
-    if not mode:
-        return name
-    mode = mode.lower()
-    if mode == "upper":
-        return name.upper()
-    if mode == "lower":
-        return name.lower()
-    return name  # unknown mode -> no-op
+    # Keep behavior for direct argument while delegating logic to shared function.
+    if mode is None:
+        # Use destination default from config (through normalize_table_name)
+        return normalize_table_name(name, kind="destination")
+    return normalize_table_name(name, kind="destination", case=mode)
 
 
 def _wrap_builder_for_column_case(fn: Callable, column_name_case: Optional[str]) -> Callable:
@@ -56,8 +54,13 @@ def _wrap_builder_for_column_case(fn: Callable, column_name_case: Optional[str])
 
     The wrapper is a no-op when `column_name_case` is falsy.
     """
+    # If not provided, derive default from config for destination columns
     if not column_name_case:
-        return fn
+        derived = normalize_column_name("__probe__", kind="destination", case=None)
+        # If derived doesn't change, it means no normalization configured; skip wrapping
+        if derived == "__probe__":
+            return fn
+        column_name_case = get_normalization_mode_for_destination_columns()
 
     def _wrapped(engine, *args, **kwargs):  # keep first param 'engine'
         stmt = fn(engine, *args, **kwargs)
@@ -96,6 +99,25 @@ def _wrap_builder_for_column_case(fn: Callable, column_name_case: Optional[str])
     _wrapped.__module__ = getattr(fn, "__module__", __name__)
     return _wrapped
 
+
+def get_normalization_mode_for_destination_columns() -> Optional[str]:
+    """Return explicit mode for destination column normalization from config if any."""
+    # Probe the configured value directly by comparing transformations
+    for mode in ("upper", "lower"):
+        if normalize_column_name("x", kind="destination", case=None) == normalize_column_name("x", kind="destination", case=mode):
+            # Not reliable probe; fall through
+            pass
+    # Fall back to reading the effective mode by trying both and checking outcome
+    if normalize_column_name("X", kind="destination", case=None) == "X":
+        if normalize_column_name("x", kind="destination", case=None) == "x":
+            return None
+    # Heuristic: if 'a' becomes 'A', it's upper; if 'A' becomes 'a', it's lower
+    if normalize_column_name("a", kind="destination", case=None) == "A":
+        return "upper"
+    if normalize_column_name("A", kind="destination", case=None) == "a":
+        return "lower"
+    return None
+
 @lru_cache(maxsize=None)
 def load_queries(
     package: str = "staging_to_silver.queries",
@@ -113,7 +135,7 @@ def load_queries(
     """
     queries: Dict[str, Callable] = {}
 
-    # Back-compat shim
+    # Back-compat shim for API param; if both provided, table_name_case wins.
     if table_name_case is None:
         table_name_case = normalize
 

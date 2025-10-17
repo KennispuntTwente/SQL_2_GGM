@@ -1,10 +1,11 @@
 from sqlalchemy import MetaData, select, cast, literal, String, Date, Integer
+from utils.database.naming import normalize_table_name, get_table_column, normalize_column_name
 
 def build_beschikking(engine, source_schema=None):
     """
     Returns a SELECT that matches the BESCHIKKING destination schema.
     """
-    table_names = ["WVBESL"]
+    table_names = [normalize_table_name("WVBESL", kind="source")]
 
     metadata = MetaData()
     metadata.reflect(bind=engine, schema=source_schema, only=table_names)
@@ -15,14 +16,32 @@ def build_beschikking(engine, source_schema=None):
     
     return (
         select(
-            wvbesl.c.BESLUITNR.label("BESCHIKKING_ID"),
-            wvbesl.c.CLIENTNR.label("CLIENT_ID"),
-            wvbesl.c.BESLUITNR.label("HEEFT_VOORZIENINGEN_BESCHIKTE_VOORZIENING_ID"),
-            cast(literal(None), String(20)).label("CODE"),
-            cast(literal(None), String(200)).label("COMMENTAAR"),
-            cast(literal(None), Date).label("DATUMAFGIFTE"),
-            cast(literal(None), Integer).label("GRONDSLAGEN"),
-            cast(literal(None), String(255)).label("WET"),
+            get_table_column(wvbesl, "BESLUITNR").label(
+                normalize_column_name("BESCHIKKING_ID", kind="destination")
+            ),
+            get_table_column(wvbesl, "CLIENTNR").label(
+                normalize_column_name("CLIENT_ID", kind="destination")
+            ),
+            get_table_column(wvbesl, "BESLUITNR").label(
+                normalize_column_name(
+                    "HEEFT_VOORZIENINGEN_BESCHIKTE_VOORZIENING_ID", kind="destination"
+                )
+            ),
+            cast(literal(None), String(20)).label(
+                normalize_column_name("CODE", kind="destination")
+            ),
+            cast(literal(None), String(200)).label(
+                normalize_column_name("COMMENTAAR", kind="destination")
+            ),
+            cast(literal(None), Date).label(
+                normalize_column_name("DATUMAFGIFTE", kind="destination")
+            ),
+            cast(literal(None), Integer).label(
+                normalize_column_name("GRONDSLAGEN", kind="destination")
+            ),
+            cast(literal(None), String(255)).label(
+                normalize_column_name("WET", kind="destination")
+            ),
         )
         .select_from(wvbesl)
     )

@@ -1,7 +1,14 @@
 from sqlalchemy import MetaData, select, and_, or_, func, cast, Date, literal
+from utils.database.naming import normalize_table_name, get_table_column, normalize_column_name
 
 def build_beschikte_voorziening(engine, source_schema=None):
-    table_names = ["wvind_b", "szregel", "wvbesl", "wvdos", "abc_refcod"]
+    table_names = [
+        normalize_table_name("wvind_b", kind="source"),
+        normalize_table_name("szregel", kind="source"),
+        normalize_table_name("wvbesl", kind="source"),
+        normalize_table_name("wvdos", kind="source"),
+        normalize_table_name("abc_refcod", kind="source"),
+    ]
 
     metadata = MetaData()
     metadata.reflect(bind=engine, schema=source_schema, only=table_names)
@@ -11,61 +18,63 @@ def build_beschikte_voorziening(engine, source_schema=None):
 
     return (
         select(
-            # Timestamp zonder timezone (aanname is UTC-timezone; TODO: check of dit klopt) -> 
-            # UTC-timezone op zetten; dan omzetten naar Amsterdam-tijdzone ->
-            # dan casten naar Date
-            cast(func.timezone('Europe/Amsterdam', func.timezone('UTC', wvind_b.c.dd_eind)),  Date).label('datumeinde'),
-            cast(func.timezone('Europe/Amsterdam', func.timezone('UTC', wvind_b.c.dd_begin)), Date).label('datumstart'),
+            # Timestamps normalized to Date; labels normalized as destination
+            cast(
+                func.timezone('Europe/Amsterdam', func.timezone('UTC', get_table_column(wvind_b, 'dd_eind'))),
+                Date,
+            ).label(normalize_column_name('datumeinde', kind='destination')),
+            cast(
+                func.timezone('Europe/Amsterdam', func.timezone('UTC', get_table_column(wvind_b, 'dd_begin'))),
+                Date,
+            ).label(normalize_column_name('datumstart', kind='destination')),
 
-            # Alternatief:
-            # cast(wvind_b.c.dd_eind.op("AT TIME ZONE")("UTC").op("AT TIME ZONE")("Europe/Amsterdam"), Date).label("datumeinde"),
-            # cast(wvind_b.c.dd_begin.op("AT TIME ZONE")("UTC").op("AT TIME ZONE")("Europe/Amsterdam"), Date).label("datumstart"),
+            get_table_column(wvind_b, 'volume').label(
+                normalize_column_name('omvang', kind='destination')
+            ),
+            get_table_column(wvind_b, 'status_indicatie').label(
+                normalize_column_name('status', kind='destination')
+            ),
+            func.concat(
+                get_table_column(wvind_b, 'besluitnr'),
+                get_table_column(wvind_b, 'volgnr_ind')
+            ).label(normalize_column_name('beschikte_voorziening_id', kind='destination')),
 
-            # Of misschien:
-            # cast(func.to_timestamp(wvind_b.c.dd_eind ).op("AT TIME ZONE")("Europe/Amsterdam"), Date).label("datumeinde"),
-            # cast(func.to_timestamp(wvind_b.c.dd_begin).op("AT TIME ZONE")("Europe/Amsterdam"), Date).label("datumstart"),
+            # 'redeneinde' (kept as NULL for now) – label normalized
+            literal(None).label(normalize_column_name('redeneinde', kind='destination')),
 
-            wvind_b.c.volume.label("omvang"),
-            wvind_b.c.status_indicatie.label("status"),
-            func.concat(wvind_b.c.besluitnr, wvind_b.c.volgnr_ind).label("beschikte_voorziening_id"),
-
-            # 'redeneinde' lijkt date te zijn in target? (Is tekst in bron, wat logisch lijkt)
-            # abc_refcod.c.omschrijving.label("redeneinde"),
-            literal(None).label("redeneinde"),
-
-            # Add missing columns as cast(null)
-            literal(None).label("code"),
-            literal(None).label("datumeindeoorspronkelijk"),
-            literal(None).label("eenheid_enum_id"),
-            literal(None).label("frequentie_enum_id"),
-            literal(None).label("heeft_leveringsvorm_293_id"),
-            literal(None).label("is_voorziening_voorziening_id"),
-            literal(None).label("leveringsvorm_287_enum_id"),
-            literal(None).label("toegewezen_product_toewijzing_id"),
-            literal(None).label("wet_enum_id"),
+            # Add missing columns as cast(null) with normalized destination labels
+            literal(None).label(normalize_column_name('code', kind='destination')),
+            literal(None).label(normalize_column_name('datumeindeoorspronkelijk', kind='destination')),
+            literal(None).label(normalize_column_name('eenheid_enum_id', kind='destination')),
+            literal(None).label(normalize_column_name('frequentie_enum_id', kind='destination')),
+            literal(None).label(normalize_column_name('heeft_leveringsvorm_293_id', kind='destination')),
+            literal(None).label(normalize_column_name('is_voorziening_voorziening_id', kind='destination')),
+            literal(None).label(normalize_column_name('leveringsvorm_287_enum_id', kind='destination')),
+            literal(None).label(normalize_column_name('toegewezen_product_toewijzing_id', kind='destination')),
+            literal(None).label(normalize_column_name('wet_enum_id', kind='destination')),
         )
         .select_from(wvind_b)
-        .outerjoin(szregel, wvind_b.c.kode_regeling == szregel.c.kode_regeling)
-        .outerjoin(wvbesl, wvind_b.c.besluitnr == wvbesl.c.besluitnr)
+    .outerjoin(szregel, get_table_column(wvind_b, 'kode_regeling') == get_table_column(szregel, 'kode_regeling'))
+    .outerjoin(wvbesl, get_table_column(wvind_b, 'besluitnr') == get_table_column(wvbesl, 'besluitnr'))
         .outerjoin(
             wvdos,
             and_(
-                wvind_b.c.besluitnr == wvdos.c.besluitnr,
-                wvind_b.c.volgnr_ind == wvdos.c.volgnr_ind,
+                get_table_column(wvind_b, 'besluitnr') == get_table_column(wvdos, 'besluitnr'),
+                get_table_column(wvind_b, 'volgnr_ind') == get_table_column(wvdos, 'volgnr_ind'),
             ),
         )
         .outerjoin(
             abc_refcod,
             and_(
-                wvdos.c.kode_reden_einde_voorz == abc_refcod.c.code,
+                get_table_column(wvdos, 'kode_reden_einde_voorz') == get_table_column(abc_refcod, 'code'),
                 or_(
                     and_(
-                        szregel.c.omschryving == "JEUGDWET",
-                        abc_refcod.c.domein == "JZG_REDEN_EINDE_PRODUCT",
+                        get_table_column(szregel, 'omschryving') == "JEUGDWET",
+                        get_table_column(abc_refcod, 'domein') == "JZG_REDEN_EINDE_PRODUCT",
                     ),
                     and_(
-                        szregel.c.omschryving != "JEUGDWET",
-                        abc_refcod.c.domein == "WVRTEIND",
+                        get_table_column(szregel, 'omschryving') != "JEUGDWET",
+                        get_table_column(abc_refcod, 'domein') == "WVRTEIND",
                     ),
                 ),
             ),

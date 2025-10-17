@@ -13,7 +13,18 @@ TARGET_SCHEMA=silver
 # Of wachtwoord gevraagd wordt in CLI i.p.v. uit te lezen uit environment of .ini-config
 ASK_PASSWORD_IN_CLI=false
 
-# Case normalization for destination table names and projected column labels
-# Allowed values: upper, lower, (leave empty for no normalization)
-TABLE_NAME_CASE=upper
+# Case normalization
+# Allowed values: upper, lower, or leave empty for no normalization
+# Destination table keys (GGM tables). Prefer DESTINATION_TABLE_CASE; TABLE_NAME_CASE kept for backward compat.
+DESTINATION_TABLE_CASE=upper
+# Legacy fallback (if DESTINATION_TABLE_CASE not set)
+TABLE_NAME_CASE=
+# Source table names as referenced by queries (reflection). Default: keep as-is.
+SOURCE_TABLE_NAME_CASE=
+# Column normalization
+# Destination column labels normalization (preferred)
+DESTINATION_COLUMN_NAME_CASE=
+# Legacy fallback for destination columns
 COLUMN_NAME_CASE=
+# Source column names normalization during reflection and column access
+SOURCE_COLUMN_NAME_CASE=

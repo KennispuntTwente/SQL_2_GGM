@@ -3,6 +3,7 @@ import types
 import pytest
 
 from staging_to_silver.functions.query_loader import load_queries
+from utils.database.naming import normalize_table_name
 
 
 @pytest.fixture(autouse=True)
@@ -82,3 +83,16 @@ def test_duplicate_destination_detection():
 
     with pytest.raises(ValueError):
         load_queries(extra_modules=(mod_name,))
+
+
+def test_normalize_table_name_source_and_destination(monkeypatch):
+    # Destination: use DESTINATION_TABLE_CASE preference
+    monkeypatch.setenv("DESTINATION_TABLE_CASE", "lower")
+    assert normalize_table_name("FOO", kind="destination") == "foo"
+    # Legacy TABLE_NAME_CASE fallback when DESTINATION_TABLE_CASE not set
+    monkeypatch.delenv("DESTINATION_TABLE_CASE", raising=False)
+    monkeypatch.setenv("TABLE_NAME_CASE", "upper")
+    assert normalize_table_name("bar", kind="destination") == "BAR"
+    # Source uses SOURCE_TABLE_NAME_CASE
+    monkeypatch.setenv("SOURCE_TABLE_NAME_CASE", "upper")
+    assert normalize_table_name("wvbESl", kind="source") == "WVBESL"

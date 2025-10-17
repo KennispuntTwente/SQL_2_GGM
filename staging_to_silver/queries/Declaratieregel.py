@@ -1,8 +1,13 @@
 from sqlalchemy import MetaData, select, and_, cast, literal, String
+from utils.database.naming import normalize_table_name, get_table_column, normalize_column_name
 
 
 def build_declaratieregel(engine, source_schema=None):
-    table_names = ["SZUKHIS", "WVDOS", "WVIND_B"]
+    table_names = [
+        normalize_table_name("SZUKHIS", kind="source"),
+        normalize_table_name("WVDOS", kind="source"),
+        normalize_table_name("WVIND_B", kind="source"),
+    ]
 
     metadata = MetaData()
     metadata.reflect(bind=engine, schema=source_schema, only=table_names)
@@ -31,13 +36,27 @@ def build_declaratieregel(engine, source_schema=None):
     # Selectie (let op: IS_VOOR_BESCHIKKING_ID komt nu uit WVINDB)
     stmt = (
         select(
-            szukhis.c.BEDRAG.label("BEDRAG"),
-            wvindb.c.BESLUITNR.label("IS_VOOR_BESCHIKKING_ID"),
-            wvindb.c.CLIENTNR.label("BETREFT_CLIENT_ID"),
-            szukhis.c.VERSLAGNR.label("VALT_BINNEN_DECLARATIE_ID"),
-            cast(literal(None), String(80)).label("CODE"),
-            cast(literal(None), String(80)).label("DATUMEINDE"),
-            cast(literal(None), String(80)).label("DATUMSTART"),
+            get_table_column(szukhis, "BEDRAG").label(
+                normalize_column_name("BEDRAG", kind="destination")
+            ),
+            get_table_column(wvindb, "BESLUITNR").label(
+                normalize_column_name("IS_VOOR_BESCHIKKING_ID", kind="destination")
+            ),
+            get_table_column(wvindb, "CLIENTNR").label(
+                normalize_column_name("BETREFT_CLIENT_ID", kind="destination")
+            ),
+            get_table_column(szukhis, "VERSLAGNR").label(
+                normalize_column_name("VALT_BINNEN_DECLARATIE_ID", kind="destination")
+            ),
+            cast(literal(None), String(80)).label(
+                normalize_column_name("CODE", kind="destination")
+            ),
+            cast(literal(None), String(80)).label(
+                normalize_column_name("DATUMEINDE", kind="destination")
+            ),
+            cast(literal(None), String(80)).label(
+                normalize_column_name("DATUMSTART", kind="destination")
+            ),
         )
         .select_from(full_join)
     )
