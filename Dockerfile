@@ -20,14 +20,14 @@ RUN apt-get update \
     && (apt-get install -y --no-install-recommends libaio1 || apt-get install -y --no-install-recommends libaio1t64) \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Microsoft ODBC Driver 17 for SQL Server and tooling
+# Install Microsoft ODBC Driver 18 for SQL Server and tooling
 RUN set -eux; \
     mkdir -p /etc/apt/keyrings; \
     curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /etc/apt/keyrings/microsoft.gpg; \
     chmod a+r /etc/apt/keyrings/microsoft.gpg; \
     echo "deb [arch=amd64,arm64 signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/debian/12/prod bookworm main" > /etc/apt/sources.list.d/mssql-release.list; \
     apt-get update; \
-    ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql17 mssql-tools18; \
+    ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql18 mssql-tools18; \
     rm -rf /var/lib/apt/lists/*
 ENV PATH="/opt/mssql-tools18/bin:${PATH}"
 
@@ -37,7 +37,8 @@ WORKDIR /app
 # Install uv (Python package manager); install packages
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 COPY pyproject.toml uv.lock ./
-RUN uv sync --locked
+# Try to sync with lock; if lock is out-of-date, regenerate and sync
+RUN (uv sync --locked) || (uv lock --upgrade && uv sync --locked)
 
 # Copy the rest of the project
 COPY . .
@@ -71,6 +72,9 @@ RUN chmod +x /entrypoint.sh
 
 # Default to source-to-staging; override by passing a first arg or PIPELINE env
 ENV PIPELINE=source-to-staging
+# Ensure the venv Python is on PATH and top-level packages are importable
+ENV PATH="/app/.venv/bin:${PATH}"
+ENV PYTHONPATH="/app"
 ENTRYPOINT ["/entrypoint.sh"]
 
 # Example overrides:

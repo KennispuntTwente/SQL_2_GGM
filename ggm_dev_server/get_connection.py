@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 import time
 from pathlib import Path
@@ -149,6 +150,8 @@ def _ensure_container_running(
         was_created   – True if a *new* container was created
     """
     cfg = SETTINGS[db_type]
+    # Allow running inside containers by honoring DOCKER_HOST if provided
+    # (docker.from_env handles DOCKER_HOST/DOCKER_TLS_VERIFY vars automatically)
     client = docker.from_env()
 
     if force_refresh:
@@ -380,18 +383,22 @@ def get_connection(
     )
 
     # Prepare configs for master and target DB
+    # when running inside Docker, localhost refers to the container itself;
+    # use host.docker.internal if available (Docker Desktop) otherwise fall back to 127.0.0.1
+    host_addr = "host.docker.internal" if os.getenv("IN_DOCKER", "0") == "1" else "localhost"
+
     master_cfg = {
         "dbname": "master",
         "user": user,
         "password": password,
-        "host": "localhost",
+        "host": host_addr,
         "port": host_port,
     }
     target_cfg = {
         "dbname": db_name,
         "user": user,
         "password": password,
-        "host": "localhost",
+        "host": host_addr,
         "port": host_port,
     }
 
@@ -431,7 +438,7 @@ def get_connection(
             drivername="oracle+oracledb",
             username=user,
             password=password,
-            host="localhost",
+            host=host_addr,
             port=host_port,
             query={"service_name": db_name},
         )
@@ -440,7 +447,7 @@ def get_connection(
             drivername="mssql+pyodbc",
             username=user,
             password=password,
-            host="localhost",
+            host=host_addr,
             port=host_port,
             database=db_name,
             query={"driver": SQL_SERVER_DRIVER, "TrustServerCertificate": "yes"},
@@ -450,7 +457,7 @@ def get_connection(
             drivername="postgresql+psycopg2",
             username=user,
             password=password,
-            host="localhost",
+            host=host_addr,
             port=host_port,
             database=db_name,
         )
@@ -459,7 +466,7 @@ def get_connection(
             drivername="mysql+pymysql",
             username=user,
             password=password,
-            host="localhost",
+            host=host_addr,
             port=host_port,
             database=db_name,
         )

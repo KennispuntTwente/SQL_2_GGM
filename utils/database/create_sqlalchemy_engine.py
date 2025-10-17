@@ -50,7 +50,7 @@ def create_sqlalchemy_engine(
                 host=host,
                 port=port,
                 database=database,
-                query={"driver": "ODBC Driver 17 for SQL Server"},
+                query={"driver": "ODBC Driver 18 for SQL Server"},
             )
         )
 

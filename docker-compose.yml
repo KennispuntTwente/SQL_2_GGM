@@ -1,0 +1,59 @@
+name: ggmpilot
+
+services:
+  db:
+    image: postgres:16
+    container_name: ggmpilot-postgres
+    environment:
+      POSTGRES_USER: sa
+      POSTGRES_PASSWORD: S3cureP@ssw0rd!23243
+      POSTGRES_DB: srcdb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sa -d srcdb"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
+    # expose to host only if you want to inspect locally; not required for app wiring
+    # ports:
+    #   - "5433:5432"
+
+  app:
+    build: .
+    image: ggmpilot:latest
+    container_name: ggmpilot-app
+    depends_on:
+      db:
+        condition: service_healthy
+    working_dir: /app
+    entrypoint: ["/app/.venv/bin/python", "docker/smoke/smoke_source_to_staging.py"]
+    command: ["--source-config", "/app/docker/config/source.ini", "--destination-config", "/app/docker/config/dest.ini"]
+    environment:
+      # Hint to runtime that it's inside Docker (used for host resolution)
+      IN_DOCKER: "1"
+      PIPELINE: source-to-staging
+      # Ensure top-level packages are importable when running scripts by path
+      PYTHONPATH: "/app"
+    volumes:
+      # Optional: inspect parquet output on host
+      - type: bind
+        source: ./data
+        target: /app/data
+      # Optional: enable talking to Docker daemon if you want to auto-start sibling DB containers
+      # - /var/run/docker.sock:/var/run/docker.sock
+
+  app-getconn:
+    build: .
+    image: ggmpilot:latest
+    container_name: ggmpilot-app-getconn
+    working_dir: /app
+    environment:
+      IN_DOCKER: "1"
+      PYTHONPATH: "/app"
+    entrypoint: ["/app/.venv/bin/python", "docker/smoke/smoke_get_connection_roundtrip.py"]
+    volumes:
+      - type: bind
+        source: ./data
+        target: /app/data
+      - /var/run/docker.sock:/var/run/docker.sock

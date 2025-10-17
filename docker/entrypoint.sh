@@ -26,14 +26,14 @@ fi
 
 case "$PIPELINE" in
   source-to-staging)
-    exec python -m source_to_staging.main "$@"
+    exec /app/.venv/bin/python -m source_to_staging.main "$@"
     ;;
   staging-to-silver)
-    exec python -m staging_to_silver.main "$@"
+    exec /app/.venv/bin/python -m staging_to_silver.main "$@"
     ;;
   *)
     echo "Unknown PIPELINE: $PIPELINE" >&2
     echo "Valid options: source-to-staging | staging-to-silver" >&2
     exit 1
     ;;
-ese
+esac

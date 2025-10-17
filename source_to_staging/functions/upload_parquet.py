@@ -53,32 +53,37 @@ def upload_parquet(engine, schema=None, input_dir="data", cleanup=True):
     db_name = engine.url.database
     if db_name:
         if dialect == "postgresql":
-            # connect to 'postgres' admin DB
+            # connect to 'postgres' admin DB and run CREATE DATABASE in autocommit
             admin_url = engine.url.set(database="postgres")
             admin_eng = create_engine(admin_url)
-            with admin_eng.begin() as conn:
-                exists = conn.execute(
-                    text("SELECT 1 FROM pg_database WHERE datname = :db"),
-                    {"db": db_name},
-                ).scalar()
-                if not exists:
-                    conn.execute(text(f'CREATE DATABASE "{db_name}"'))
-            admin_eng.dispose()
+            try:
+                with admin_eng.connect() as conn:
+                    conn = conn.execution_options(isolation_level="AUTOCOMMIT")
+                    exists = conn.execute(
+                        text("SELECT 1 FROM pg_database WHERE datname = :db"),
+                        {"db": db_name},
+                    ).scalar()
+                    if not exists:
+                        conn.execute(text(f'CREATE DATABASE "{db_name}"'))
+            finally:
+                admin_eng.dispose()
 
         elif dialect in ("mssql", "sql server"):
-            # connect to 'master' admin DB
+            # connect to 'master' admin DB and run CREATE DATABASE outside explicit txn
             admin_url = engine.url.set(database="master")
             admin_eng = create_engine(admin_url)
-            with admin_eng.begin() as conn:
-                conn.execute(
-                    text(f"""
-                    IF DB_ID(N'{db_name}') IS NULL
-                    BEGIN
-                        CREATE DATABASE [{db_name}];
-                    END
-                """)
-                )
-            admin_eng.dispose()
+            try:
+                with admin_eng.connect() as conn:
+                    conn.execute(
+                        text(f"""
+                        IF DB_ID(N'{db_name}') IS NULL
+                        BEGIN
+                            CREATE DATABASE [{db_name}];
+                        END
+                    """)
+                    )
+            finally:
+                admin_eng.dispose()
 
     # 2) Ensure the schema exists
     if schema:
