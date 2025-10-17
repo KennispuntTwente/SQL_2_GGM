@@ -1,10 +1,45 @@
 import os
 from collections import defaultdict
+from pathlib import Path
+import re
 
 import polars as pl
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.schema import CreateSchema
+
+
+def _parse_parquet_base_name(filename: str) -> str:
+    """
+    Derive the logical table base name from a parquet filename.
+
+    Rules:
+    - Accept chunked files like "table_part0001.parquet" and return "table".
+    - If the stem doesn't end with "_part<digits>", return the stem.
+    - Do not strip substrings "_part" that appear in the middle of the name
+      (e.g., "user_partitions.parquet" stays "user_partitions").
+    """
+    stem = Path(filename).stem
+    m = re.match(r"^(?P<base>.+)_part\d+$", stem)
+    return m.group("base") if m else stem
+
+
+def group_parquet_files(input_dir: str) -> dict[str, list[str]]:
+    """
+    Scan input_dir and group parquet files by their logical table base name.
+    Returns a mapping {base_table_name: [sorted_filenames]}.
+    Filenames are returned without directory prefixes.
+    """
+    grouped: dict[str, list[str]] = defaultdict(list)
+    for fname in os.listdir(input_dir):
+        path = Path(input_dir, fname)
+        if fname.lower().endswith(".parquet") and path.is_file():
+            base = _parse_parquet_base_name(fname)
+            grouped[base].append(fname)
+    # ensure deterministic order for stable loads and tests
+    for k in list(grouped.keys()):
+        grouped[k].sort()
+    return grouped
 
 
 def upload_parquet(engine, schema=None, input_dir="data", cleanup=True):
@@ -71,19 +106,15 @@ def upload_parquet(engine, schema=None, input_dir="data", cleanup=True):
                     if "already exists" not in str(e).lower():
                         raise
 
-    # 3) Group Parquet files by table base name
-    grouped = defaultdict(list)
-    for fname in os.listdir(input_dir):
-        if fname.endswith(".parquet"):
-            base = fname.split("_part")[0].replace(".parquet", "")
-            grouped[base].append(fname)
+    # 3) Group Parquet files by table base name (robust to names containing "_part")
+    grouped = group_parquet_files(input_dir)
 
     # 4) Write each group into its table
     for table_name, files in grouped.items():
         full_table = f"{schema}.{table_name}" if schema else table_name
         print(f"📦 Uploading {len(files)} part(s) to table {full_table}")
 
-        for idx, fname in enumerate(sorted(files)):
+        for idx, fname in enumerate(files):
             path = os.path.join(input_dir, fname)
             print(f"🔹 Processing {path}")
             df = pl.read_parquet(path)
