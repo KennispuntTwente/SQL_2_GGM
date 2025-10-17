@@ -19,10 +19,10 @@ services:
     # ports:
     #   - "5433:5432"
 
-  app:
+  app-source-to-staging-sqlalchemy:
     build: .
     image: ggmpilot:latest
-    container_name: ggmpilot-app
+    container_name: ggmpilot-app-source-to-staging-sqlalchemy
     depends_on:
       db:
         condition: service_healthy
@@ -43,10 +43,10 @@ services:
       # Optional: enable talking to Docker daemon if you want to auto-start sibling DB containers
       # - /var/run/docker.sock:/var/run/docker.sock
 
-  app-getconn:
+  app-get-connection:
     build: .
     image: ggmpilot:latest
-    container_name: ggmpilot-app-getconn
+    container_name: ggmpilot-app-get-connection
     working_dir: /app
     environment:
       IN_DOCKER: "1"
@@ -58,10 +58,10 @@ services:
         target: /app/data
       - /var/run/docker.sock:/var/run/docker.sock
 
-  app-cx:
+  app-source-to-staging-connectorx:
     build: .
     image: ggmpilot:latest
-    container_name: ggmpilot-app-cx
+    container_name: ggmpilot-app-source-to-staging-connectorx
     depends_on:
       db:
         condition: service_healthy
@@ -71,6 +71,25 @@ services:
     environment:
       IN_DOCKER: "1"
       PIPELINE: source-to-staging-cx
+      PYTHONPATH: "/app"
+    volumes:
+      - type: bind
+        source: ./data
+        target: /app/data
+
+  app-staging-to-silver:
+    build: .
+    image: ggmpilot:latest
+    container_name: ggmpilot-app-staging-to-silver
+    depends_on:
+      db:
+        condition: service_healthy
+    working_dir: /app
+    entrypoint: ["/app/.venv/bin/python", "docker/smoke/smoke_staging_to_silver.py"]
+    command: ["--config", "/app/docker/config/staging_to_silver.ini"]
+    environment:
+      IN_DOCKER: "1"
+      PIPELINE: staging-to-silver
       PYTHONPATH: "/app"
     volumes:
       - type: bind

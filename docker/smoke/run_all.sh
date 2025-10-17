@@ -23,22 +23,29 @@ run_service_detached() {
 
 overall=0
 
-echo "[smoke] Running app (source_to_staging)"
-if ! run_service_detached app; then
+echo "[smoke] Running app-source-to-staging-sqlalchemy"
+if ! run_service_detached app-source-to-staging-sqlalchemy; then
 	overall=1
 fi
 echo "[smoke] Cleaning up…"
 docker compose down -v --remove-orphans || true
 
-echo "[smoke] Running app-getconn (connection roundtrip)"
-if ! run_service_detached app-getconn; then
+echo "[smoke] Running app-get-connection"
+if ! run_service_detached app-get-connection; then
 	overall=1
 fi
 echo "[smoke] Cleaning up…"
 docker compose down -v --remove-orphans || true
 
-echo "[smoke] Running app-cx (ConnectorX dump path)"
-if ! run_service_detached app-cx; then
+echo "[smoke] Running app-source-to-staging-connectorx"
+if ! run_service_detached app-source-to-staging-connectorx; then
+	overall=1
+fi
+echo "[smoke] Cleaning up…"
+docker compose down -v --remove-orphans || true
+
+echo "[smoke] Running app-staging-to-silver"
+if ! run_service_detached app-staging-to-silver; then
 	overall=1
 fi
 echo "[smoke] Cleaning up…"

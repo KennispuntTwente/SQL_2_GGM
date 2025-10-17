@@ -103,6 +103,7 @@ def load_queries(
     table_name_case: Optional[str] = None,
     column_name_case: Optional[str] = None,
     extra_modules: Sequence[str] = (),
+    scan_package: bool = True,
 ) -> Dict[str, Callable]:
     """
     Scan `package` for modules and merge their __query_exports__ dicts.
@@ -117,25 +118,26 @@ def load_queries(
     if table_name_case is None:
         table_name_case = normalize
 
-    # Import the package and list its modules
-    pkg = import_module(package)
-    module_names = sorted(
-        (m for _, m, ispkg in pkgutil.iter_modules(pkg.__path__) if not ispkg and not m.startswith("_")),
-        key=str.lower,
-    )
+    if scan_package:
+        # Import the package and list its modules
+        pkg = import_module(package)
+        module_names = sorted(
+            (m for _, m, ispkg in pkgutil.iter_modules(pkg.__path__) if not ispkg and not m.startswith("_")),
+            key=str.lower,
+        )
 
-    # Merge exports from each module in the package
-    for mod_name in module_names:
-        module = import_module(f"{package}.{mod_name}")
-        for dest, fn in _load_exports(module).items():
-            key = _normalize_key(dest, table_name_case)
-            if key in queries:
-                prev = queries[key].__module__
-                raise ValueError(
-                    f"Duplicate query for destination '{key}': "
-                    f"{module.__name__} conflicts with {prev}"
-                )
-            queries[key] = _wrap_builder_for_column_case(fn, column_name_case)
+        # Merge exports from each module in the package
+        for mod_name in module_names:
+            module = import_module(f"{package}.{mod_name}")
+            for dest, fn in _load_exports(module).items():
+                key = _normalize_key(dest, table_name_case)
+                if key in queries:
+                    prev = queries[key].__module__
+                    raise ValueError(
+                        f"Duplicate query for destination '{key}': "
+                        f"{module.__name__} conflicts with {prev}"
+                    )
+                queries[key] = _wrap_builder_for_column_case(fn, column_name_case)
 
     # Optionally merge exports from explicitly named modules
     for mod_path in extra_modules or ():
