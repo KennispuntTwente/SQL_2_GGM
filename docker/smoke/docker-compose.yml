@@ -14,13 +14,13 @@ services:
       timeout: 5s
       retries: 30
     volumes:
-      - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
+      - ../postgres-init:/docker-entrypoint-initdb.d:ro
     # expose to host only if you want to inspect locally; not required for app wiring
     # ports:
     #   - "5433:5432"
 
   app-source-to-staging-sqlalchemy:
-    build: .
+    build: ../..
     image: ggmpilot:latest
     container_name: ggmpilot-app-source-to-staging-sqlalchemy
     depends_on:
@@ -38,13 +38,13 @@ services:
     volumes:
       # Optional: inspect parquet output on host
       - type: bind
-        source: ./data
+        source: ../../data
         target: /app/data
       # Optional: enable talking to Docker daemon if you want to auto-start sibling DB containers
       # - /var/run/docker.sock:/var/run/docker.sock
 
   app-get-connection:
-    build: .
+    build: ../..
     image: ggmpilot:latest
     container_name: ggmpilot-app-get-connection
     working_dir: /app
@@ -54,12 +54,12 @@ services:
     entrypoint: ["/app/.venv/bin/python", "docker/smoke/smoke_get_connection_roundtrip.py"]
     volumes:
       - type: bind
-        source: ./data
+        source: ../../data
         target: /app/data
       - /var/run/docker.sock:/var/run/docker.sock
 
   app-source-to-staging-connectorx:
-    build: .
+    build: ../..
     image: ggmpilot:latest
     container_name: ggmpilot-app-source-to-staging-connectorx
     depends_on:
@@ -74,11 +74,11 @@ services:
       PYTHONPATH: "/app"
     volumes:
       - type: bind
-        source: ./data
+        source: ../../data
         target: /app/data
 
   app-staging-to-silver:
-    build: .
+    build: ../..
     image: ggmpilot:latest
     container_name: ggmpilot-app-staging-to-silver
     depends_on:
@@ -93,5 +93,5 @@ services:
       PYTHONPATH: "/app"
     volumes:
       - type: bind
-        source: ./data
+        source: ../../data
         target: /app/data

@@ -157,10 +157,12 @@ Wil je de meegeleverde smoke-scripts draaien en automatisch een pass/fail terugk
 
 ```bash
 # Run de source→staging smoke en exit met dezelfde exit code
-docker compose up --build --no-color --abort-on-container-exit --exit-code-from app app
+docker compose -f docker/smoke/docker-compose.yml up --build --no-color \
+	--abort-on-container-exit --exit-code-from app-source-to-staging-sqlalchemy app-source-to-staging-sqlalchemy
 
 # Run de get-connection smoke en exit met dezelfde exit code
-docker compose up --build --no-color --abort-on-container-exit --exit-code-from app-getconn app-getconn
+docker compose -f docker/smoke/docker-compose.yml up --build --no-color \
+	--abort-on-container-exit --exit-code-from app-get-connection app-get-connection
 ```
 
 Of run beide sequentially via het helper script:
