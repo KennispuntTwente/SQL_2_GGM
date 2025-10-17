@@ -15,7 +15,7 @@ dependencies = [
     "pyarrow>=21.0.0",
     "pymysql>=1.1.1",
     "pyodbc>=5.2.0",
-    "pypiwin32>=223",
+    "pypiwin32>=223; sys_platform == 'win32'",
     "pytest>=8.4.1",
     "sqlalchemy>=2.0.41",
     "sqlparse>=0.5.3",

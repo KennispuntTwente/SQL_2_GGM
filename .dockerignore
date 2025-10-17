@@ -1,0 +1,22 @@
+# Keep the image lean
+.git
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/.venv
+**/venv
+**/.DS_Store
+**/.idea
+**/.vscode
+**/.history
+
+# Big local test data
+/tmp_dump
+
+# Ignore local .env by default; mount explicitly if needed
+source_to_staging/.env
+staging_to_silver/.env

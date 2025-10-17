@@ -95,7 +95,61 @@ python -m staging_to_silver.main --config config.ini
 
 Installeer [Docker Desktop](https://www.docker.com/products/docker-desktop/). Zorg dat de Docker daemon draait (bijvoorbeeld door Docker Desktop te starten).
 
-(...)
+Deze repository bevat een Dockerfile die beide modules kan draaien via één image.
+
+1) Build de image
+
+```bash
+docker build -t ggmpilot:latest .
+```
+
+2) Run source_to_staging (default)
+
+```bash
+# gebruikt standaard PIPELINE=source-to-staging
+docker run --rm \
+	-v "$(pwd)/data:/app/data" \
+	-v "$(pwd)/source_to_staging:/app/source_to_staging" \
+	--env-file source_to_staging/.env  \
+	ggmpilot:latest
+```
+
+3) Run source_to_staging met .ini-configs
+
+```bash
+docker run --rm \
+	-v "$(pwd)/data:/app/data" \
+	-v "$(pwd)/source_to_staging:/app/source_to_staging" \
+	ggmpilot:latest source-to-staging \
+	--source-config /app/source_to_staging/source_config.ini \
+	--destination-config /app/source_to_staging/destination_config.ini
+```
+
+4) Run staging_to_silver met .env
+
+```bash
+docker run --rm \
+	-v "$(pwd)/staging_to_silver:/app/staging_to_silver" \
+	--env-file staging_to_silver/.env \
+	ggmpilot:latest staging-to-silver
+```
+
+5) Run staging_to_silver met .ini
+
+```bash
+docker run --rm \
+	-v "$(pwd)/staging_to_silver:/app/staging_to_silver" \
+	ggmpilot:latest staging-to-silver \
+	-- -c /app/staging_to_silver/config.ini
+```
+
+Tips en opmerkingen
+
+- Database op de host benaderen: gebruik in je config host.docker.internal als hostnaam.
+- Data-volume: parquet-dumps worden standaard in /app/data geschreven; mount die map lokaal met -v "$(pwd)/data:/app/data" als je de bestanden wil bewaren.
+- SQL Server (pyodbc): deze image bevat unixODBC maar niet de Microsoft ODBC driver (msodbcsql17/msodbcsql18). Voeg deze zelf toe of maak een afgeleide image wanneer je mssql via ODBC gebruikt.
+- Oracle: de image gebruikt oracledb in thin‑mode. Voor thick‑mode (Instant Client) mount de client en zet SRC_CONNECTORX_ORACLE_CLIENT_PATH in je .env of .ini.
+- Proxy/certificaten: plaats certificaten in een volume en exporteer de juiste env vars (bijv. REQUESTS_CA_BUNDLE) als je die nodig hebt.
 
 ## Een eigen versie van dit project gebruiken
 
