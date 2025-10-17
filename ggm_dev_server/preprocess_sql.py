@@ -1,3 +1,8 @@
+# Dit script helpt bij Postgres SQL-voorverwerking door ervoor te zorgen dat
+# CREATE TABLE-instructies verandert worden in idempotente instructies
+# (d.w.z. CREATE TABLE IF NOT EXISTS i.p.v. alleen CREATE TABLE)
+# Wordt aangeroepen in ggm_dev_server/get_connection.py
+
 import re
 
 # one-time compiled regex
