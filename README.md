@@ -1,7 +1,7 @@
 # ggmpilot
 
-Deze repository bevat code om gegevens uit de applicatie (...) te ontsluiten en te modelleren naar het 
-[Gemeentelijk Gegevensmodel (GGM)](https://www.gemeentelijkgegevensmodel.nl/v2.4.0/). 
+Deze repository bevat code om gegevens uit de applicatie (...) te ontsluiten en onder te brengen 
+in de structuur van het [Gemeentelijk Gegevensmodel (GGM)](https://www.gemeentelijkgegevensmodel.nl/v2.4.0/). 
 
 ## Overzicht proces
 
@@ -61,7 +61,8 @@ environment variables instellen op je systeem; of 2) een `.env` bestand aanmaken
 naar de structuur van `.env.example` (in dezelfde map). Hetzelfde geldt voor de `(...).ini.example`
 bestanden: zet een `(...).ini` bestand neer in dezelfde map met dezelfde structuur.
 
-(Als je verdergaande configuratie wil doen, kan dat door de Python-scripts aan te passen.)
+(Als je verdergaande configuratie wil doen, kan dat door de Python-scripts aan te passen.
+Zie ook sectie 'Een eigen versie van dit project gebruiken'). 
 
 #### Uitvoeren
 
@@ -95,4 +96,29 @@ python -m staging_to_silver.main --config config.ini
 Installeer [Docker Desktop](https://www.docker.com/products/docker-desktop/). Zorg dat de Docker daemon draait (bijvoorbeeld door Docker Desktop te starten).
 
 (...)
+
+## Een eigen versie van dit project gebruiken
+
+Dit project is zoveel mogelijk ingericht om een 'plug-and-play' toepassing van het GGM te zijn;
+het is geschikt voor meerdere typen databases, en bevat code voor de volledige conversie van
+gegevens uit de applicatie naar de structuur van het GGM. 
+
+Desondanks kan het nodig zijn om aanpassingen te doen aan deze code. Bijvoorbeeld,
+als je een andere (grotere, of juist kleinere) selectie tabellen wil overbrengen naar
+het GGM. Of als jouw gemeente op bepaalde manier afwijkt van de structuur van het GGM.
+
+In dat soort situatie's is het gewenst om met 'git' (= software voor versiebeheer,
+die wijzigingen in bestanden bijhoudt) een eigen 'clone' (dan wel 'fork') te maken
+van deze repository. In die eigen versie kan je dan wijzigingen maken welke je
+bijhoudt met git. Als er later updates worden gedaan aan dit project, kan je die wijzigingen,
+met git, vervolgens weer samenvoegen met jouw versie van dit project. Zo kan je dus 
+een eigen, afwijkende versie hebben maar toch ook updates van dit project meekrijgen. 
+
+## Contact
+
+Heb je vragen over dit project? Loop je tegen problemen aan? Of wil je samenwerken?
+Neem contact op (...).
+
+
+
 
