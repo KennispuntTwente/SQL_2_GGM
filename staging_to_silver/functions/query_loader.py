@@ -77,11 +77,17 @@ def _wrap_builder_for_column_case(fn: Callable, column_name_case: Optional[str])
                     cols.append(col.label(new_name))
                 else:
                     cols.append(col)
+            # SQLAlchemy 2.0 expects varargs for with_only_columns; older versions accepted a list
             try:
-                return stmt.with_only_columns(cols, maintain_column_froms=True)
+                return stmt.with_only_columns(*cols, maintain_column_froms=True)
             except TypeError:
-                # Fallback for SQLAlchemy versions with different signature
-                return stmt.with_only_columns(cols)
+                try:
+                    return stmt.with_only_columns(*cols)
+                except TypeError:
+                    try:
+                        return stmt.with_only_columns(cols, maintain_column_froms=True)
+                    except TypeError:
+                        return stmt.with_only_columns(cols)
         return stmt
 
     # Preserve metadata for debuggability
