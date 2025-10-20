@@ -22,7 +22,11 @@ Goal: make agents productive quickly in this repo by explaining the architecture
 
 ## Configuration conventions
 - Values can come from `.env` files in module folders or from INI files passed via CLI. Priority: INI > ENV > defaults (`get_config_value`).
-- source_to_staging INI samples: `source_to_staging/source_config.ini.example`, `source_to_staging/destination_config.ini.example`.
+- source_to_staging INI sample: `source_to_staging/config.ini.example` (single file). Sections:
+  - `[database-source]` with `SRC_*` keys (source connection)
+  - `[database-destination]` with `DST_*` keys (destination connection)
+  - `[settings]` for extraction options like `SRC_TABLES`, `SRC_CHUNK_SIZE`, `SRC_CONNECTORX`
+  - `[logging]` for log configuration
 - staging_to_silver INI sample: `staging_to_silver/config.ini.example`.
 - Common keys: drivers (e.g., postgresql+psycopg2, mssql+pyodbc, oracle+oracledb), host/port/user/password/db, schemas.
 
@@ -91,7 +95,7 @@ Testing & internals:
     - Loader will uppercase table key by default and optionally relabel columns per `COLUMN_NAME_CASE`.
     - See `tests/test_query_loader.py` for normalization behavior and duplicate detection.
 - Add a new source table to extract:
-  - Add to `SRC_TABLES` in source INI or env; Parquet files will be written under `data/` as `Table_part0000.parquet`, etc.; upload groups them automatically.
+  - Add to `SRC_TABLES` in the source_to_staging INI `[settings]` section or via env; Parquet files will be written under `data/` as `Table_part0000.parquet`, etc.; upload groups them automatically.
 
 ## External dependencies notes
 - Driver naming determines engine creation (see `create_sqlalchemy_engine.py`).
