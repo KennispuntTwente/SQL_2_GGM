@@ -200,6 +200,11 @@ vereisen dat je Docker (dan wel Podman) beschikbaar hebt op je machine (er worde
 verschillende database-types gerund in Docker).
 De Docker-daemon moet hiervoor draaien. Omdat deze tests traag zijn, is daarnaast ook nodig 
 dat je de environment variables `RUN_SLOW_TESTS=1` bevatten (anders worden ze geskipt).
+Gebruik de volgende commando (PowerShell) om de langzame tests te runnen:
+
+```powershell
+$env:RUN_SLOW_TESTS="1"; .\.venv\Scripts\python -m pytest -vv
+```
 
 De Docker-image (alsmede de procedures die hierin runnen) kan daarnaast getest worden met de
 'smoke'-scripts. Zie de map: docker/smoke. Run hiervoor het volgende commando (bash):

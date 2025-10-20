@@ -15,20 +15,26 @@ from source_to_staging.functions.upload_parquet import upload_parquet
 from utils.database.create_connectorx_uri import create_connectorx_uri
 from ggm_dev_server.get_connection import get_connection
 
+
 def _docker_running() -> bool:
     """Return True if Docker CLI is available and the daemon responds."""
-    from shutil import which
-    if not which("docker"):
+    # Ensure the docker CLI exists on PATH
+    if not shutil.which("docker"):
+        return False
+    # Check that the Docker daemon is reachable
+    try:
+        res = subprocess.run(
+            ["docker", "info"], capture_output=True, text=True, timeout=5
+        )
+        return res.returncode == 0
+    except Exception:
         return False
 
 
 def _slow_tests_enabled() -> bool:
+    # Controlled via environment variable; independent of Docker availability
     return os.getenv("RUN_SLOW_TESTS", "0").lower() in {"1", "true", "yes", "on"}
-    try:
-        res = subprocess.run(["docker", "info"], capture_output=True, text=True, timeout=5)
-        return res.returncode == 0
-    except Exception:
-        return False
+
 
 # Configuration for different database types and ports
 db_types = ["mariadb", "mysql", "postgres", "oracle", "mssql"]
@@ -119,6 +125,7 @@ def run_migration_for_db_type(
         # Initialize Oracle client only when needed (avoid module-level hard deps)
         try:
             from utils.database.initialize_oracle_client import initialize_oracle_client
+
             initialize_oracle_client(config_key="SRC_CONNECTORX_ORACLE_CLIENT_PATH")
         except Exception:
             # If initialization fails, we'll still attempt since thin mode might work
@@ -151,8 +158,14 @@ supported_by_connectorx = {"mariadb", "mysql", "postgres", "mssql", "oracle"}
 
 @pytest.mark.parametrize("db_type", db_types)
 @pytest.mark.parametrize("connectorx", [False, True])
-@pytest.mark.skipif(not _slow_tests_enabled(), reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.")
-@pytest.mark.skipif(not _docker_running(), reason="Docker is not available/running; required for this integration test.")
+@pytest.mark.skipif(
+    not _slow_tests_enabled(),
+    reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.",
+)
+@pytest.mark.skipif(
+    not _docker_running(),
+    reason="Docker is not available/running; required for this integration test.",
+)
 def test_migration_roundtrip(db_type, connectorx, tmp_path):
     if connectorx and db_type not in supported_by_connectorx:
         pytest.skip(f"ConnectorX is not supported for {db_type}")
