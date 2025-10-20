@@ -5,6 +5,7 @@ from datetime import date, datetime
 
 import pytest
 from sqlalchemy import text
+import docker
 
 from ggm_dev_server.get_connection import get_connection
 from source_to_staging.functions.direct_transfer import direct_transfer
@@ -43,6 +44,35 @@ ports_dest = {
     "oracle": 1523,
     "mssql": 1435,
 }
+
+
+def _cleanup_db_containers(db_type: str):
+    """Stop and remove the source/dest containers and volumes created by this test."""
+    client = docker.from_env()
+    names = [
+        f"{db_type}-docker-db-{ports[db_type]}",
+        f"{db_type}-docker-db-{ports_dest[db_type]}",
+    ]
+    for name in names:
+        try:
+            c = client.containers.get(name)
+            try:
+                c.stop()
+            except Exception:
+                pass
+            try:
+                c.remove()
+            except Exception:
+                pass
+        except Exception:
+            pass
+        # remove volume as well
+        vol_name = f"{name}_data"
+        try:
+            v = client.volumes.get(vol_name)
+            v.remove(force=True)
+        except Exception:
+            pass
 
 
 def _schemas_for(db_type: str):
@@ -219,51 +249,58 @@ def test_direct_transfer_roundtrip(db_type):
     username = "sa"
     password = "S3cureP@ssw0rd!23243"
 
-    # Spin up source
-    port = ports[db_type]
-    src_engine = get_connection(
-        db_type=db_type,
-        db_name="test_source",
-        user=username,
-        password=password,
-        port=port,
-        force_refresh=True,
-        print_tables=False,
-    )
+    # Ensure a clean slate before starting
+    _cleanup_db_containers(db_type)
 
-    # Create source table + data
-    table = "typetest"
-    with src_engine.begin() as sconn:
-        _create_table_and_data(sconn, db_type, table)
+    try:
+        # Spin up source
+        port = ports[db_type]
+        src_engine = get_connection(
+            db_type=db_type,
+            db_name="test_source",
+            user=username,
+            password=password,
+            port=port,
+            force_refresh=True,
+            print_tables=False,
+        )
 
-    # Spin up destination
-    dst_engine = get_connection(
-        db_type=db_type,
-        db_name="test_dest",
-        user=username,
-        password=password,
-        port=ports_dest[db_type],
-        force_refresh=True,
-        print_tables=False,
-    )
+        # Create source table + data
+        table = "typetest"
+        with src_engine.begin() as sconn:
+            _create_table_and_data(sconn, db_type, table)
 
-    src_schema, dst_schema = _schemas_for(db_type)
+        # Spin up destination
+        dst_engine = get_connection(
+            db_type=db_type,
+            db_name="test_dest",
+            user=username,
+            password=password,
+            port=ports_dest[db_type],
+            force_refresh=True,
+            print_tables=False,
+        )
 
-    # Run direct transfer with small chunks
-    direct_transfer(
-        source_engine=src_engine,
-        dest_engine=dst_engine,
-        tables=[table],
-        source_schema=src_schema,
-        dest_schema=dst_schema,
-        chunk_size=2,
-        lowercase_columns=True,
-        write_mode="replace",
-    )
+        src_schema, dst_schema = _schemas_for(db_type)
 
-    # Compare
-    with src_engine.connect() as sconn, dst_engine.connect() as dconn:
-        src_rows = _fetch_all(sconn, db_type, table)
-        dst_rows = _fetch_all(dconn, db_type, table)
+        # Run direct transfer with small chunks
+        direct_transfer(
+            source_engine=src_engine,
+            dest_engine=dst_engine,
+            tables=[table],
+            source_schema=src_schema,
+            dest_schema=dst_schema,
+            chunk_size=2,
+            lowercase_columns=True,
+            write_mode="replace",
+        )
 
-    assert _normalize_rows(src_rows) == _normalize_rows(dst_rows)
+        # Compare
+        with src_engine.connect() as sconn, dst_engine.connect() as dconn:
+            src_rows = _fetch_all(sconn, db_type, table)
+            dst_rows = _fetch_all(dconn, db_type, table)
+
+        assert _normalize_rows(src_rows) == _normalize_rows(dst_rows)
+    finally:
+        # Always clean up containers/volumes after test
+        _cleanup_db_containers(db_type)
