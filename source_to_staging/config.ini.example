@@ -59,4 +59,4 @@ LOG_ROTATE_BYTES = 5000000
 # Aantal oude logbestanden dat bewaard blijft bij rotatie (bijv. app.log.1 t/m app.log.N)
 LOG_BACKUP_COUNT = 3
 # Optioneel: eigen opmaak van logregels. Laat weg voor standaard; voorbeeld toont tijd, level, logger en bericht
-; LOG_FORMAT = %(asctime)s %(levelname)-8s [%(name)s] %(message)s
+# LOG_FORMAT = %(asctime)s %(levelname)-8s [%(name)s] %(message)s

@@ -2,29 +2,39 @@
 DRIVER=postgresql+psycopg2
 HOST=localhost
 PORT=5432
-USER=sa
+USERNAME=sa
 PASSWORD=SecureP@ss1!24323482349
 DB=ggm
 SCHEMA=ggm
 
 [settings]
+# Schema/database waarin de applicatie-data ('brons'/'staging') staat
 SOURCE_SCHEMA=staging
-TARGET_SCHEMA=silver
-# Of wachtwoord gevraagd wordt in CLI i.p.v. uit te lezen uit environment of .ini-config
-ASK_PASSWORD_IN_CLI=false
 
-# Case normalization for destination table names and projected column labels
-# Allowed values: upper, lower, (leave empty for no normalization)
+# Schema/database waarin de tabellenstructuur van het GGM staat ('silver')
+TARGET_SCHEMA=silver
+
+# Of wachtwoord gevraagd wordt in de console i.p.v. uit te lezen uit je environment variables
+# of uit je .ini-config. Als je hiervan gebruikt maakt betekent het ook dat het script
+# alleen interactief gerund kan worden
+ASK_PASSWORD_IN_CLI = False
+
+# Of de case van tabel- en kolomnamen moet worden genormaliseerd
+# Mogelijk: upper (capslock), lower (kleine letters), of laat leeg (geen normalisatie)
 TABLE_NAME_CASE=upper
 COLUMN_NAME_CASE=
 
 [logging]
-LOG_LEVEL=INFO
-LOG_TO_FILE=False
-LOG_FILE=logs/staging_to_silver.log
+# Globale logging-niveau; vanaf welk type message moet gelogd worden?
+# Kan zijn: DEBUG, INFO, WARNING, of ERROR
+LOG_LEVEL = INFO
+# Of logs in een logbestand moeten worden opgeslagen
+LOG_TO_FILE = False
+# Locatie van het logbestand (wordt aangemaakt indien deze nog niet bestaat)
+LOG_FILE = logs/source_to_staging.log
 # Max. grootte (in bytes) van het logbestand voordat er een nieuw bestand wordt gestart (rotatie). Voorbeeld: 5.000.000 ≈ 5 MB
-LOG_ROTATE_BYTES=5000000
+LOG_ROTATE_BYTES = 5000000
 # Aantal oude logbestanden dat bewaard blijft bij rotatie (bijv. app.log.1 t/m app.log.N)
-LOG_BACKUP_COUNT=3
+LOG_BACKUP_COUNT = 3
 # Optioneel: eigen opmaak van logregels. Laat weg voor standaard; voorbeeld toont tijd, level, logger en bericht
-; LOG_FORMAT=%(asctime)s %(levelname)-8s [%(name)s] %(message)s
+# LOG_FORMAT = %(asctime)s %(levelname)-8s [%(name)s] %(message)s

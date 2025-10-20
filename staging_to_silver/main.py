@@ -29,7 +29,7 @@ ask_password_in_cli = bool(
     )
 )
 driver = cast(str, get_config_value("DRIVER", cfg_parser=cfg))
-username = cast(str, get_config_value("USER", cfg_parser=cfg))
+username = cast(str, get_config_value("USERNAME", cfg_parser=cfg))
 host = cast(str, get_config_value("HOST", cfg_parser=cfg))
 port = int(cast(str, get_config_value("PORT", cfg_parser=cfg)))
 database = cast(str, get_config_value("DB", cfg_parser=cfg))

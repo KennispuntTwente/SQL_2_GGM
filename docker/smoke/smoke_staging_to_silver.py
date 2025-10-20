@@ -15,15 +15,21 @@ def main():
     # Build engine
     engine = create_sqlalchemy_engine(
         driver=get_config_value("DRIVER", section="database", cfg_parser=cfg),
-        username=get_config_value("USER", section="database", cfg_parser=cfg),
-        password=get_config_value("PASSWORD", section="database", cfg_parser=cfg, print_value=False),
+        username=get_config_value("USERNAME", section="database", cfg_parser=cfg),
+        password=get_config_value(
+            "PASSWORD", section="database", cfg_parser=cfg, print_value=False
+        ),
         host=get_config_value("HOST", section="database", cfg_parser=cfg),
         port=int(get_config_value("PORT", section="database", cfg_parser=cfg)),
         database=get_config_value("DB", section="database", cfg_parser=cfg),
     )
 
-    source_schema = get_config_value("SOURCE_SCHEMA", section="settings", cfg_parser=cfg, default="staging")
-    target_schema = get_config_value("TARGET_SCHEMA", section="settings", cfg_parser=cfg, default="silver")
+    source_schema = get_config_value(
+        "SOURCE_SCHEMA", section="settings", cfg_parser=cfg, default="staging"
+    )
+    target_schema = get_config_value(
+        "TARGET_SCHEMA", section="settings", cfg_parser=cfg, default="silver"
+    )
 
     # Ensure we can import the local smoke query module by adding this folder to sys.path
     sys.path.insert(0, os.path.dirname(__file__))
@@ -45,7 +51,13 @@ def main():
             from sqlalchemy import MetaData, Table
 
             md = MetaData()
-            dest_table = Table(name, md, schema=target_schema, autoload_with=engine, extend_existing=True)
+            dest_table = Table(
+                name,
+                md,
+                schema=target_schema,
+                autoload_with=engine,
+                extend_existing=True,
+            )
             select_cols = [c.name for c in select_stmt.selected_columns]
             dest_map = {c.name.lower(): c for c in dest_table.columns}
             cols = []
@@ -55,13 +67,17 @@ def main():
                 except KeyError:
                     ci = dest_map.get(col_name.lower())
                     if ci is None:
-                        raise KeyError(f"Destination column '{col_name}' not found in {dest_table.fullname}")
+                        raise KeyError(
+                            f"Destination column '{col_name}' not found in {dest_table.fullname}"
+                        )
                     cols.append(ci)
             conn.execute(dest_table.insert().from_select(cols, select_stmt))
 
     # Verify rows were loaded
     with engine.connect() as conn:
-        cnt = conn.execute(text(f"SELECT COUNT(*) FROM {target_schema}.demo_silver")).scalar()
+        cnt = conn.execute(
+            text(f"SELECT COUNT(*) FROM {target_schema}.demo_silver")
+        ).scalar()
     print(f"[smoke] Rows in {target_schema}.demo_silver: {cnt}")
     assert cnt and cnt >= 2, "Expected at least two rows in silver.demo_silver"
     print("[smoke] staging_to_silver OK")
