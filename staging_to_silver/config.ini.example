@@ -1,3 +1,7 @@
+# Dit is een voorbeeld van een .ini-configuratiebestand voor de 'staging_to_silver' module
+# Kopieer dit bestand naar '.ini' en pas de waarden aan naar jouw omgeving
+# (.ini-bestanden moet je in de commandline meegeven bij het runnen van deze module; zie README.md)
+
 [database]
 DRIVER=postgresql+psycopg2
 HOST=localhost
