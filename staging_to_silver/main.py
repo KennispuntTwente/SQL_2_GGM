@@ -28,15 +28,30 @@ ask_password_in_cli = bool(
         "ASK_PASSWORD_IN_CLI", section="settings", cfg_parser=cfg, default=False
     )
 )
-driver = cast(str, get_config_value("DRIVER", cfg_parser=cfg))
-username = cast(str, get_config_value("USERNAME", cfg_parser=cfg))
-host = cast(str, get_config_value("HOST", cfg_parser=cfg))
-port = int(cast(str, get_config_value("PORT", cfg_parser=cfg)))
-database = cast(str, get_config_value("DB", cfg_parser=cfg))
+driver = cast(
+    str, get_config_value("DST_DRIVER", section="database-destination", cfg_parser=cfg)
+)
+username = cast(
+    str,
+    get_config_value("DST_USERNAME", section="database-destination", cfg_parser=cfg),
+)
+host = cast(
+    str, get_config_value("DST_HOST", section="database-destination", cfg_parser=cfg)
+)
+port = int(
+    cast(
+        str,
+        get_config_value("DST_PORT", section="database-destination", cfg_parser=cfg),
+    )
+)
+database = cast(
+    str, get_config_value("DST_DB", section="database-destination", cfg_parser=cfg)
+)
 password = cast(
     str,
     get_config_value(
-        "PASSWORD",
+        "DST_PASSWORD",
+        section="database-destination",
         cfg_parser=cfg,
         print_value=False,
         ask_in_command_line=ask_password_in_cli,
