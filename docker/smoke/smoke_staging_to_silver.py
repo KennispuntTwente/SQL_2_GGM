@@ -1,3 +1,5 @@
+import os
+import sys
 from sqlalchemy import text
 
 from utils.config.cli_ini_config import load_single_ini_config
@@ -23,11 +25,15 @@ def main():
     source_schema = get_config_value("SOURCE_SCHEMA", section="settings", cfg_parser=cfg, default="staging")
     target_schema = get_config_value("TARGET_SCHEMA", section="settings", cfg_parser=cfg, default="silver")
 
-    # Load only our synthetic query by pointing extra_modules to the smoke module
+    # Ensure we can import the local smoke query module by adding this folder to sys.path
+    sys.path.insert(0, os.path.dirname(__file__))
+
+    # Load only our synthetic query by pointing extra_modules to the local smoke module
     queries = load_queries(
         table_name_case="lower",  # silver table is created in lower case (demo_silver)
         column_name_case=None,
-        extra_modules=("staging_to_silver.queries._smoke_demo",),
+        # Note: module file is 'smoke_staging_to_silver__query.py' (double underscore)
+        extra_modules=("smoke_staging_to_silver__query",),
         scan_package=False,  # limit to synthetic query only
     )
 
