@@ -1,4 +1,5 @@
 import os
+import logging
 from collections import defaultdict
 from pathlib import Path
 import re
@@ -7,6 +8,8 @@ import polars as pl
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.schema import CreateSchema
+
+logger = logging.getLogger("source_to_staging.upload_parquet")
 
 
 def _parse_parquet_base_name(filename: str) -> str:
@@ -117,11 +120,11 @@ def upload_parquet(engine, schema=None, input_dir="data", cleanup=True):
     # 4) Write each group into its table
     for table_name, files in grouped.items():
         full_table = f"{schema}.{table_name}" if schema else table_name
-        print(f"📦 Uploading {len(files)} part(s) to table {full_table}")
+        logger.info("📦 Uploading %s part(s) to table %s", len(files), full_table)
 
         for idx, fname in enumerate(files):
             path = os.path.join(input_dir, fname)
-            print(f"🔹 Processing {path}")
+            logger.info("🔹 Processing %s", path)
             df = pl.read_parquet(path)
             df = df.rename({col: col.lower() for col in df.columns})
             df.write_database(
@@ -131,10 +134,10 @@ def upload_parquet(engine, schema=None, input_dir="data", cleanup=True):
                 engine="sqlalchemy",
             )
 
-        print(f"✅ Loaded: {table_name}")
+        logger.info("✅ Loaded: %s", table_name)
 
         # 5) Cleanup parquet files
         if cleanup:
             for fname in files:
                 os.remove(os.path.join(input_dir, fname))
-            print(f"🗑️ Cleanup completed for {table_name}")
+            logger.info("🗑️ Cleanup completed for %s", table_name)

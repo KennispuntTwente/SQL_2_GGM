@@ -29,3 +29,16 @@ SRC_CONNECTORX_ORACLE_CLIENT_PATH =
 
 # Of wachtwoord gevraagd wordt in CLI i.p.v. uit te lezen uit environment of .ini-config
 ASK_PASSWORD_IN_CLI = False
+
+[logging]
+# Global logging configuration for this pipeline (overrides ENV)
+# LOG_LEVEL can be DEBUG, INFO, WARNING, ERROR
+LOG_LEVEL = INFO
+# Write logs to file in addition to console
+LOG_TO_FILE = False
+# Path to log file (created if missing). Defaults to logs/source_to_staging.log
+LOG_FILE = logs/source_to_staging.log
+# Optional rotation settings
+LOG_ROTATE_BYTES = 5000000
+LOG_BACKUP_COUNT = 3
+; LOG_FORMAT = %(asctime)s %(levelname)-8s [%(name)s] %(message)s

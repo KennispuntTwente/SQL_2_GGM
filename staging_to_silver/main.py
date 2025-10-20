@@ -1,4 +1,5 @@
 import os
+import logging
 from typing import cast
 from dotenv import load_dotenv
 from sqlalchemy import MetaData, Table, text
@@ -9,17 +10,23 @@ from utils.config.get_config_value import get_config_value
 from utils.database.create_sqlalchemy_engine import create_sqlalchemy_engine
 
 from staging_to_silver.functions.query_loader import load_queries
+from utils.logging.setup_logging import setup_logging
 
 # ─── Load .env & .ini from command line ────────────────────────────────────────
 if os.path.exists("staging_to_silver/.env"):
-    print("Loading environment variables…")
     load_dotenv(dotenv_path="staging_to_silver/.env")
 
 args, cfg = load_single_ini_config()
 
+# Configure logging and keep console output
+setup_logging(app_name="staging_to_silver", cfg_parsers=[cfg])
+log = logging.getLogger("staging_to_silver")
+
 # ─── Build connection to database ──────────────────────────────────────────────
 ask_password_in_cli = bool(
-    get_config_value("ASK_PASSWORD_IN_CLI", section="settings", cfg_parser=cfg, default=False)
+    get_config_value(
+        "ASK_PASSWORD_IN_CLI", section="settings", cfg_parser=cfg, default=False
+    )
 )
 driver = cast(str, get_config_value("DRIVER", cfg_parser=cfg))
 username = cast(str, get_config_value("USER", cfg_parser=cfg))
@@ -29,7 +36,10 @@ database = cast(str, get_config_value("DB", cfg_parser=cfg))
 password = cast(
     str,
     get_config_value(
-        "PASSWORD", cfg_parser=cfg, print_value=False, ask_in_command_line=ask_password_in_cli
+        "PASSWORD",
+        cfg_parser=cfg,
+        print_value=False,
+        ask_in_command_line=ask_password_in_cli,
     ),
 )
 
@@ -44,10 +54,16 @@ engine = create_sqlalchemy_engine(
 
 # ─── Read source/target schema from config ─────────────────────────────────────
 source_schema = cast(
-    str, get_config_value("SOURCE_SCHEMA", section="settings", cfg_parser=cfg, default="staging")
+    str,
+    get_config_value(
+        "SOURCE_SCHEMA", section="settings", cfg_parser=cfg, default="staging"
+    ),
 )
 target_schema = cast(
-    str, get_config_value("TARGET_SCHEMA", section="settings", cfg_parser=cfg, default="silver")
+    str,
+    get_config_value(
+        "TARGET_SCHEMA", section="settings", cfg_parser=cfg, default="silver"
+    ),
 )
 
 # ─── Read case-normalization settings ─────────────────────────────────────────
@@ -140,7 +156,7 @@ with engine.begin() as conn:  # single, atomic transaction
                         f"Available: {[c.name for c in dest_table.columns]}"
                     )
                 dest_cols.append(ci)
-        print(f"Reordered destination columns: {[col.name for col in dest_cols]}")
+        log.debug("Reordered destination columns: %s", [col.name for col in dest_cols])
 
         # 3) determine how we load into the destination
         mode = write_modes_ci.get(name.lower(), "append").lower()
@@ -157,7 +173,7 @@ with engine.begin() as conn:  # single, atomic transaction
 
         if mode in {"append", "overwrite", "truncate"}:
             conn.execute(insert_from_select)
-            print(f"Loaded → {full_name} [{mode}]")
+            log.info("Loaded → %s [%s]", full_name, mode)
 
         elif mode == "upsert":
             # NOTE: The following upsert logic uses PostgreSQL-specific SQLAlchemy features.
@@ -173,9 +189,9 @@ with engine.begin() as conn:  # single, atomic transaction
                 },
             )
             conn.execute(upsert_stmt)
-            print(f"Upserted → {full_name}")
+            log.info("Upserted → %s", full_name)
 
         else:
             raise ValueError(f"Unsupported write‑mode '{mode}' for {full_name}")
 
-    print("✔︎ All queries executed successfully")
+    log.info("✔︎ All queries executed successfully")

@@ -1,4 +1,5 @@
 import os
+import logging
 from typing import Iterable
 
 import polars as pl
@@ -6,6 +7,8 @@ import pyarrow as pa
 import connectorx as cx
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
+
+logger = logging.getLogger("source_to_staging.download_parquet")
 
 
 def download_parquet(
@@ -63,7 +66,7 @@ def download_parquet(
 
         # ── ConnectorX path ───────────────────────────────────
         if is_uri:
-            print(f"📥 Dumping table via ConnectorX (arrow_stream): {qualified}")
+            logger.info("📥 Dumping table via ConnectorX (arrow_stream): %s", qualified)
             # Stream arrow record batches directly from the source using ConnectorX
             reader_or_iter: Iterable
             reader_or_iter = cx.read_sql(
@@ -105,20 +108,31 @@ def download_parquet(
                 if getattr(batch, "num_rows", None) in (0, None):
                     continue
                 table_arrow = pa.Table.from_batches([batch])
-                df = pl.from_arrow(table_arrow)
+                df: pl.DataFrame = pl.from_arrow(table_arrow)  # type: ignore[assignment]
 
-                out = os.path.join(output_dir, f"{table}_part{part_written:04d}.parquet")
+                out = os.path.join(
+                    output_dir, f"{table}_part{part_written:04d}.parquet"
+                )
                 df.write_parquet(out)
                 wrote_any = True
-                print(f"✅ ConnectorX chunk {part_written} written: {out} ({df.height:,} rows)")
+                try:
+                    nrows = len(df)
+                except Exception:
+                    nrows = "?"
+                logger.info(
+                    "✅ ConnectorX chunk %s written: %s (%s rows)",
+                    part_written,
+                    out,
+                    nrows,
+                )
                 part_written += 1
 
             if not wrote_any:
-                print("   (no rows)")
+                logger.info("   (no rows)")
 
         # ── SQLAlchemy Engine path  ────────────
         else:
-            print(f"📥 Dumping table via SQLAlchemy: {qualified}")
+            logger.info("📥 Dumping table via SQLAlchemy: %s", qualified)
             with engine.connect() as conn:
                 try:
                     row_count = conn.execute(
@@ -129,7 +143,7 @@ def download_parquet(
                         f"Failed to count rows for {qualified}: {err}"
                     ) from err
 
-                print(f"   (total rows: {row_count:,})")
+                logger.info("   (total rows: %s)", f"{row_count:,}")
 
                 batches = pl.read_database(
                     query=base_select,
@@ -141,6 +155,6 @@ def download_parquet(
                 for idx, batch_df in enumerate(batches):
                     out = os.path.join(output_dir, f"{table}_part{idx:04d}.parquet")
                     batch_df.write_parquet(out)
-                    print(f"✅ pl.read_database chunk {idx} written: {out}")
+                    logger.info("✅ pl.read_database chunk %s written: %s", idx, out)
 
-    print("🎉 Export complete – all tables written")
+    logger.info("🎉 Export complete – all tables written")

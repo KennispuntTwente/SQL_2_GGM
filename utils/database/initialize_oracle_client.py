@@ -1,4 +1,5 @@
 import oracledb
+import logging
 from utils.config.get_config_value import get_config_value
 
 
@@ -14,5 +15,7 @@ def initialize_oracle_client(
     """
     oracle_client_path = get_config_value(config_key, cfg_parser=cfg_parser)
     if oracle_client_path:
-        print(f"Initializing Oracle client with path: {oracle_client_path}")
+        logging.getLogger(__name__).info(
+            "Initializing Oracle client with path: %s", oracle_client_path
+        )
         oracledb.init_oracle_client(lib_dir=oracle_client_path)

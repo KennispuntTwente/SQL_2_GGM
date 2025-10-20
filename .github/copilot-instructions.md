@@ -17,6 +17,7 @@ Goal: make agents productive quickly in this repo by explaining the architecture
 - Query loading and normalization: `staging_to_silver/functions/query_loader.py` and queries in `staging_to_silver/queries/*.py`.
 - Config helpers: `utils/config/cli_ini_config.py`, `utils/config/get_config_value.py`.
 - Engine/URI builders: `utils/database/create_sqlalchemy_engine.py`, `utils/database/create_connectorx_uri.py`.
+- Logging: `utils/logging/setup_logging.py` (console + optional rotating file logging via INI/ENV).
 - Smoke runs: `docker/smoke/**` and `docker/smoke/run_all.sh`.
 
 ## Configuration conventions
@@ -24,6 +25,32 @@ Goal: make agents productive quickly in this repo by explaining the architecture
 - source_to_staging INI samples: `source_to_staging/source_config.ini.example`, `source_to_staging/destination_config.ini.example`.
 - staging_to_silver INI sample: `staging_to_silver/config.ini.example`.
 - Common keys: drivers (e.g., postgresql+psycopg2, mssql+pyodbc, oracle+oracledb), host/port/user/password/db, schemas.
+
+### Logging configuration
+- Configure logging in entrypoints with `setup_logging(app_name, cfg_parsers=[...])`.
+- Defaults: console logging at INFO; optional rotating file logging can be enabled via INI `[logging]` or environment variables. Precedence: INI > ENV.
+- Supported keys (under `[logging]` or as ENV):
+  - `LOG_LEVEL` = DEBUG|INFO|WARNING|ERROR (default INFO)
+  - `LOG_TO_FILE` = true|false (default false)
+  - `LOG_FILE` = path (default `logs/<app_name>.log`)
+  - `LOG_ROTATE_BYTES` = max bytes per file (default 5_000_000)
+  - `LOG_BACKUP_COUNT` = number of rotated files (default 3)
+  - `LOG_FORMAT` = optional format string
+- Example `[logging]` in INI:
+  - `LOG_LEVEL=INFO`
+  - `LOG_TO_FILE=True`
+  - `LOG_FILE=logs/staging_to_silver.log`
+  - `LOG_ROTATE_BYTES=5000000`
+  - `LOG_BACKUP_COUNT=3`
+
+Conventions:
+- Prefer `logging.getLogger(__name__)` with `.debug/.info/.warning/.error` instead of `print()` in library code.
+- Console output should remain informative; don’t remove console handler. Use INFO for key milestones, DEBUG for noisy details.
+- Example INIs in this repo already include a `[logging]` section you can copy.
+
+Testing & internals:
+- `tests/test_logging_setup.py` validates console/file logging and INI-over-ENV precedence.
+- The logging setup marks its handlers with `_ggmpilot_managed` to avoid clobbering external handlers (e.g., pytest caplog) on reconfigure. Preserve this behavior if you modify logging.
 
 ## Source → staging specifics
 - Two connection modes:
@@ -74,3 +101,4 @@ Goal: make agents productive quickly in this repo by explaining the architecture
 - Preserve chunked streaming semantics in `download_parquet` and column-lowercasing in `upload_parquet`.
 - Maintain single-transaction behavior and column order mapping in `staging_to_silver/main.py`.
 - When extending write modes or adding DB-specific behavior, keep cross-DB compatibility; guard PostgreSQL-only features.
+- Keep logging console output enabled by default and configurable via `[logging]`/ENV; avoid reintroducing raw `print()` in production paths. Maintain handler marking (`_ggmpilot_managed`) to keep pytest caplog working and prevent duplicate handlers.

@@ -17,3 +17,10 @@ ASK_PASSWORD_IN_CLI=false
 # Allowed values: upper, lower, (leave empty for no normalization)
 TABLE_NAME_CASE=upper
 COLUMN_NAME_CASE=
+
+[logging]
+LOG_LEVEL=INFO
+LOG_TO_FILE=False
+LOG_FILE=logs/staging_to_silver.log
+LOG_ROTATE_BYTES=5000000
+LOG_BACKUP_COUNT=3

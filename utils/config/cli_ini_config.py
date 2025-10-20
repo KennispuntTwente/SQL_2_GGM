@@ -1,10 +1,20 @@
-# cli_config.py
 import os
+import logging
 import sys
 import warnings
 import argparse
 import configparser
 from typing import Tuple, Optional
+
+
+def _ensure_console_logging():
+    """Ensure a basic console logger is set so messages are visible like print()."""
+    root = logging.getLogger()
+    if not root.handlers:
+        logging.basicConfig(
+            level=logging.INFO,
+            format="%(asctime)s %(levelname)-8s [%(name)s] %(message)s",
+        )
 
 
 def parse_and_load_ini_configs(
@@ -50,20 +60,29 @@ def parse_and_load_ini_configs(
         args = parser.parse_args()
 
     def _load(path: Optional[str], name: str) -> configparser.ConfigParser:
+        _ensure_console_logging()
         cfg = configparser.ConfigParser()
         if path:
-            print(f"→ Attempting to load {name} config from: {path}")
+            logging.getLogger(__name__).info(
+                "→ Attempting to load %s config from: %s", name, path
+            )
             if os.path.exists(path):
                 cfg.read(path)
-                print(f"✔ Loaded {name} config from: {path}")
+                logging.getLogger(__name__).info(
+                    "✔ Loaded %s config from: %s", name, path
+                )
             else:
                 warnings.warn(
                     f"{name.capitalize()} config file not found: {path}. "
                     "Falling back to environment variables."
                 )
-                print(f"⚠ Falling back to environment for {name} config")
+                logging.getLogger(__name__).warning(
+                    "⚠ Falling back to environment for %s config", name
+                )
         else:
-            print(f"→ No {name} config path provided; using environment variables")
+            logging.getLogger(__name__).info(
+                "→ No %s config path provided; using environment variables", name
+            )
         return cfg
 
     source_cfg = _load(getattr(args, "source_config", None), "source")
@@ -95,16 +114,20 @@ def load_single_ini_config(
 
     cfg = configparser.ConfigParser()
     if args.config:
-        print(f"→ Attempting to load config from: {args.config}")
+        logging.getLogger(__name__).info(
+            "→ Attempting to load config from: %s", args.config
+        )
         if os.path.exists(args.config):
             cfg.read(args.config)
-            print(f"✔ Loaded config from: {args.config}")
+            logging.getLogger(__name__).info("✔ Loaded config from: %s", args.config)
         else:
             warnings.warn(
                 f"Config file not found: {args.config}. Falling back to environment variables."
             )
-            print("⚠ Falling back to environment")
+            logging.getLogger(__name__).warning("⚠ Falling back to environment")
     else:
-        print("→ No config path provided; using environment variables")
+        logging.getLogger(__name__).info(
+            "→ No config path provided; using environment variables"
+        )
 
     return args, cfg
