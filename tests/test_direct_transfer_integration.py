@@ -25,9 +25,8 @@ def _slow_tests_enabled() -> bool:
     return os.getenv("RUN_SLOW_TESTS", "0").lower() in {"1", "true", "yes", "on"}
 
 
-db_types = ["mariadb", "mysql", "postgres", "oracle", "mssql"]
-
-# Use the same explicit host ports as tests/test_source_to_staging.py to avoid clashes
+# Use the same explicit host ports as tests/test_source_to_staging.py to avoid clashes.
+# We'll use the "ports" mapping for source DBs and the "ports_dest" mapping for destination DBs.
 ports = {
     "mariadb": 3307,
     "mysql": 2053,
@@ -36,7 +35,6 @@ ports = {
     "mssql": 1434,
 }
 
-# Destination containers use different ports to ensure two separate containers per db_type
 ports_dest = {
     "mariadb": 3309,
     "mysql": 2054,
@@ -235,8 +233,6 @@ def _normalize_rows(rows):
 
     return [tuple(norm(x) for x in row) for row in rows]
 
-
-@pytest.mark.parametrize("db_type", db_types)
 @pytest.mark.skipif(
     not _slow_tests_enabled(),
     reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.",
@@ -245,43 +241,147 @@ def _normalize_rows(rows):
     not _docker_running(),
     reason="Docker is not available/running; required for this integration test.",
 )
-def test_direct_transfer_roundtrip(db_type):
+def test_direct_transfer_oracle_to_postgres_and_mssql():
+    """
+    Launch Oracle once, create sample table and data there, then transfer to Postgres
+    and MSSQL in sequence, validating roundtrip content each time.
+    """
     username = "sa"
     password = "S3cureP@ssw0rd!23243"
+    table = "typetest"
 
-    # Ensure a clean slate before starting
-    _cleanup_db_containers(db_type)
+    # Clean any leftovers first
+    _cleanup_db_containers("oracle")
+    _cleanup_db_containers("postgres")
+    _cleanup_db_containers("mssql")
 
     try:
-        # Spin up source
-        port = ports[db_type]
+        # 1) Start Oracle source ONCE
         src_engine = get_connection(
-            db_type=db_type,
+            db_type="oracle",
             db_name="test_source",
             user=username,
             password=password,
-            port=port,
+            port=ports["oracle"],
+            force_refresh=True,
+            print_tables=False,
+        )
+
+        # Create source table + data (in Oracle)
+        with src_engine.begin() as sconn:
+            _create_table_and_data(sconn, "oracle", table)
+
+        # 2) Transfer Oracle -> Postgres
+        dst_pg_engine = get_connection(
+            db_type="postgres",
+            db_name="test_dest_pg",
+            user=username,
+            password=password,
+            port=ports_dest["postgres"],
+            force_refresh=True,
+            print_tables=False,
+        )
+
+        src_schema, _ = _schemas_for("oracle")
+        _, dst_schema_pg = _schemas_for("postgres")
+
+        direct_transfer(
+            source_engine=src_engine,
+            dest_engine=dst_pg_engine,
+            tables=[table],
+            source_schema=src_schema,
+            dest_schema=dst_schema_pg,
+            chunk_size=2,
+            lowercase_columns=True,
+            write_mode="replace",
+        )
+
+        with src_engine.connect() as sconn, dst_pg_engine.connect() as dconn:
+            src_rows = _fetch_all(sconn, "oracle", table)
+            dst_rows = _fetch_all(dconn, "postgres", table)
+        assert _normalize_rows(src_rows) == _normalize_rows(dst_rows)
+
+        # 3) Transfer Oracle -> MSSQL (reusing the same Oracle source)
+        dst_ms_engine = get_connection(
+            db_type="mssql",
+            db_name="test_dest_ms",
+            user=username,
+            password=password,
+            port=ports_dest["mssql"],
+            force_refresh=True,
+            print_tables=False,
+        )
+        _, dst_schema_ms = _schemas_for("mssql")
+
+        direct_transfer(
+            source_engine=src_engine,
+            dest_engine=dst_ms_engine,
+            tables=[table],
+            source_schema=src_schema,
+            dest_schema=dst_schema_ms,
+            chunk_size=2,
+            lowercase_columns=True,
+            write_mode="replace",
+        )
+
+        with src_engine.connect() as sconn, dst_ms_engine.connect() as dconn:
+            src_rows = _fetch_all(sconn, "oracle", table)
+            dst_rows = _fetch_all(dconn, "mssql", table)
+        assert _normalize_rows(src_rows) == _normalize_rows(dst_rows)
+    finally:
+        # Clean all involved containers/volumes after the test
+        _cleanup_db_containers("oracle")
+        _cleanup_db_containers("postgres")
+        _cleanup_db_containers("mssql")
+
+
+@pytest.mark.skipif(
+    not _slow_tests_enabled(),
+    reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.",
+)
+@pytest.mark.skipif(
+    not _docker_running(),
+    reason="Docker is not available/running; required for this integration test.",
+)
+def test_direct_transfer_postgres_to_mssql():
+    """Transfer from Postgres (source) to MSSQL (destination) and validate contents."""
+    username = "sa"
+    password = "S3cureP@ssw0rd!23243"
+    table = "typetest"
+
+    # Ensure a clean slate before starting
+    _cleanup_db_containers("postgres")
+    _cleanup_db_containers("mssql")
+
+    try:
+        # Spin up Postgres source
+        src_engine = get_connection(
+            db_type="postgres",
+            db_name="test_source_pg",
+            user=username,
+            password=password,
+            port=ports["postgres"],
             force_refresh=True,
             print_tables=False,
         )
 
         # Create source table + data
-        table = "typetest"
         with src_engine.begin() as sconn:
-            _create_table_and_data(sconn, db_type, table)
+            _create_table_and_data(sconn, "postgres", table)
 
-        # Spin up destination
+        # Spin up MSSQL destination
         dst_engine = get_connection(
-            db_type=db_type,
-            db_name="test_dest",
+            db_type="mssql",
+            db_name="test_dest_ms",
             user=username,
             password=password,
-            port=ports_dest[db_type],
+            port=ports_dest["mssql"],
             force_refresh=True,
             print_tables=False,
         )
 
-        src_schema, dst_schema = _schemas_for(db_type)
+        src_schema, _ = _schemas_for("postgres")
+        _, dst_schema = _schemas_for("mssql")
 
         # Run direct transfer with small chunks
         direct_transfer(
@@ -297,10 +397,11 @@ def test_direct_transfer_roundtrip(db_type):
 
         # Compare
         with src_engine.connect() as sconn, dst_engine.connect() as dconn:
-            src_rows = _fetch_all(sconn, db_type, table)
-            dst_rows = _fetch_all(dconn, db_type, table)
+            src_rows = _fetch_all(sconn, "postgres", table)
+            dst_rows = _fetch_all(dconn, "mssql", table)
 
         assert _normalize_rows(src_rows) == _normalize_rows(dst_rows)
     finally:
         # Always clean up containers/volumes after test
-        _cleanup_db_containers(db_type)
+        _cleanup_db_containers("postgres")
+        _cleanup_db_containers("mssql")
