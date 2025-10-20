@@ -50,6 +50,10 @@ SRC_ORACLE_TNS_ALIAS = False
 # alleen interactief gerund kan worden
 ASK_PASSWORD_IN_CLI = False
 
+# Of de gedownloadde parquet-files na het uploaden naar 'database-destination' moeten
+# worden verwijderd van de schijfruimte van de machine waar de Python-code draait
+CLEANUP_PARQUET_FILES = True
+
 [logging]
 # Globale logging-niveau; vanaf welk type message moet gelogd worden?
 # Kan zijn: DEBUG, INFO, WARNING, of ERROR

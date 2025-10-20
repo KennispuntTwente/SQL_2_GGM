@@ -193,5 +193,7 @@ upload_parquet(
         "DST_SCHEMA", section="database-destination", cfg_parser=cfg
     ),
     input_dir="data",
-    cleanup=True,
+    cleanup=get_config_value(
+        "CLEANUP_PARQUET_FILES", section="settings", cfg_parser=cfg, default=True
+    ),
 )
