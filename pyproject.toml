@@ -4,7 +4,7 @@ version = "0.1.0"
 requires-python = ">= 3.12.10"
 dependencies = [
     "configparser>=7.2.0",
-    "connectorx>=0.4.3",
+    "connectorx>=0.4.4",
     "docker>=7.1.0",
     "python-dotenv>=1.0.1",
     "mssql>=1.0.1",
