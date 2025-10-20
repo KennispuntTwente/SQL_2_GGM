@@ -4,7 +4,7 @@ from typing import Optional, cast
 from dotenv import load_dotenv
 import oracledb
 
-from utils.config.cli_ini_config import parse_and_load_ini_configs
+from utils.config.cli_ini_config import load_single_ini_config
 from utils.config.get_config_value import get_config_value
 
 from utils.database.create_sqlalchemy_engine import create_sqlalchemy_engine
@@ -21,46 +21,56 @@ if os.path.exists("source_to_staging/.env"):
         "Loaded environment variables from source_to_staging/.env"
     )
 
-# Load config parsers
-# User can provide --source-config and --destination-config arguments, which may contain
-#   paths to INI files with database credentials and settings
-# These take priority over environment variables;
-#   get_config_value() will first check INI files, then environment variables
-args, source_cfg, dest_cfg = parse_and_load_ini_configs()
+# Load single config parser
+# User can provide --config argument pointing to a single INI with sections
+#   [database-source], [database-destination], [settings], [logging]
+# INI takes priority over environment variables
+args, cfg = load_single_ini_config(prog_desc="Run source to staging data migration")
 
 # Configure logging (console + optional file via INI/env)
-setup_logging(app_name="source_to_staging", cfg_parsers=[source_cfg, dest_cfg])
+setup_logging(app_name="source_to_staging", cfg_parsers=[cfg])
 log = logging.getLogger("source_to_staging")
 
 # Build connection to source database
 use_cx = bool(
     get_config_value(
-        "SRC_CONNECTORX", section="settings", cfg_parser=source_cfg, default=False
+        "SRC_CONNECTORX", section="settings", cfg_parser=cfg, default=False
     )
 )
-src_driver = cast(str, get_config_value("SRC_DRIVER", cfg_parser=source_cfg))
+src_driver = cast(
+    str, get_config_value("SRC_DRIVER", section="database-source", cfg_parser=cfg)
+)
 src_username = cast(
-    Optional[str], get_config_value("SRC_USERNAME", cfg_parser=source_cfg)
+    Optional[str],
+    get_config_value("SRC_USERNAME", section="database-source", cfg_parser=cfg),
 )
 src_password = cast(
     Optional[str],
     get_config_value(
         "SRC_PASSWORD",
-        cfg_parser=source_cfg,
+        section="database-source",
+        cfg_parser=cfg,
         print_value=False,
         ask_in_command_line=bool(
             get_config_value(
                 "ASK_PASSWORD_IN_CLI",
                 section="settings",
-                cfg_parser=source_cfg,
+                cfg_parser=cfg,
                 default=False,
             )
         ),
     ),
 )
-src_host = cast(Optional[str], get_config_value("SRC_HOST", cfg_parser=source_cfg))
-src_port = int(str(get_config_value("SRC_PORT", cfg_parser=source_cfg)))
-src_db = cast(Optional[str], get_config_value("SRC_DB", cfg_parser=source_cfg))
+src_host = cast(
+    Optional[str],
+    get_config_value("SRC_HOST", section="database-source", cfg_parser=cfg),
+)
+src_port = int(
+    str(get_config_value("SRC_PORT", section="database-source", cfg_parser=cfg))
+)
+src_db = cast(
+    Optional[str], get_config_value("SRC_DB", section="database-source", cfg_parser=cfg)
+)
 
 if use_cx:
     # Use ConnectorX URI
@@ -75,7 +85,7 @@ if use_cx:
             get_config_value(
                 "SRC_ORACLE_TNS_ALIAS",
                 section="settings",
-                cfg_parser=source_cfg,
+                cfg_parser=cfg,
                 default=False,
             )
         ),
@@ -83,7 +93,7 @@ if use_cx:
 
     # If SRC_CONNECTORX_ORACLE_CLIENT_PATH is set, use it to try to initialize Oracle client
     oracle_client_path = get_config_value(
-        "SRC_CONNECTORX_ORACLE_CLIENT_PATH", cfg_parser=source_cfg
+        "SRC_CONNECTORX_ORACLE_CLIENT_PATH", cfg_parser=cfg
     )
     if oracle_client_path:
         log.info(f"Initializing Oracle client with path: {oracle_client_path}")
@@ -108,39 +118,60 @@ else:
 
 # Build connection to destination database
 dest_engine = create_sqlalchemy_engine(
-    driver=cast(str, get_config_value("DST_DRIVER", cfg_parser=dest_cfg)),
-    username=cast(str, get_config_value("DST_USERNAME", cfg_parser=dest_cfg)),
+    driver=cast(
+        str,
+        get_config_value("DST_DRIVER", section="database-destination", cfg_parser=cfg),
+    ),
+    username=cast(
+        str,
+        get_config_value(
+            "DST_USERNAME", section="database-destination", cfg_parser=cfg
+        ),
+    ),
     password=cast(
         str,
         get_config_value(
             "DST_PASSWORD",
-            cfg_parser=dest_cfg,
+            section="database-destination",
+            cfg_parser=cfg,
             print_value=False,
             ask_in_command_line=bool(
                 get_config_value(
                     "ASK_PASSWORD_IN_CLI",
                     section="settings",
-                    cfg_parser=dest_cfg,
+                    cfg_parser=cfg,
                     default=False,
                 )
             ),
         ),
     ),
-    host=cast(str, get_config_value("DST_HOST", cfg_parser=dest_cfg)),
-    port=int(str(get_config_value("DST_PORT", cfg_parser=dest_cfg))),
-    database=cast(str, get_config_value("DST_DB", cfg_parser=dest_cfg)),
+    host=cast(
+        str,
+        get_config_value("DST_HOST", section="database-destination", cfg_parser=cfg),
+    ),
+    port=int(
+        str(
+            get_config_value("DST_PORT", section="database-destination", cfg_parser=cfg)
+        )
+    ),
+    database=cast(
+        str, get_config_value("DST_DB", section="database-destination", cfg_parser=cfg)
+    ),
 )
 
 # Read which tables to dump from source database
 tables_str = cast(
-    str, get_config_value("SRC_TABLES", section="settings", cfg_parser=source_cfg)
+    str, get_config_value("SRC_TABLES", section="settings", cfg_parser=cfg)
 )
 tables = [t.strip() for t in tables_str.split(",")]
 
 # Step 1/2: Dump tables from source to parquet files
 download_parquet(
     source_connection,
-    schema=cast(str | None, get_config_value("SRC_SCHEMA", cfg_parser=source_cfg)),
+    schema=cast(
+        str | None,
+        get_config_value("SRC_SCHEMA", section="database-source", cfg_parser=cfg),
+    ),
     tables=tables,
     output_dir="data",
     chunk_size=int(
@@ -148,7 +179,7 @@ download_parquet(
             get_config_value(
                 "SRC_CHUNK_SIZE",
                 section="settings",
-                cfg_parser=source_cfg,
+                cfg_parser=cfg,
                 default=100_000,
             )
         )
@@ -158,7 +189,9 @@ download_parquet(
 # Step 2/2: Upload parquet files into destination database
 upload_parquet(
     dest_engine,
-    schema=get_config_value("DST_SCHEMA", cfg_parser=dest_cfg),
+    schema=get_config_value(
+        "DST_SCHEMA", section="database-destination", cfg_parser=cfg
+    ),
     input_dir="data",
     cleanup=True,
 )

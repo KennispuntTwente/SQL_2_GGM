@@ -74,10 +74,10 @@ Vervolgens kan je de Python-scripts uitvoeren. Zie de voorbeelden hieronder:
 python -m source_to_staging.main
 ```
 
-2. Run source_to_staging (geconfigureerd met .ini-bestanden)
+2. Run source_to_staging (geconfigureerd met één .ini-bestand)
 
 ```
-python -m source_to_staging.main --source-config source_to_staging/source_config.ini --destination-config source_to_staging/destination_config.ini
+python -m source_to_staging.main --config source_to_staging/config.ini
 ```
 
 3. Run staging_to_silver (geconfigurerd via environment variables)
@@ -114,15 +114,14 @@ docker run --rm \
 	ggmpilot:latest
 ```
 
-3) Run source_to_staging met .ini-configs
+3) Run source_to_staging met .ini-config
 
 ```bash
 docker run --rm \
 	-v "$(pwd)/data:/app/data" \
 	-v "$(pwd)/source_to_staging:/app/source_to_staging" \
 	ggmpilot:latest source-to-staging \
-	--source-config /app/source_to_staging/source_config.ini \
-	--destination-config /app/source_to_staging/destination_config.ini
+		--config /app/source_to_staging/config.ini
 ```
 
 4) Run staging_to_silver met .env

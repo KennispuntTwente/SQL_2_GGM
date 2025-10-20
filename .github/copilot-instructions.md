@@ -74,7 +74,7 @@ Testing & internals:
 - Environment: project targets Python 3.12+. Install with uv, then select the `.venv` interpreter in your IDE.
   - Install: `uv sync`
 - Run pipelines:
-  - `python -m source_to_staging.main` or with INIs: `python -m source_to_staging.main --source-config source_to_staging/source_config.ini --destination-config source_to_staging/destination_config.ini`
+  - `python -m source_to_staging.main` or with single INI: `python -m source_to_staging.main --config source_to_staging/config.ini`
   - `python -m staging_to_silver.main` or with INI: `python -m staging_to_silver.main --config staging_to_silver/config.ini`
 - Tests (Windows-friendly; see `AGENTS.md`):
   - Fast: `./.venv/Scripts/python -m pytest -q`

@@ -22,5 +22,9 @@ COLUMN_NAME_CASE=
 LOG_LEVEL=INFO
 LOG_TO_FILE=False
 LOG_FILE=logs/staging_to_silver.log
+# Max. grootte (in bytes) van het logbestand voordat er een nieuw bestand wordt gestart (rotatie). Voorbeeld: 5.000.000 ≈ 5 MB
 LOG_ROTATE_BYTES=5000000
+# Aantal oude logbestanden dat bewaard blijft bij rotatie (bijv. app.log.1 t/m app.log.N)
 LOG_BACKUP_COUNT=3
+# Optioneel: eigen opmaak van logregels. Laat weg voor standaard; voorbeeld toont tijd, level, logger en bericht
+; LOG_FORMAT=%(asctime)s %(levelname)-8s [%(name)s] %(message)s
