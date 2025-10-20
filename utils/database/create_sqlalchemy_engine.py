@@ -50,7 +50,11 @@ def create_sqlalchemy_engine(
                 host=host,
                 port=port,
                 database=database,
-                query={"driver": "ODBC Driver 18 for SQL Server"},
+                query={
+                    "driver": "ODBC Driver 18 for SQL Server",
+                    # Allow local/self-signed dev servers without full CA chain
+                    "TrustServerCertificate": "yes",
+                },
             )
         )
 

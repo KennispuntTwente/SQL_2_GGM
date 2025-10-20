@@ -203,8 +203,28 @@ dat je de environment variables `RUN_SLOW_TESTS=1` bevatten (anders worden ze ge
 Gebruik de volgende commando (PowerShell) om de langzame tests te runnen:
 
 ```powershell
-$env:RUN_SLOW_TESTS="1"; .\.venv\Scripts\python -m pytest -vv
+$env:RUN_SLOW_TESTS="1"; .\.venv\Scripts\python -m pytest -vv -s -x -l --tb=long
 ```
+
+Om slechts een specifieke langzame test te runnen (PowerShell):
+```powershell
+$env:RUN_SLOW_TESTS="1"; .\.venv\Scripts\python -m pytest -vv -s -x -l --tb=long tests\test_type_fidelity_live_dbs.py
+```
+
+Specifieker, enkel een bepaald database‑type draaien:
+
+- PowerShell (Windows):
+```powershell
+$env:RUN_SLOW_TESTS="1"; .\.venv\Scripts\python -m pytest -vv -s -x -l --tb=long tests\test_type_fidelity_live_dbs.py::test_type_fidelity_roundtrip[True-oracle]
+```
+
+- bash op Windows (Git Bash, WSL, etc.):
+```bash
+export RUN_SLOW_TESTS=1
+./.venv/Scripts/python -m pytest -vv -s -x -l --tb=long tests/test_type_fidelity_live_dbs.py::test_type_fidelity_roundtrip[False-mysql]
+```
+
+
 
 De Docker-image (alsmede de procedures die hierin runnen) kan daarnaast getest worden met de
 'smoke'-scripts. Zie de map: docker/smoke. Run hiervoor het volgende commando (bash):
