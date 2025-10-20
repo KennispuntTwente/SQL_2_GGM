@@ -70,7 +70,8 @@ def _connect_mysql(cfg: Dict[str, Any]):
 SETTINGS = {
     "postgres": dict(
         image="postgres:latest",
-        default_port=5432,
+        default_port=5432,  # host port default
+        container_port=5432,  # container's internal port
         env=lambda user, password, db_name: {
             "POSTGRES_USER": user,
             "POSTGRES_PASSWORD": password,
@@ -81,6 +82,7 @@ SETTINGS = {
     "oracle": dict(
         image="gvenzl/oracle-free:latest-faststart",
         default_port=1521,
+        container_port=1521,
         # Pass ORACLE_DATABASE so the container will create a PDB with that name
         env=lambda user, password, db_name: {
             "ORACLE_PASSWORD": password,
@@ -93,6 +95,7 @@ SETTINGS = {
     "mssql": dict(
         image="mcr.microsoft.com/mssql/server:2022-latest",
         default_port=1433,
+        container_port=1433,
         env=lambda user, password, db_name: {
             "ACCEPT_EULA": "Y",
             "MSSQL_PID": "Developer",
@@ -102,7 +105,9 @@ SETTINGS = {
     ),
     "mysql": dict(
         image="mysql:8.0",
-        default_port=3306,
+        # Use a non-standard host port by default to avoid clashing with MariaDB/local MySQL
+        default_port=3307,
+        container_port=3306,
         env=lambda user, password, db_name: {
             "MYSQL_ROOT_PASSWORD": password,
             "MYSQL_USER": user,
@@ -113,13 +118,16 @@ SETTINGS = {
     ),
     "mariadb": dict(
         image="mariadb:latest",
-        default_port=3306,
+        # Use a non-standard host port to avoid clashing with any local MariaDB service
+        default_port=3308,
+        container_port=3306,
         env=lambda user, password, db_name: {
-            # MariaDB uses the same env vars as MySQL
-            "MYSQL_ROOT_PASSWORD": password,
-            "MYSQL_USER": user,
-            "MYSQL_PASSWORD": password,
-            "MYSQL_DATABASE": db_name,
+            # Use MariaDB-specific environment variables for initialization
+            # See: https://hub.docker.com/_/mariadb
+            "MARIADB_ROOT_PASSWORD": password,
+            "MARIADB_USER": user,
+            "MARIADB_PASSWORD": password,
+            "MARIADB_DATABASE": db_name,
         },
         connector=_connect_mysql,
     ),
@@ -170,23 +178,118 @@ def _ensure_container_running(
 
     try:
         container = client.containers.get(container_name)
+        # Ensure port mapping matches requested host port; if not, recreate
+        try:
+            container.reload()
+            bindings = container.attrs.get("HostConfig", {}).get("PortBindings", {})
+            cport = cfg.get("container_port", cfg["default_port"])
+            key = f"{cport}/tcp"
+            bound = bindings.get(key)
+            bound_host_port = bound[0]["HostPort"] if bound else None
+            if str(port) != str(bound_host_port):
+                # Recreate with correct port mapping
+                container.stop()
+                container.remove()
+                raise docker.errors.NotFound("Recreate due to port change")
+        except Exception:
+            # If attrs are missing or structure differs, continue and rely on start
+            pass
         if container.status != "running":
-            container.start()
+            try:
+                container.start()
+            except Exception as e:
+                # If host port is already allocated by something else, recreate with random port
+                if "port is already allocated" in str(e).lower():
+                    try:
+                        container.remove(force=True)
+                    except Exception:
+                        pass
+                    raise docker.errors.NotFound("Recreate due to port allocation conflict") from e
+                raise
         was_created = False
     except docker.errors.NotFound:
         print(f"Creating new {db_type} container '{container_name}'…")
-        client.containers.run(
-            cfg["image"],
-            name=container_name,
-            environment=cfg["env"](user, password, db_name),
-            ports={f"{cfg['default_port']}/tcp": port},
-            volumes={volume_name: {"bind": "/var/lib/data", "mode": "rw"}},
-            healthcheck={"test": ["CMD", "healthcheck.sh"]}
-            if db_type == "oracle"
-            else None,
-            detach=True,
-        )
+        # Before creating, proactively look for any container already binding the requested host port
+        # and shut it down if it looks like one of ours (same image or name pattern), to avoid
+        # "port is already allocated" errors across test runs.
+        try:
+            cport = cfg.get("container_port", cfg["default_port"])
+            target = f"{cport}/tcp"
+            for c in client.containers.list(all=True):
+                try:
+                    c.reload()
+                    ports = (
+                        c.attrs.get("HostConfig", {}).get("PortBindings", {})
+                        or {}
+                    )
+                    bindings = ports.get(target) or []
+                    host_ports = {b.get("HostPort") for b in bindings if b}
+                    if str(port) in host_ports:
+                        # Only remove if it's likely one of our dev DB containers
+                        name_matches = bool(
+                            re.match(r"^(mariadb|mysql|postgres|oracle|mssql)-docker-db-\d+$", c.name or "")
+                        )
+                        image_matches = False
+                        try:
+                            image_tags = c.image.tags or []
+                            image_matches = any(t.startswith(cfg["image"]) for t in image_tags) or (
+                                c.image.attrs.get("RepoTags")
+                                and cfg["image"] in c.image.attrs.get("RepoTags", [])
+                            )
+                        except Exception:
+                            pass
+                        if name_matches or image_matches:
+                            try:
+                                c.stop()
+                            except Exception:
+                                pass
+                            try:
+                                c.remove()
+                            except Exception:
+                                pass
+                except Exception:
+                    # ignore inspection issues; continue cleanup best-effort
+                    continue
+        except Exception:
+            # Best-effort cleanup; carry on to creation
+            pass
+        # Try with requested host port first; if it fails due to allocation, fall back to random port
+        def _run_with_port_mapping(host_port_mapping):
+            return client.containers.run(
+                cfg["image"],
+                name=container_name,
+                environment=cfg["env"](user, password, db_name),
+                ports={f"{cfg.get('container_port', cfg['default_port'])}/tcp": host_port_mapping},
+                volumes={volume_name: {"bind": "/var/lib/data", "mode": "rw"}},
+                healthcheck={"test": ["CMD", "healthcheck.sh"]}
+                if db_type == "oracle"
+                else None,
+                detach=True,
+            )
+        try:
+            container = _run_with_port_mapping(port)
+        except Exception as e:
+            if "port is already allocated" in str(e).lower():
+                # Use random host port
+                container = _run_with_port_mapping(None)
+            else:
+                raise
         was_created = True
+    # Determine the effective host port by inspecting the container's port bindings
+    try:
+        container.reload()
+        cport = cfg.get("container_port", cfg["default_port"])
+        key = f"{cport}/tcp"
+        bindings = (
+            container.attrs.get("NetworkSettings", {}).get("Ports", {}) or {}
+        )
+        bd = bindings.get(key)
+        if bd and isinstance(bd, list) and bd:
+            port_str = bd[0].get("HostPort")
+            if port_str:
+                port = int(port_str)
+    except Exception:
+        pass
 
     return cfg, port, was_created
 
@@ -368,7 +471,19 @@ def get_connection(
     volume_name = volume_name or f"{container_name}_data"
 
     if max_wait_seconds is None:
-        max_wait_seconds = 600 if db_type == "oracle" else 120
+        if db_type == "oracle":
+            max_wait_seconds = 600
+        elif db_type in ("mysql", "mariadb"):
+            max_wait_seconds = 180
+        else:
+            max_wait_seconds = 120
+
+    # For engines that support multiple databases inside one server instance,
+    # avoid recreating the container on subsequent calls. Instead, drop/recreate
+    # the specific database when force_refresh=True. This enables spinning up
+    # a source and destination DB within the same container (e.g., MySQL/MariaDB/Postgres).
+    supports_multi_db = db_type in {"postgres", "mysql", "mariadb"}
+    container_force_refresh = False if supports_multi_db else force_refresh
 
     # start or reuse the container
     cfg, host_port, was_created = _ensure_container_running(
@@ -379,7 +494,7 @@ def get_connection(
         port_effective,
         container_name,
         volume_name,
-        force_refresh,
+        container_force_refresh,
     )
 
     # Prepare configs for master and target DB
@@ -387,10 +502,24 @@ def get_connection(
     # use host.docker.internal if available (Docker Desktop) otherwise fall back to 127.0.0.1
     host_addr = "host.docker.internal" if os.getenv("IN_DOCKER", "0") == "1" else "localhost"
 
+    # Choose appropriate admin DB/user per backend
+    if db_type == "postgres":
+        master_db = "postgres"
+        admin_user = user  # superuser as provided
+        admin_password = password
+    elif db_type in ("mysql", "mariadb"):
+        master_db = "mysql"
+        admin_user = "root"  # root is configured via image env
+        admin_password = password
+    else:
+        master_db = "master"
+        admin_user = user
+        admin_password = password
+
     master_cfg = {
-        "dbname": "master",
-        "user": user,
-        "password": password,
+        "dbname": master_db,
+        "user": admin_user,
+        "password": admin_password,
         "host": host_addr,
         "port": host_port,
     }
@@ -418,7 +547,60 @@ def get_connection(
         # 3) Wait until the new DB is ready
         _wait_for_db_ready(cfg["connector"], target_cfg, max_wait_seconds)
     else:
-        # For Oracle/Postgres/MySQL/MariaDB, wait normally against the target DB
+        # For Oracle wait on target DB; for Postgres/MySQL/MariaDB wait on admin DB first
+        if db_type in ("postgres", "mysql", "mariadb"):
+            _wait_for_db_ready(cfg["connector"], master_cfg, max_wait_seconds)
+        else:
+            _wait_for_db_ready(cfg["connector"], target_cfg, max_wait_seconds)
+
+    # Ensure target database exists and is clean if requested (multi-DB servers)
+        if db_type in ("postgres", "mysql", "mariadb"):
+            # Connect using admin to manage databases
+            if db_type == "postgres":
+                admin_conn = cfg["connector"](master_cfg)
+                try:
+                    # Ensure autocommit/isolation for DROP/CREATE DATABASE
+                    try:
+                        from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT  # type: ignore
+                        admin_conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)  # type: ignore[attr-defined]
+                    except Exception:
+                        # Fallback to attribute if available
+                        try:
+                            admin_conn.autocommit = True
+                        except Exception:
+                            pass
+                    with admin_conn.cursor() as cur:
+                        if force_refresh and not was_created:
+                            cur.execute(
+                                "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = %s",
+                                (db_name,),
+                            )
+                            cur.execute(f"DROP DATABASE IF EXISTS \"{db_name}\"")
+                        # create if missing
+                        cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (db_name,))
+                        if cur.fetchone() is None:
+                            cur.execute(f"CREATE DATABASE \"{db_name}\"")
+                finally:
+                    try:
+                        admin_conn.close()
+                    except Exception:
+                        pass
+            else:
+                with cfg["connector"](master_cfg) as admin_conn:
+                    with admin_conn.cursor() as cur:
+                        # MySQL/MariaDB
+                        if force_refresh and not was_created:
+                            cur.execute(f"DROP DATABASE IF EXISTS `{db_name}`")
+                            admin_conn.commit()
+                        cur.execute(f"CREATE DATABASE IF NOT EXISTS `{db_name}`")
+                        # Ensure user has privileges on the target DB
+                        # If user doesn't exist, this will fail; however the image creates it on first init.
+                        # Granting again is harmless.
+                        cur.execute(f"GRANT ALL PRIVILEGES ON `{db_name}`.* TO '{user}'@'%' ")
+                        cur.execute("FLUSH PRIVILEGES")
+                        admin_conn.commit()
+
+        # Finally wait for target DB to be ready (connections, privilege propagation)
         _wait_for_db_ready(cfg["connector"], target_cfg, max_wait_seconds)
 
     # Run initial SQL scripts if provided

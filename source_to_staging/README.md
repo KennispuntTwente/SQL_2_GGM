@@ -40,3 +40,16 @@ python -m source_to_staging.main
 ```
 
 De smoke tests in `docker/smoke` zijn aangepast om één INI te gebruiken (`docker/config/source_to_staging.ini`).
+
+## Transfer modes
+
+Kies de modus in `[settings]` via `TRANSFER_MODE`:
+
+- `SQLALCHEMY_DUMP`: lees via SQLAlchemy, dump naar Parquet, upload daarna Parquet.
+- `CONNECTORX_DUMP`: lees via ConnectorX (sneller, vaak betere type-fidelity), dump naar Parquet, upload daarna Parquet.
+- `SQLALCHEMY_DIRECT`: geen Parquet; chunked directe kopie van bron naar doel, met lowercase kolomnamen in staging.
+
+Opmerking bij `SQLALCHEMY_DIRECT`:
+- Voorkomt type/precisie issues door Parquet roundtrip te vermijden.
+- Chunk-grootte via `SRC_CHUNK_SIZE`.
+- Standaard schrijfmodus is `replace` (tabel per run opnieuw aanmaken); aanpasbaar in code indien nodig.

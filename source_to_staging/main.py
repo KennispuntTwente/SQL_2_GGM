@@ -12,6 +12,7 @@ from utils.database.create_connectorx_uri import create_connectorx_uri
 
 from source_to_staging.functions.download_parquet import download_parquet
 from source_to_staging.functions.upload_parquet import upload_parquet
+from source_to_staging.functions.direct_transfer import direct_transfer
 from utils.logging.setup_logging import setup_logging
 
 # Load environment variables from .env file if .env exists
@@ -31,12 +32,53 @@ args, cfg = load_single_ini_config(prog_desc="Run source to staging data migrati
 setup_logging(app_name="source_to_staging", cfg_parsers=[cfg])
 log = logging.getLogger("source_to_staging")
 
-# Build connection to source database
-use_cx = bool(
+# Determine transfer mode
+transfer_mode = cast(
+    str,
     get_config_value(
-        "SRC_CONNECTORX", section="settings", cfg_parser=cfg, default=False
-    )
+        "TRANSFER_MODE",
+        section="settings",
+        cfg_parser=cfg,
+        default=None,
+    ),
 )
+
+# Backward compatibility: map old flags if TRANSFER_MODE not set
+if not transfer_mode:
+    use_sqlalchemy_direct = bool(
+        get_config_value(
+            "USE_SQLALCHEMY_DIRECT",
+            section="settings",
+            cfg_parser=cfg,
+            default=False,
+        )
+    )
+    if use_sqlalchemy_direct:
+        log.warning(
+            "USE_SQLALCHEMY_DIRECT is deprecated. Use TRANSFER_MODE=SQLALCHEMY_DIRECT instead."
+        )
+        transfer_mode = "SQLALCHEMY_DIRECT"
+    else:
+        use_cx_legacy = bool(
+            get_config_value(
+                "SRC_CONNECTORX", section="settings", cfg_parser=cfg, default=False
+            )
+        )
+        if use_cx_legacy:
+            log.warning(
+                "SRC_CONNECTORX is deprecated for flow selection. Use TRANSFER_MODE=CONNECTORX_DUMP instead."
+            )
+            transfer_mode = "CONNECTORX_DUMP"
+        else:
+            transfer_mode = "SQLALCHEMY_DUMP"
+
+valid_modes = {"SQLALCHEMY_DUMP", "CONNECTORX_DUMP", "SQLALCHEMY_DIRECT"}
+if transfer_mode not in valid_modes:
+    raise ValueError(
+        f"TRANSFER_MODE must be one of {sorted(valid_modes)}; got {transfer_mode!r}"
+    )
+
+# Build connection to source database
 src_driver = cast(
     str, get_config_value("SRC_DRIVER", section="database-source", cfg_parser=cfg)
 )
@@ -72,7 +114,17 @@ src_db = cast(
     Optional[str], get_config_value("SRC_DB", section="database-source", cfg_parser=cfg)
 )
 
-if use_cx:
+if transfer_mode == "SQLALCHEMY_DIRECT":
+    # Force SQLAlchemy engine for direct copy mode
+    source_connection = create_sqlalchemy_engine(
+        driver=src_driver,
+        username=cast(str, src_username),
+        password=cast(str, src_password),
+        host=cast(str, src_host),
+        port=src_port,
+        database=cast(str, src_db),
+    )
+elif transfer_mode == "CONNECTORX_DUMP":
     # Use ConnectorX URI
     source_connection = create_connectorx_uri(
         driver=src_driver,
@@ -105,7 +157,7 @@ if use_cx:
             "ConnectorX may not work correctly with Oracle. Download Instant Client and set the path "
             "(e.g., C:\\oracle\\instantclient_21_18)."
         )
-else:
+else:  # SQLALCHEMY_DUMP
     # Use SQLAlchemy engine
     source_connection = create_sqlalchemy_engine(
         driver=src_driver,
@@ -165,35 +217,63 @@ tables_str = cast(
 )
 tables = [t.strip() for t in tables_str.split(",")]
 
-# Step 1/2: Dump tables from source to parquet files
-download_parquet(
-    source_connection,
-    schema=cast(
-        str | None,
-        get_config_value("SRC_SCHEMA", section="database-source", cfg_parser=cfg),
-    ),
-    tables=tables,
-    output_dir="data",
-    chunk_size=int(
-        str(
-            get_config_value(
-                "SRC_CHUNK_SIZE",
-                section="settings",
-                cfg_parser=cfg,
-                default=100_000,
+if transfer_mode == "SQLALCHEMY_DIRECT":
+    # Direct SQLAlchemy-to-SQLAlchemy chunked copy
+    direct_transfer(
+        source_engine=source_connection,  # type: ignore[arg-type]
+        dest_engine=dest_engine,
+        tables=tables,
+        source_schema=cast(
+            str | None,
+            get_config_value("SRC_SCHEMA", section="database-source", cfg_parser=cfg),
+        ),
+        dest_schema=cast(
+            str | None,
+            get_config_value("DST_SCHEMA", section="database-destination", cfg_parser=cfg),
+        ),
+        chunk_size=int(
+            str(
+                get_config_value(
+                    "SRC_CHUNK_SIZE",
+                    section="settings",
+                    cfg_parser=cfg,
+                    default=100_000,
+                )
             )
-        )
-    ),
-)
+        ),
+        lowercase_columns=True,
+        write_mode="replace",
+    )
+else:
+    # Step 1/2: Dump tables from source to parquet files
+    download_parquet(
+        source_connection,
+        schema=cast(
+            str | None,
+            get_config_value("SRC_SCHEMA", section="database-source", cfg_parser=cfg),
+        ),
+        tables=tables,
+        output_dir="data",
+        chunk_size=int(
+            str(
+                get_config_value(
+                    "SRC_CHUNK_SIZE",
+                    section="settings",
+                    cfg_parser=cfg,
+                    default=100_000,
+                )
+            )
+        ),
+    )
 
-# Step 2/2: Upload parquet files into destination database
-upload_parquet(
-    dest_engine,
-    schema=get_config_value(
-        "DST_SCHEMA", section="database-destination", cfg_parser=cfg
-    ),
-    input_dir="data",
-    cleanup=get_config_value(
-        "CLEANUP_PARQUET_FILES", section="settings", cfg_parser=cfg, default=True
-    ),
-)
+    # Step 2/2: Upload parquet files into destination database
+    upload_parquet(
+        dest_engine,
+        schema=get_config_value(
+            "DST_SCHEMA", section="database-destination", cfg_parser=cfg
+        ),
+        input_dir="data",
+        cleanup=get_config_value(
+            "CLEANUP_PARQUET_FILES", section="settings", cfg_parser=cfg, default=True
+        ),
+    )

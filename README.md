@@ -206,6 +206,16 @@ Gebruik de volgende commando (PowerShell) om de langzame tests te runnen:
 $env:RUN_SLOW_TESTS="1"; .\.venv\Scripts\python -m pytest -vv
 ```
 
+Specifieke langzame test:
+```powershell
+$env:RUN_SLOW_TESTS="1"; .\.venv\Scripts\python -m pytest -vv -s -x -l --tb=long tests\test_direct_transfer_integration.py
+```
+
+Nog specifieker:
+```powershell
+$env:RUN_SLOW_TESTS="1"; .\.venv\Scripts\python -m pytest -vv -s -x -l --tb=long tests\test_type_fidelity_live_dbs.py::test_type_fidelity_roundtrip[True-oracle]
+```
+
 De Docker-image (alsmede de procedures die hierin runnen) kan daarnaast getest worden met de
 'smoke'-scripts. Zie de map: docker/smoke. Run hiervoor het volgende commando (bash):
 
