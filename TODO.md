@@ -1,1 +1,0 @@
-* Update connectorx to use new batching feature
