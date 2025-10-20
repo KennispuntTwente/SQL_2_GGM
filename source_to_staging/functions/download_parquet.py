@@ -1,6 +1,9 @@
-from urllib.parse import urlparse
 import os
+from typing import Iterable
+
 import polars as pl
+import pyarrow as pa
+import connectorx as cx
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
@@ -16,33 +19,30 @@ def download_parquet(
     Dumps specified *tables* to Parquet files **without ever holding more than
     ``chunk_size`` rows in memory**.
 
-    This function supports both a ConnectorX URI string or a SQLAlchemy Engine
-    as the *connection* parameter. If a URI is provided, it will use ConnectorX
-    to fetch the data in chunks. If an Engine is provided, it will use
-    `polars.read_database` to read the data in batches. Advantage of
-    ConnectorX may be that it is more efficient and it also should be able
-    to better determine the data types of the columns (SQLAlchemy + Polars
-    will sample data to infer types, which may not always be accurate, and
-    could encounter errors when a column has mixed types across chunks).
+        The *connection* can be either a ConnectorX-compatible URI (str) or a
+        SQLAlchemy Engine. Behavior:
 
-    Note: when connectorx 0.4.4 will be released, code may be simplified,
-    as that will introduce a chunking parameter to cx.read_sql.
+        - If a URI is provided, uses ConnectorX read_sql with return_type="arrow_stream"
+            and batch_size to stream Arrow record batches and write each to an
+            individual Parquet part file.
+        - If an Engine is provided, uses `polars.read_database(..., iter_batches=True)`
+            with `batch_size` to iterate and write Parquet part files.
+
+        This avoids manual SQL pagination and keeps memory bounded to ~chunk_size rows.
     """
 
     # Create destination directory once
     os.makedirs(output_dir, exist_ok=True)
 
     # ──────────────────────────────────────────────────────────────────────
-    # 1 Identify connection mode & SQL dialect
+    # 1 Identify connection mode
     # ──────────────────────────────────────────────────────────────────────
     if isinstance(connection, str):
         is_uri = True
         uri = connection
-        scheme = urlparse(uri).scheme.lower()
     elif isinstance(connection, Engine):
         is_uri = False
         engine = connection
-        scheme = engine.dialect.name.lower()
     else:
         raise ValueError(
             "connection must be a SQLAlchemy Engine or a ConnectorX URI string"
@@ -54,18 +54,8 @@ def download_parquet(
             return tbl
         return f"{schema}.{tbl}"
 
-    # Helper: build a paged SQL statement appropriate for the dialect
-    def paged_sql(base_select: str, offset: int) -> str:
-        if scheme in ("mssql", "sqlserver"):
-            return f"{base_select} ORDER BY (SELECT NULL) OFFSET {offset} ROWS FETCH NEXT {chunk_size} ROWS ONLY"
-        if scheme == "oracle":
-            # 12c+ syntax – requires *some* ORDER BY, using literal 1 keeps it deterministic enough
-            return f"{base_select} ORDER BY 1 OFFSET {offset} ROWS FETCH NEXT {chunk_size} ROWS ONLY"
-        # Default LIMIT/OFFSET path (Postgres, MySQL, SQLite, DuckDB, …)
-        return f"{base_select} LIMIT {chunk_size} OFFSET {offset}"
-
     # ──────────────────────────────────────────────────────────────────────
-    # 2 Export loop per table
+    # 2 Export loop per table
     # ──────────────────────────────────────────────────────────────────────
     for table in tables:
         qualified = qualify(table)
@@ -73,21 +63,58 @@ def download_parquet(
 
         # ── ConnectorX path ───────────────────────────────────
         if is_uri:
-            print(f"📥 Dumping table via ConnectorX in pages: {qualified}")
-            offset = 0
-            part = 0
-            while True:
-                sql = paged_sql(base_select, offset)
-                df = pl.read_database_uri(query=sql, uri=uri)
-                if df.is_empty():
-                    break  # no more rows
+            print(f"📥 Dumping table via ConnectorX (arrow_stream): {qualified}")
+            # Stream arrow record batches directly from the source using ConnectorX
+            reader_or_iter: Iterable
+            reader_or_iter = cx.read_sql(
+                uri,
+                base_select,
+                return_type="arrow_stream",
+                batch_size=chunk_size,
+            )
 
-                out = os.path.join(output_dir, f"{table}_part{part:04d}.parquet")
+            # The return can be a RecordBatchReader or an iterable of RecordBatch
+            try:
+                iterator = iter(reader_or_iter)  # type: ignore[arg-type]
+            except TypeError:
+                # If it's a RecordBatchReader, convert to iterator via .read_next_batch()
+                reader = reader_or_iter  # type: ignore[assignment]
+
+                class _ReaderIter:
+                    def __init__(self, r):
+                        self._r = r
+
+                    def __iter__(self):
+                        return self
+
+                    def __next__(self):
+                        batch = self._r.read_next_batch()
+                        # Stop only when the reader returns None (end of stream).
+                        # Empty batches (num_rows == 0) should be yielded so the
+                        # outer loop can skip them without terminating iteration.
+                        if batch is None:
+                            raise StopIteration
+                        return batch
+
+                iterator = _ReaderIter(reader)
+
+            wrote_any = False
+            part_written = 0
+            for batch in iterator:
+                # Ensure we have a non-empty batch; some sources could return empty
+                if getattr(batch, "num_rows", None) in (0, None):
+                    continue
+                table_arrow = pa.Table.from_batches([batch])
+                df = pl.from_arrow(table_arrow)
+
+                out = os.path.join(output_dir, f"{table}_part{part_written:04d}.parquet")
                 df.write_parquet(out)
-                print(f"✅ ConnectorX chunk {part} written: {out} ({df.height:,} rows)")
+                wrote_any = True
+                print(f"✅ ConnectorX chunk {part_written} written: {out} ({df.height:,} rows)")
+                part_written += 1
 
-                part += 1
-                offset += chunk_size
+            if not wrote_any:
+                print("   (no rows)")
 
         # ── SQLAlchemy Engine path  ────────────
         else:
