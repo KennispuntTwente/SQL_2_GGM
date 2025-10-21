@@ -60,7 +60,7 @@ RUN if [ -n "$ORACLE_IC_URL" ]; then \
             rm ic.zip; \
             echo "Installed Oracle Instant Client into /opt/oracle"; \
         else \
-            :; \
+            echo "Skipping Oracle Instant Client (no ORACLE_IC_URL provided)"; \
         fi
 ENV ORACLE_IC_DIR=${ORACLE_IC_DIR}
 # Set library path to Oracle client dir if present; won't break if missing
