@@ -366,8 +366,7 @@ def _maybe_init_oracle_client() -> bool:
         return False
 
 
-if _maybe_init_oracle_client() == False:
-    pytest.skip("Oracle Instant Client is not available.")
+initialized_oracle = _maybe_init_oracle_client()
 
 
 def _two_step_parquet_transfer(
@@ -434,6 +433,10 @@ def _two_step_parquet_transfer(
 @pytest.mark.skipif(
     not _docker_running(),
     reason="Docker is not available/running; required for this integration test.",
+)
+@pytest.mark.skipif(
+    not initialized_oracle,
+    reason="Oracle Instant Client not initialized; required for Oracle tests.",
 )
 @pytest.mark.parametrize(
     "use_connectorx", [True, False], ids=["connectorx", "sqlalchemy"]
