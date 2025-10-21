@@ -30,13 +30,13 @@ SRC_TABLES = szclient, wvbedrag, wvaanb
 SRC_CHUNK_SIZE = 100000
 
 # Kies de gewenste transfer modus (één van):
+#  - SQLALCHEMY_DIRECT: lees via SQLAlchemy naar werkgeheugen, upload direct
 #  - SQLALCHEMY_DUMP: lees via SQLAlchemy en dump naar Parquet, upload daarna Parquet
 #  - CONNECTORX_DUMP: lees via ConnectorX en dump naar Parquet, upload daarna Parquet
-#  - SQLALCHEMY_DIRECT: geen Parquet; direct kopiëren in chunks van bron naar doel
-TRANSFER_MODE = SQLALCHEMY_DUMP
+TRANSFER_MODE = SQLALCHEMY_DIRECT
 
 # Wanneer je CONNECTORX_DUMP gebruikt i.c.m. met een OracleDB (als 'database-source'), kan het 
-# nodig zijn om het pad naar een Oracle-client te specificeren (bijv., C:\oracle\instantclient_21_18")
+# nodig zijn om het pad naar een Oracle-client te specificeren (bijv., "C:\oracle\instantclient_21_18")
 # (Je kan dit eventueel hier downloaden: https://www.oracle.com/database/technologies/instant-client/downloads.html)
 SRC_CONNECTORX_ORACLE_CLIENT_PATH =
 
