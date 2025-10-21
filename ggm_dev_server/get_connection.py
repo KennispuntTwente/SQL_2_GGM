@@ -628,7 +628,15 @@ def get_connection(
         _wait_for_db_ready(cfg["connector"], target_cfg, max_wait_seconds)
 
     # Run initial SQL scripts if provided
-    if was_created and sql_folder is not None:
+    # For single-DB servers (Oracle/MSSQL), run once when the container was created.
+    # For multi-DB servers (Postgres/MySQL/MariaDB), also run when the database was
+    # explicitly dropped/recreated via force_refresh.
+    should_bootstrap_sql = was_created or (
+        sql_folder is not None
+        and db_type in {"postgres", "mysql", "mariadb"}
+        and force_refresh
+    )
+    if sql_folder is not None and should_bootstrap_sql:
         _run_sql_scripts(
             sql_folder=Path(sql_folder),
             connector=cfg["connector"],

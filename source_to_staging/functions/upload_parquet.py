@@ -127,11 +127,58 @@ def upload_parquet(engine, schema=None, input_dir="data", cleanup=True):
             logger.info("🔹 Processing %s", path)
             df = pl.read_parquet(path)
             df = df.rename({col: col.lower() for col in df.columns})
+            # For Oracle, guide type creation for floats to avoid generic FLOAT precision issues
+            engine_options = None
+            if dialect == "oracle":
+                try:
+                    from sqlalchemy.dialects.oracle import (
+                        BINARY_FLOAT as ORA_BINARY_FLOAT,
+                        BINARY_DOUBLE as ORA_BINARY_DOUBLE,
+                        NUMBER as ORA_NUMBER,
+                    )
+                except Exception:
+                    ORA_BINARY_FLOAT = None  # type: ignore
+                    ORA_BINARY_DOUBLE = None  # type: ignore
+                    ORA_NUMBER = None  # type: ignore
+
+                dtype_map: dict[str, object] = {}
+                # Map float columns explicitly; leave others to defaults unless clearly defined
+                for col, dt in zip(df.columns, df.dtypes):
+                    try:
+                        # Floats
+                        if (
+                            str(dt).startswith("Float64")
+                            and ORA_BINARY_DOUBLE is not None
+                        ):
+                            dtype_map[col] = ORA_BINARY_DOUBLE()
+                        elif (
+                            str(dt).startswith("Float32")
+                            and ORA_BINARY_FLOAT is not None
+                        ):
+                            dtype_map[col] = ORA_BINARY_FLOAT()
+                        # Decimals like Decimal(18,5)
+                        elif dt.__class__.__name__ == "Decimal":
+                            # Extract precision/scale if available
+                            prec = getattr(dt, "precision", None)
+                            scale = getattr(dt, "scale", None)
+                            if ORA_NUMBER is not None and prec is not None:
+                                dtype_map[col] = ORA_NUMBER(prec, scale)
+                        # Booleans as NUMBER(1)
+                        elif str(dt) == "Boolean" and ORA_NUMBER is not None:
+                            dtype_map[col] = ORA_NUMBER(1, 0)
+                    except Exception:
+                        # Best-effort mapping; fallback to default for problematic columns
+                        pass
+
+                if dtype_map:
+                    engine_options = {"dtype": dtype_map}
+
             df.write_database(
                 table_name=full_table,
                 connection=engine,
                 if_table_exists="replace" if idx == 0 else "append",
                 engine="sqlalchemy",
+                engine_options=engine_options,
             )
 
         logger.info("✅ Loaded: %s", table_name)
