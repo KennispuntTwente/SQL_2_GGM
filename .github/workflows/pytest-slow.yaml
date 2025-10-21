@@ -60,9 +60,6 @@ jobs:
           sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc-dev
 
       - name: Install Oracle Instant Client
-        env:
-          # Default public version to download (Basic Lite). Update when needed.
-          ORACLE_IC_VERSION: "21.13.0.0.0dbru"
         run: |
           set -e
           sudo apt-get update
@@ -81,12 +78,15 @@ jobs:
             echo "Using repository artifact at data/instantclient.zip"
             cp data/instantclient.zip /tmp/instantclient.zip
           else
-            echo "Downloading Oracle Instant Client (Basic Lite) ${ORACLE_IC_VERSION} from Oracle public site"
-            ORACLE_IC_FILE="instantclient-basiclite-linux.x64-${ORACLE_IC_VERSION}.zip"
-            ORACLE_IC_PUBLIC_URL="https://download.oracle.com/otn_software/linux/instantclient/${ORACLE_IC_FILE}"
-            if ! curl -fsSL "$ORACLE_IC_PUBLIC_URL" -o /tmp/instantclient.zip; then
-              echo "Public download failed; Oracle+ConnectorX tests will be skipped."
-              exit 0
+            echo "Attempting Oracle Instant Client (Basic Light) latest permanent link"
+            ORACLE_IC_PERM_BASICLITE="https://download.oracle.com/otn_software/linux/instantclient/instantclient-basiclite-linuxx64.zip"
+            ORACLE_IC_PERM_BASIC="https://download.oracle.com/otn_software/linux/instantclient/instantclient-basic-linuxx64.zip"
+            if ! curl -fsSL "$ORACLE_IC_PERM_BASICLITE" -o /tmp/instantclient.zip; then
+              echo "Basic Lite permanent link failed; trying Basic (larger) package"
+              if ! curl -fsSL "$ORACLE_IC_PERM_BASIC" -o /tmp/instantclient.zip; then
+                echo "Public download failed; Oracle+ConnectorX tests will be skipped."
+                exit 0
+              fi
             fi
           fi
 
