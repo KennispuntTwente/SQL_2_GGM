@@ -16,7 +16,9 @@ def _docker_running() -> bool:
     if not shutil.which("docker"):
         return False
     try:
-        res = subprocess.run(["docker", "info"], capture_output=True, text=True, timeout=5)
+        res = subprocess.run(
+            ["docker", "info"], capture_output=True, text=True, timeout=5
+        )
         return res.returncode == 0
     except Exception:
         return False
@@ -64,11 +66,16 @@ def _cleanup_db_containers(name: str, port: int):
     not _docker_running(),
     reason="Docker is not available/running; required for this integration test.",
 )
-@pytest.mark.parametrize("total_rows,chunk_size,expected_batches", [
-    (23, 5, [(5, 5), (5, 10), (5, 15), (5, 20), (3, 23)]),
-    (10, 3, [(3, 3), (3, 6), (3, 9), (1, 10)]),
-])
-def test_direct_transfer_streams_in_chunks_postgres(caplog, total_rows, chunk_size, expected_batches):
+@pytest.mark.parametrize(
+    "total_rows,chunk_size,expected_batches",
+    [
+        (23, 5, [(5, 5), (5, 10), (5, 15), (5, 20), (3, 23)]),
+        (10, 3, [(3, 3), (3, 6), (3, 9), (1, 10)]),
+    ],
+)
+def test_direct_transfer_streams_in_chunks_postgres(
+    caplog, total_rows, chunk_size, expected_batches
+):
     """
     End-to-end: Postgres -> Postgres copy using direct_transfer with small chunk_size.
     Validates that multiple insert batches occur (from logs) and all rows arrive.
@@ -94,7 +101,9 @@ def test_direct_transfer_streams_in_chunks_postgres(caplog, total_rows, chunk_si
         )
         with src_engine.begin() as sconn:
             sconn.execute(text(f"DROP TABLE IF EXISTS {table}"))
-            sconn.execute(text(f"CREATE TABLE {table} (id INTEGER PRIMARY KEY, txt TEXT)"))
+            sconn.execute(
+                text(f"CREATE TABLE {table} (id INTEGER PRIMARY KEY, txt TEXT)")
+            )
             # Insert total_rows rows
             ins = text(f"INSERT INTO {table} (id, txt) VALUES (:id, :txt)")
             for i in range(1, total_rows + 1):
@@ -129,7 +138,9 @@ def test_direct_transfer_streams_in_chunks_postgres(caplog, total_rows, chunk_si
         # Validate destination row count
         with dst_engine.connect() as dconn:
             count = dconn.execute(text(f"SELECT COUNT(*) FROM {table}")).scalar()
-            rows = dconn.execute(text(f"SELECT id, txt FROM {table} ORDER BY id")).fetchall()
+            rows = dconn.execute(
+                text(f"SELECT id, txt FROM {table} ORDER BY id")
+            ).fetchall()
         assert count == total_rows
         assert len(rows) == total_rows
         assert rows[0] == (1, "row-1")
