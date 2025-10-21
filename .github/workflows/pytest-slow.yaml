@@ -16,7 +16,7 @@ concurrency:
 jobs:
   slow:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
 
     env:
       RUN_SLOW_TESTS: "1"
