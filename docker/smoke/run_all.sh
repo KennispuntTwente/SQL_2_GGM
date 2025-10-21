@@ -23,7 +23,7 @@ run_service_detached() {
 
 overall=0
 
-echo "[smoke] Running app-source-to-staging-sqlalchemy"
+echo "[smoke] Running app-source-to-staging-sqlalchemy (dump)"
 if ! run_service_detached app-source-to-staging-sqlalchemy; then
 	overall=1
 fi
@@ -37,8 +37,15 @@ fi
 echo "[smoke] Cleaning up…"
 docker compose -f docker/smoke/docker-compose.yml down -v --remove-orphans || true
 
-echo "[smoke] Running app-source-to-staging-connectorx"
+echo "[smoke] Running app-source-to-staging-connectorx (dump)"
 if ! run_service_detached app-source-to-staging-connectorx; then
+	overall=1
+fi
+echo "[smoke] Cleaning up…"
+docker compose -f docker/smoke/docker-compose.yml down -v --remove-orphans || true
+
+echo "[smoke] Running app-source-to-staging-direct (SQLAlchemy direct)"
+if ! run_service_detached app-source-to-staging-direct; then
 	overall=1
 fi
 echo "[smoke] Cleaning up…"
