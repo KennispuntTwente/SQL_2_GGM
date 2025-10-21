@@ -12,12 +12,11 @@ from ggm_dev_server.get_connection import get_connection
 from source_to_staging.functions.download_parquet import download_parquet
 from source_to_staging.functions.upload_parquet import upload_parquet
 from utils.database.create_connectorx_uri import create_connectorx_uri
-from utils.database.initialize_oracle_client import initialize_oracle_client
-from utils.config.get_config_value import get_config_value
+from utils.database.initialize_oracle_client import try_init_oracle_client
 
-# load_dotenv werkt mogelijk niet binnen pytes;
-# Stel indien nodig SRC_CONNECTORX_ORACLE_CLIENT_PATH in je user/system environment variabelen in
+
 load_dotenv("tests/.env")
+initialized_oracle = try_init_oracle_client()
 
 
 def _docker_running() -> bool:
@@ -350,24 +349,6 @@ def _connectorx_uri_for(
 
 def _host_for_docker() -> str:
     return "host.docker.internal" if os.getenv("IN_DOCKER", "0") == "1" else "localhost"
-
-
-def _maybe_init_oracle_client() -> bool:
-    # Only initialize if a path is configured; otherwise no-op
-    client_path = get_config_value("SRC_CONNECTORX_ORACLE_CLIENT_PATH")
-    if not client_path:
-        return False
-    try:
-        initialize_oracle_client("SRC_CONNECTORX_ORACLE_CLIENT_PATH", cfg_parser=None)
-        print("Oracle Instant Client initialized successfully.")
-        return True
-    except Exception:
-        print("Failed to initialize Oracle Instant Client for ConnectorX.")
-        return False
-
-
-initialized_oracle = _maybe_init_oracle_client()
-
 
 def _two_step_parquet_transfer(
     src_engine,

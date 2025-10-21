@@ -7,12 +7,14 @@ import pytest
 from sqlalchemy import text
 import docker
 from dotenv import load_dotenv
+from utils.database.initialize_oracle_client import try_init_oracle_client
 
 from ggm_dev_server.get_connection import get_connection
 from source_to_staging.functions.direct_transfer import direct_transfer
 
 
 load_dotenv("tests/.env")
+initialized_oracle = try_init_oracle_client()
 
 
 def _docker_running() -> bool:
@@ -340,6 +342,10 @@ def _normalize_rows(rows):
     not _docker_running(),
     reason="Docker is not available/running; required for this integration test.",
 )
+@pytest.mark.skipif(
+    not initialized_oracle,
+    reason="Oracle Instant Client not initialized; required for Oracle tests.",
+)
 def test_direct_transfer_oracle_to_postgres_and_mssql_and_mysql_variants():
     """
     Launch Oracle once, create sample table and data there, then transfer to Postgres
@@ -569,6 +575,10 @@ def test_direct_transfer_postgres_to_mssql():
 @pytest.mark.skipif(
     not _docker_running(),
     reason="Docker is not available/running; required for this integration test.",
+)
+@pytest.mark.skipif(
+    not initialized_oracle,
+    reason="Oracle Instant Client not initialized; required for Oracle tests.",
 )
 def test_direct_transfer_all_to_oracle():
     """Transfer from Postgres, MSSQL, MySQL, MariaDB to Oracle and validate contents."""

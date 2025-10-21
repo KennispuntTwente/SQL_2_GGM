@@ -15,9 +15,11 @@ from source_to_staging.functions.upload_parquet import upload_parquet
 from utils.database.create_connectorx_uri import create_connectorx_uri
 from ggm_dev_server.get_connection import get_connection
 from dotenv import load_dotenv
+from utils.database.initialize_oracle_client import try_init_oracle_client
 
 
 load_dotenv("tests/.env")
+initialized_oracle = try_init_oracle_client()
 
 
 def _docker_running() -> bool:
@@ -171,6 +173,8 @@ supported_by_connectorx = {"mariadb", "mysql", "postgres", "mssql", "oracle"}
     reason="Docker is not available/running; required for this integration test.",
 )
 def test_migration_roundtrip(db_type, connectorx, tmp_path):
+    if db_type == "oracle" and not initialized_oracle:
+        pytest.skip("Oracle Instant Client not initialized; required for Oracle tests.")
     if connectorx and db_type not in supported_by_connectorx:
         pytest.skip(f"ConnectorX is not supported for {db_type}")
     run_migration_for_db_type(db_type, connectorx=connectorx)

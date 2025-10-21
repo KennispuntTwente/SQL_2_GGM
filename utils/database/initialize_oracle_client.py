@@ -19,3 +19,16 @@ def initialize_oracle_client(
             "Initializing Oracle client with path: %s", oracle_client_path
         )
         oracledb.init_oracle_client(lib_dir=oracle_client_path)
+        
+def try_init_oracle_client() -> bool:
+    # Only initialize if a path is configured; otherwise no-op
+    client_path = get_config_value("SRC_CONNECTORX_ORACLE_CLIENT_PATH")
+    if not client_path:
+        return False
+    try:
+        initialize_oracle_client("SRC_CONNECTORX_ORACLE_CLIENT_PATH", cfg_parser=None)
+        print("Oracle Instant Client initialized successfully")
+        return True
+    except Exception:
+        print("Failed to initialize Oracle Instant Client for ConnectorX")
+        return False

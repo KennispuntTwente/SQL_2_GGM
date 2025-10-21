@@ -46,14 +46,11 @@ from sqlalchemy.sql import text
 
 from utils.database.create_connectorx_uri import create_connectorx_uri
 from ggm_dev_server.get_connection import get_connection
-
-# Import heavy, optional deps inside the test to allow import-time skip handling.
-# from utils.database.initialize_oracle_client import initialize_oracle_client
-# from source_to_staging.functions.download_parquet import download_parquet
-# from source_to_staging.functions.upload_parquet import upload_parquet
+from utils.database.initialize_oracle_client import try_init_oracle_client
 
 
 load_dotenv("tests/.env")
+initialized_oracle = try_init_oracle_client()  
 
 
 # Custom TypeDecorator to handle Python time objects on Oracle
@@ -270,15 +267,15 @@ def _slow_tests_enabled() -> bool:
 
 @pytest.mark.skipif(not _slow_tests_enabled(), reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.")
 @pytest.mark.skipif(not _docker_running(), reason="Docker is not available/running; required for this integration test.")
+@pytest.mark.skipif(
+    not initialized_oracle,
+    reason="Oracle Instant Client not initialized; required for Oracle tests",
+)
 def test_oracle_to_postgres_roundtrip(tmp_path):
     """End-to-end Oracle → Parquet → Postgres validation for key types."""
     # Late imports to avoid import-time failures when test is skipped
-    from utils.database.initialize_oracle_client import initialize_oracle_client
     from source_to_staging.functions.download_parquet import download_parquet
     from source_to_staging.functions.upload_parquet import upload_parquet
-
-    # Load optional env (e.g., Oracle client path for connectorx/oracledb thick mode)
-    initialize_oracle_client(config_key="SRC_CONNECTORX_ORACLE_CLIENT_PATH")
 
     # 1) Setup Oracle with test data
     oracle = setup_oracle()
