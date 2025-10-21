@@ -2,8 +2,13 @@ from pathlib import Path
 
 import pyarrow as pa
 import polars as pl
+from dotenv import load_dotenv
+
 
 from source_to_staging.functions.download_parquet import download_parquet
+
+
+load_dotenv("tests/.env")
 
 
 def _make_batch(start: int, count: int) -> pa.RecordBatch:

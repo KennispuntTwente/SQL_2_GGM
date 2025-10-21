@@ -1,9 +1,13 @@
 import pytest
 from sqlalchemy import MetaData, Table, Column
 from sqlalchemy import types as satypes
+from dotenv import load_dotenv
 
 # Import the internal helper for focused unit tests
 from source_to_staging.functions.direct_transfer import _coerce_generic_type
+
+
+load_dotenv("tests/.env")
 
 
 def _mk_col(name: str, type_):

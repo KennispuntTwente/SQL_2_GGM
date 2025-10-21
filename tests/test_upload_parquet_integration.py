@@ -2,8 +2,12 @@ from pathlib import Path
 
 import polars as pl
 from sqlalchemy import create_engine, text
+from dotenv import load_dotenv
 
 from source_to_staging.functions.upload_parquet import upload_parquet
+
+
+load_dotenv("tests/.env")
 
 
 def _make_parquet(path: Path, data: dict):

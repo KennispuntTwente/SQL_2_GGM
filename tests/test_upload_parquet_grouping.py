@@ -1,11 +1,15 @@
 from pathlib import Path
 
 import pytest
+from dotenv import load_dotenv
 
 from source_to_staging.functions.upload_parquet import (
     _parse_parquet_base_name,
     group_parquet_files,
 )
+
+
+load_dotenv("tests/.env")
 
 
 def test_parse_parquet_base_name_simple():

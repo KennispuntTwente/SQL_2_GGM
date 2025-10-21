@@ -4,6 +4,10 @@ import configparser
 from pathlib import Path
 
 from utils.logging.setup_logging import setup_logging
+from dotenv import load_dotenv
+
+
+load_dotenv("tests/.env")
 
 
 def reset_logging():

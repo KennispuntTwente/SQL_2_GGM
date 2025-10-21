@@ -1,8 +1,12 @@
 import sys
 import types
 import pytest
+from dotenv import load_dotenv
 
 from staging_to_silver.functions.query_loader import load_queries
+
+
+load_dotenv("tests/.env")
 
 
 @pytest.fixture(autouse=True)

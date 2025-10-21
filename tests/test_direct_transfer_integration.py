@@ -6,9 +6,13 @@ from datetime import date, datetime, time
 import pytest
 from sqlalchemy import text
 import docker
+from dotenv import load_dotenv
 
 from ggm_dev_server.get_connection import get_connection
 from source_to_staging.functions.direct_transfer import direct_transfer
+
+
+load_dotenv("tests/.env")
 
 
 def _docker_running() -> bool:

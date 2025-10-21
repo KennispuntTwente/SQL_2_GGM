@@ -3,9 +3,13 @@ import subprocess
 
 import pytest
 from sqlalchemy import MetaData, Table, text
+from dotenv import load_dotenv
 
 from ggm_dev_server.get_connection import get_connection
 from staging_to_silver.functions.query_loader import load_queries
+
+
+load_dotenv("tests/.env")
 
 
 def _docker_running() -> bool:

@@ -1,7 +1,11 @@
 import pytest
 from sqlalchemy import create_engine, MetaData, Table, Column, String, Integer, DateTime
+from dotenv import load_dotenv  
 
 from staging_to_silver.functions.query_loader import load_queries
+
+
+load_dotenv("tests/.env")
 
 
 @pytest.fixture

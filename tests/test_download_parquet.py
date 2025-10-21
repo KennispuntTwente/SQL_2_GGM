@@ -3,8 +3,12 @@ from pathlib import Path
 import polars as pl
 import pytest
 from sqlalchemy import create_engine
+from dotenv import load_dotenv
 
 from source_to_staging.functions.download_parquet import download_parquet
+
+
+load_dotenv("tests/.env")
 
 
 def _setup_sqlite_db(tmp_path: Path, table_name: str, rows: list[tuple] | None = None):

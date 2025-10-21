@@ -53,6 +53,9 @@ from ggm_dev_server.get_connection import get_connection
 # from source_to_staging.functions.upload_parquet import upload_parquet
 
 
+load_dotenv("tests/.env")
+
+
 # Custom TypeDecorator to handle Python time objects on Oracle
 class OracleTime(TypeDecorator):
     impl = TIMESTAMP
@@ -275,7 +278,6 @@ def test_oracle_to_postgres_roundtrip(tmp_path):
     from source_to_staging.functions.upload_parquet import upload_parquet
 
     # Load optional env (e.g., Oracle client path for connectorx/oracledb thick mode)
-    load_dotenv("source_to_staging/.env")
     initialize_oracle_client(config_key="SRC_CONNECTORX_ORACLE_CLIENT_PATH")
 
     # 1) Setup Oracle with test data
