@@ -1,0 +1,25 @@
+name: Smoke tests (Docker Compose)
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Show Docker info
+        run: |
+          docker version
+          docker info
+          docker compose version || true
+
+      - name: Run smoke tests (Docker Compose)
+        shell: bash
+        run: |
+          bash docker/smoke/run_all.sh
