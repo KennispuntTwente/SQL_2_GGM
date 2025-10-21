@@ -28,5 +28,8 @@ jobs:
           enable-cache: true
 
       - name: Run tests
-        run: uv run --frozen -m pytest -q 
+        run: >-
+          uv run --frozen -m pytest -q 
+          -vv -s -rA --durations=25 --maxfail=1
+          -o log_cli=true -o log_cli_level=INFO
 

@@ -59,5 +59,9 @@ jobs:
             docker pull "$img"
           done
 
-      - name: Run slow tests
-        run: uv run --frozen -m pytest -q
+      - name: Run slow tests (verbose, uncaptured)
+        run: >-
+          uv run --frozen -m pytest
+          -vv -s -rA --durations=25 --maxfail=1
+          -o log_cli=true -o log_cli_level=INFO
+          tests/test_*integration*.py
