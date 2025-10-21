@@ -135,11 +135,13 @@ def upload_parquet(engine, schema=None, input_dir="data", cleanup=True):
                         BINARY_FLOAT as ORA_BINARY_FLOAT,
                         BINARY_DOUBLE as ORA_BINARY_DOUBLE,
                         NUMBER as ORA_NUMBER,
+                        TIMESTAMP as ORA_TIMESTAMP,
                     )
                 except Exception:
                     ORA_BINARY_FLOAT = None  # type: ignore
                     ORA_BINARY_DOUBLE = None  # type: ignore
                     ORA_NUMBER = None  # type: ignore
+                    ORA_TIMESTAMP = None  # type: ignore
 
                 dtype_map: dict[str, object] = {}
                 # Map float columns explicitly; leave others to defaults unless clearly defined
@@ -163,6 +165,13 @@ def upload_parquet(engine, schema=None, input_dir="data", cleanup=True):
                             scale = getattr(dt, "scale", None)
                             if ORA_NUMBER is not None and prec is not None:
                                 dtype_map[col] = ORA_NUMBER(prec, scale)
+                        # Datetime -> TIMESTAMP(6) to preserve microseconds (Oracle DATE would drop them)
+                        elif (
+                            (getattr(pl, "Datetime", None) is not None and dt.__class__.__name__ == "Datetime")
+                            or str(dt).startswith("Datetime")
+                        ) and ORA_TIMESTAMP is not None:
+                            # Use precision 6 (microseconds); Parquet dumps typically use us resolution
+                            dtype_map[col] = ORA_TIMESTAMP(6)
                         # Booleans as NUMBER(1)
                         elif str(dt) == "Boolean" and ORA_NUMBER is not None:
                             dtype_map[col] = ORA_NUMBER(1, 0)

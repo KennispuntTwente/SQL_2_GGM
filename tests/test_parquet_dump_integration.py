@@ -205,8 +205,8 @@ def _create_table_and_data(conn, db_type: str, table: str):
             # Known issue: can't go past 3 digits when writing to Oracle after parquet dump
             # (e.g., 123456 microseconds becomes 123000)
             # Therefore we limit to 3 digits here
-            ts=datetime(2024, 1, 2, 3, 4, 5, 123), 
-            dt_str="2024-01-02T03:04:05.123",
+            ts=datetime(2024, 1, 2, 3, 4, 5, 123000), 
+            dt_str="2024-01-02T03:04:05.123000",
             b=True,
         ),
         dict(
