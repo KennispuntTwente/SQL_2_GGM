@@ -197,6 +197,23 @@ def _coerce_generic_type(
             return t
         return satypes.String()
 
+    # Prefer higher-precision datetime on MSSQL to avoid millisecond rounding
+    if dest_dialect in ("mssql", "sql server"):
+        try:
+            from sqlalchemy.dialects.mssql import DATETIME2 as MSSQL_DATETIME2  # type: ignore
+        except Exception:
+            MSSQL_DATETIME2 = None  # type: ignore
+
+        if isinstance(t, satypes.DateTime):
+            # Use DATETIME2(6) to preserve microseconds similar to Postgres/MySQL
+            if MSSQL_DATETIME2 is not None:
+                try:
+                    return MSSQL_DATETIME2(precision=6)
+                except Exception:
+                    return satypes.DateTime()
+            return satypes.DateTime()
+        # Fall through for other types to generic handling below
+
     # Normalize floats
     if isinstance(t, satypes.Float):
         return satypes.Float(precision=getattr(t, "precision", None))

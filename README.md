@@ -208,7 +208,7 @@ dat je de environment variables `RUN_SLOW_TESTS=1` bevatten (anders worden ze ge
 Gebruik de volgende commando (PowerShell) om de langzame tests te runnen:
 
 ```powershell
-$env:RUN_SLOW_TESTS="1"; .\.venv\Scripts\python -m pytest -vv
+$env:RUN_SLOW_TESTS="1"; .\.venv\Scripts\python -m pytest -vv -s -x -l
 ```
 
 Specifieke langzame test:
