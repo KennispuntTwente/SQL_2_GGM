@@ -5,6 +5,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   smoke:
     runs-on: ubuntu-latest
@@ -12,6 +16,24 @@ jobs:
 
     steps:
       - uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Pre-pull base images (cache warmup)
+        run: |
+          docker pull postgres:16
+          docker pull python:3.12-slim
+          docker pull ghcr.io/astral-sh/uv:latest || true
+
+      - name: Build app image with cache
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          tags: ggmpilot:latest
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Show Docker info
         run: |

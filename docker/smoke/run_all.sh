@@ -10,7 +10,12 @@ run_service_detached() {
 	local svc="$1"
 	local timeout_sec="${SMOKE_SERVICE_TIMEOUT:-300}"
 	echo "[smoke] Building and starting $svc detached…"
-	docker compose -f docker/smoke/docker-compose.yml up --build -d "$svc"
+	# Only force a build if explicitly requested; in CI we pre-build the image and rely on cache
+	local build_flag=""
+	if [[ "${SMOKE_FORCE_BUILD:-0}" == "1" ]]; then
+		build_flag="--build"
+	fi
+	docker compose -f docker/smoke/docker-compose.yml up ${build_flag} -d "$svc"
 	local cid
 	cid=$(docker compose -f docker/smoke/docker-compose.yml ps -q "$svc")
 	echo "[smoke] Waiting for $svc (container $cid) to exit… (timeout ${timeout_sec}s)"
