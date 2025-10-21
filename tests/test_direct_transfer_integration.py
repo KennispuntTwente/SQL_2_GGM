@@ -1,7 +1,7 @@
 import os
 import shutil
 import subprocess
-from datetime import date, datetime
+from datetime import date, datetime, time
 
 import pytest
 from sqlalchemy import text
@@ -104,6 +104,7 @@ def _create_table_and_data(conn, db_type: str, table: str):
             bin BYTEA,
             d DATE,
             ts TIMESTAMP,
+            dt_str TEXT,
             b BOOLEAN
         )
         """
@@ -126,6 +127,7 @@ def _create_table_and_data(conn, db_type: str, table: str):
             bin VARBINARY(MAX),
             d DATE,
             ts DATETIME2,
+            dt_str NVARCHAR(MAX),
             b BIT
         )
         """
@@ -145,7 +147,8 @@ def _create_table_and_data(conn, db_type: str, table: str):
             u TEXT,
             bin BLOB,
             d DATE,
-            ts DATETIME,
+            ts DATETIME(6),
+            dt_str TEXT,
             b TINYINT(1)
         )
         """
@@ -170,6 +173,7 @@ def _create_table_and_data(conn, db_type: str, table: str):
             bin BLOB,
             d DATE,
             ts TIMESTAMP,
+            dt_str CLOB,
             b NUMBER(1)
         )
         """
@@ -192,7 +196,9 @@ def _create_table_and_data(conn, db_type: str, table: str):
             u="café 🚀",
             bin=b"\x00\x01A\xff",
             d=date(2024, 1, 2),
-            ts=datetime(2024, 1, 2, 3, 4, 5),
+            ts=datetime(2024, 1, 2, 3, 4, 5, 123456),
+            # diverse date string formats for text passthrough
+            dt_str="2024-01-02T03:04:05.123456",
             b=True,
         ),
         dict(
@@ -209,6 +215,7 @@ def _create_table_and_data(conn, db_type: str, table: str):
             bin=b"",
             d=date(1999, 12, 31),
             ts=datetime(2000, 1, 1, 0, 0, 0),
+            dt_str="31/12/1999",  # dd/mm/yyyy
             b=False,
         ),
         dict(
@@ -225,6 +232,7 @@ def _create_table_and_data(conn, db_type: str, table: str):
             bin=None,
             d=None,
             ts=None,
+            dt_str=None,
             b=None,
         ),
     ]
@@ -247,8 +255,8 @@ def _create_table_and_data(conn, db_type: str, table: str):
 
     # Parameterized insert to handle dates/timestamps cleanly
     ins = text(
-        f"INSERT INTO {table} (id, i32, s, n18_5, d, ts, b) "
-        f"VALUES (:id, :i32, :s, :n18_5, :d, :ts, :b)"
+        f"INSERT INTO {table} (id, i32, s, n18_5, d, ts, dt_str, b) "
+        f"VALUES (:id, :i32, :s, :n18_5, :d, :ts, :dt_str, :b)"
     )
     for r in rows:
         conn.execute(ins, r)
@@ -258,7 +266,7 @@ def _fetch_all(conn, db_type: str, table: str):
     # Normalize selection across DBs; sort by id
     rs = conn.execute(
         text(
-            f"SELECT id, i32, smi, bigi, s, n18_5, f32, f64, t, u, bin, d, ts, b FROM {table} ORDER BY id"
+            f"SELECT id, i32, smi, bigi, s, n18_5, f32, f64, t, u, bin, d, ts, dt_str, b FROM {table} ORDER BY id"
         )
     ).fetchall()
     return [tuple(row) for row in rs]
@@ -299,6 +307,15 @@ def _normalize_rows(rows):
                 if v.time() == _dt.time(0, 0, 0):
                     return v.date().isoformat()
                 return v.isoformat()
+            except Exception:
+                return str(v)
+        if isinstance(v, _dt.time):
+            try:
+                # Normalize to ISO, drop trailing microseconds if zero for consistency
+                iso = v.isoformat()
+                if iso.endswith(".000000"):
+                    iso = iso[:-7]
+                return iso
             except Exception:
                 return str(v)
         if isinstance(v, _dt.date):
