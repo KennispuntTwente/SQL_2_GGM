@@ -1,0 +1,57 @@
+name: Slow tests (Docker + pytest)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  slow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      RUN_SLOW_TESTS: "1"
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up uv + Python
+        uses: astral-sh/setup-uv@v7.1.1
+        with:
+          python-version: '3.12.10'
+          enable-cache: true
+
+      - name: Verify Docker availability
+        run: |
+          docker --version
+          docker info
+
+      - name: Install MS ODBC Driver 18 for SQL Server (for MSSQL tests)
+        run: |
+          set -e
+          UBUNTU_VERSION=$(lsb_release -rs)
+          curl -sSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor | sudo tee /usr/share/keyrings/microsoft.gpg >/dev/null
+          curl -sSL https://packages.microsoft.com/config/ubuntu/${UBUNTU_VERSION}/prod.list | sudo tee /etc/apt/sources.list.d/microsoft-prod.list >/dev/null
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc-dev
+
+      - name: Pre-pull DB images
+        run: |
+          set -e
+          images=(
+            "postgres:latest"
+            "mariadb:latest"
+            "mysql:8.0"
+            "gvenzl/oracle-free:latest-faststart"
+            "mcr.microsoft.com/mssql/server:2022-latest"
+          )
+          for img in "${images[@]}"; do
+            echo "Pulling $img"
+            docker pull "$img"
+          done
+
+      - name: Run slow tests
+        run: uv run --frozen -m pytest -q
