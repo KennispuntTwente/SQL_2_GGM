@@ -39,40 +39,11 @@ transfer_mode = cast(
         "TRANSFER_MODE",
         section="settings",
         cfg_parser=cfg,
-        default=None,
+        default="SQLALCHEMY_DIRECT",
     ),
 )
 
-# Backward compatibility: map old flags if TRANSFER_MODE not set
-if not transfer_mode:
-    use_sqlalchemy_direct = bool(
-        get_config_value(
-            "USE_SQLALCHEMY_DIRECT",
-            section="settings",
-            cfg_parser=cfg,
-            default=False,
-        )
-    )
-    if use_sqlalchemy_direct:
-        log.warning(
-            "USE_SQLALCHEMY_DIRECT is deprecated. Use TRANSFER_MODE=SQLALCHEMY_DIRECT instead."
-        )
-        transfer_mode = "SQLALCHEMY_DIRECT"
-    else:
-        use_cx_legacy = bool(
-            get_config_value(
-                "SRC_CONNECTORX", section="settings", cfg_parser=cfg, default=False
-            )
-        )
-        if use_cx_legacy:
-            log.warning(
-                "SRC_CONNECTORX is deprecated for flow selection. Use TRANSFER_MODE=CONNECTORX_DUMP instead."
-            )
-            transfer_mode = "CONNECTORX_DUMP"
-        else:
-            transfer_mode = "SQLALCHEMY_DUMP"
-
-valid_modes = {"SQLALCHEMY_DUMP", "CONNECTORX_DUMP", "SQLALCHEMY_DIRECT"}
+valid_modes = {"SQLALCHEMY_DIRECT", "CONNECTORX_DUMP", "SQLALCHEMY_DUMP"}
 if transfer_mode not in valid_modes:
     raise ValueError(
         f"TRANSFER_MODE must be one of {sorted(valid_modes)}; got {transfer_mode!r}"
@@ -229,7 +200,9 @@ if transfer_mode == "SQLALCHEMY_DIRECT":
         ),
         dest_schema=cast(
             str | None,
-            get_config_value("DST_SCHEMA", section="database-destination", cfg_parser=cfg),
+            get_config_value(
+                "DST_SCHEMA", section="database-destination", cfg_parser=cfg
+            ),
         ),
         chunk_size=int(
             str(
