@@ -2,6 +2,7 @@ import logging
 from typing import Sequence
 
 from sqlalchemy import MetaData, Table, Column, select, text
+from sqlalchemy import types as satypes
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.schema import CreateSchema
@@ -85,12 +86,178 @@ def _ensure_database_and_schema(engine: Engine, schema: str | None) -> None:
                         raise
 
 
+def _coerce_generic_type(
+    col: Column, source_dialect: str, dest_dialect: str
+) -> satypes.TypeEngine:
+    """
+    Convert a reflected, possibly dialect-specific SQLAlchemy type to a portable
+    generic type that can be rendered by any destination dialect.
+
+    Special cases:
+    - Oracle NUMBER(1) -> Boolean
+    - Integral NUMBER/DECIMAL with scale 0 (or None) -> Integer
+    - Preserve length/precision/scale where applicable
+    """
+    # Start from the generic representation if available
+    asgeneric = getattr(col.type, "asgeneric", None)
+    if callable(asgeneric):
+        try:
+            t = asgeneric()
+        except Exception:
+            t = col.type
+    else:
+        t = col.type
+
+    # Oracle-specific source hints: NUMBER(1) mostly used as boolean
+    if source_dialect == "oracle":
+        if isinstance(t, satypes.Numeric) and not isinstance(t, satypes.Float):
+            p = getattr(t, "precision", None)
+            s = getattr(t, "scale", None)
+            if p == 1 and (s in (0, None)):
+                return satypes.Boolean()
+
+    # If destination is Oracle, prefer Oracle-native types to avoid ORA-00902
+    if dest_dialect == "oracle":
+        try:
+            from sqlalchemy.dialects.oracle import NUMBER, VARCHAR2, CLOB, BLOB
+            from sqlalchemy.dialects.oracle import BINARY_FLOAT, BINARY_DOUBLE
+            from sqlalchemy.dialects.oracle import TIMESTAMP as ORA_TIMESTAMP
+        except Exception:
+            NUMBER = None  # type: ignore
+            VARCHAR2 = None  # type: ignore
+            CLOB = None  # type: ignore
+            BLOB = None  # type: ignore
+            BINARY_FLOAT = None  # type: ignore
+            BINARY_DOUBLE = None  # type: ignore
+            ORA_TIMESTAMP = satypes.DateTime
+
+        # Floats first
+        if isinstance(t, satypes.Float):
+            # Use binary_float for single precision, binary_double for double
+            prec = getattr(t, "precision", None)
+            if prec is not None and prec <= 24 and BINARY_FLOAT is not None:
+                return BINARY_FLOAT()
+            if BINARY_DOUBLE is not None:
+                return BINARY_DOUBLE()
+            return satypes.Float()
+
+        if (
+            isinstance(t, (satypes.Integer, satypes.SmallInteger, satypes.BigInteger))
+            and NUMBER is not None
+        ):
+            if isinstance(t, satypes.SmallInteger):
+                return NUMBER(5, 0)
+            elif isinstance(t, satypes.BigInteger):
+                return NUMBER(19, 0)
+            else:
+                return NUMBER(10, 0)
+
+        if isinstance(t, satypes.Boolean) and NUMBER is not None:
+            return NUMBER(1, 0)
+
+        if (
+            isinstance(t, satypes.Numeric)
+            and not isinstance(t, satypes.Float)
+            and NUMBER is not None
+        ):
+            p = getattr(t, "precision", None)
+            s = getattr(t, "scale", None)
+            return NUMBER(p, s)
+
+        if isinstance(t, (satypes.String, satypes.VARCHAR)) and VARCHAR2 is not None:
+            length = getattr(t, "length", None)
+            if length is None:
+                # treat as text
+                if CLOB is not None:
+                    return CLOB()
+                return satypes.Text()
+            return VARCHAR2(length)
+
+        if isinstance(t, satypes.Text):
+            if CLOB is not None:
+                return CLOB()
+            return satypes.Text()
+
+        if isinstance(t, satypes.LargeBinary):
+            if BLOB is not None:
+                return BLOB()
+            return satypes.LargeBinary()
+
+        if isinstance(t, satypes.Date):
+            return satypes.Date()
+        if isinstance(t, satypes.DateTime):
+            # Prefer Oracle TIMESTAMP
+            try:
+                return ORA_TIMESTAMP()
+            except Exception:
+                return satypes.DateTime()
+
+        # Fallback generic
+        if isinstance(t, satypes.TypeEngine):
+            return t
+        return satypes.String()
+
+    # Normalize floats
+    if isinstance(t, satypes.Float):
+        return satypes.Float(precision=getattr(t, "precision", None))
+
+    # Normalize numerics that are effectively integers (non-float)
+    if isinstance(t, satypes.Numeric) and not isinstance(t, satypes.Float):
+        p = getattr(t, "precision", None)
+        s = getattr(t, "scale", None)
+        asdec = getattr(t, "asdecimal", True)
+        # Treat scale 0/None as integer when precision is reasonable
+        if s in (0, None):
+            if p is not None and p <= 5:
+                return satypes.SmallInteger()
+            if p is not None and p > 11:
+                return satypes.BigInteger()
+            if asdec is False or (p is not None and p <= 11):
+                return satypes.Integer()
+        # Otherwise, return a generic Numeric with same precision/scale
+        return satypes.Numeric(precision=p, scale=s, asdecimal=True)
+
+    # Strings
+    if isinstance(t, (satypes.String, satypes.VARCHAR, satypes.Text)):
+        length = getattr(t, "length", None)
+        if isinstance(t, satypes.Text) or length is None:
+            return satypes.Text()
+        return satypes.String(length=length)
+
+    # Date/Time
+    if isinstance(t, satypes.Date):
+        return satypes.Date()
+    if isinstance(t, satypes.DateTime):
+        return satypes.DateTime()
+    if isinstance(t, satypes.Time):
+        return satypes.Time()
+
+    # Boolean
+    if isinstance(t, satypes.Boolean):
+        return satypes.Boolean()
+
+    # Binary
+    if isinstance(t, (satypes.LargeBinary,)):
+        length = getattr(t, "length", None)
+        return satypes.LargeBinary(length)
+
+    # Integers
+    if isinstance(t, (satypes.Integer, satypes.BigInteger, satypes.SmallInteger)):
+        return t.__class__()
+
+    # Fallback to a safe generic String
+    return satypes.String()
+
+
 def _build_destination_table(
     source_table: Table,
     dest_meta: MetaData,
     dest_table_name: str,
     dest_schema: str | None,
     lowercase_columns: bool,
+    *,
+    source_dialect: str,
+    dest_dialect: str,
 ) -> Table:
     """
     Create a lightweight Table in dest metadata mirroring columns and types from
@@ -99,8 +266,9 @@ def _build_destination_table(
     cols: list[Column] = []
     for col in source_table.columns:
         new_name = col.name.lower() if lowercase_columns else col.name
-        # Preserve type and nullability; skip constraints/sequences for portability
-        new_col = Column(new_name, col.type, nullable=col.nullable)
+        # Preserve nullability; coerce type to generic for cross-dialect DDL
+        portable_type = _coerce_generic_type(col, source_dialect, dest_dialect)
+        new_col = Column(new_name, portable_type, nullable=col.nullable)
         cols.append(new_col)
     return Table(dest_table_name, dest_meta, *cols, schema=dest_schema)
 
@@ -137,16 +305,25 @@ def direct_transfer(
     for table_name in tables:
         qualified_src = f"{source_schema}.{table_name}" if source_schema else table_name
         qualified_dst = f"{dest_schema}.{table_name}" if dest_schema else table_name
-        logger.info("🚚 Copying table %s -> %s (chunk_size=%s)", qualified_src, qualified_dst, chunk_size)
+        logger.info(
+            "🚚 Copying table %s -> %s (chunk_size=%s)",
+            qualified_src,
+            qualified_dst,
+            chunk_size,
+        )
 
         # Reflect source table
-        src_table = Table(table_name, src_meta, schema=source_schema, autoload_with=source_engine)
+        src_table = Table(
+            table_name, src_meta, schema=source_schema, autoload_with=source_engine
+        )
         dest_table = _build_destination_table(
             src_table,
             dest_meta,
             dest_table_name=table_name,
             dest_schema=dest_schema,
             lowercase_columns=lowercase_columns,
+            source_dialect=source_engine.dialect.name.lower(),
+            dest_dialect=dest_engine.dialect.name.lower(),
         )
 
         # Prepare destination table according to write mode
@@ -188,6 +365,10 @@ def direct_transfer(
                     dconn.execute(insert_stmt, batch)
 
                 inserted_total += len(batch)
-                logger.info("   ↳ inserted %s rows (total %s)", len(batch), inserted_total)
+                logger.info(
+                    "   ↳ inserted %s rows (total %s)", len(batch), inserted_total
+                )
 
-        logger.info("✅ Finished table %s (%s rows)", qualified_dst, f"{inserted_total:,}")
+        logger.info(
+            "✅ Finished table %s (%s rows)", qualified_dst, f"{inserted_total:,}"
+        )
