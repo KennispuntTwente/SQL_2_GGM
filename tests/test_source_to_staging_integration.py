@@ -42,8 +42,14 @@ def _slow_tests_enabled() -> bool:
     return os.getenv("RUN_SLOW_TESTS", "0").lower() in {"1", "true", "yes", "on"}
 
 
-# Configuration for different database types and ports
-db_types = ["mariadb", "mysql", "postgres", "oracle", "mssql"]
+# Configuration for different database types and ports (with per-DB markers)
+db_params = [
+    pytest.param("mariadb", marks=pytest.mark.mariadb),
+    pytest.param("mysql", marks=pytest.mark.mysql),
+    pytest.param("postgres", marks=pytest.mark.postgres),
+    pytest.param("oracle", marks=pytest.mark.oracle),
+    pytest.param("mssql", marks=pytest.mark.mssql),
+]
 ports = {
     "mariadb": 3307,
     "mysql": 2053,
@@ -162,8 +168,15 @@ def run_migration_for_db_type(
 supported_by_connectorx = {"mariadb", "mysql", "postgres", "mssql", "oracle"}
 
 
-@pytest.mark.parametrize("db_type", db_types)
-@pytest.mark.parametrize("connectorx", [False, True])
+@pytest.mark.slow
+@pytest.mark.parametrize("db_type", db_params)
+@pytest.mark.parametrize(
+    "connectorx",
+    [
+        pytest.param(False, marks=pytest.mark.sa_dump),
+        pytest.param(True, marks=pytest.mark.cx_dump),
+    ],
+)
 @pytest.mark.skipif(
     not _slow_tests_enabled(),
     reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.",

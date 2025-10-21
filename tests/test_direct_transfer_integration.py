@@ -334,6 +334,8 @@ def _normalize_rows(rows):
     return [tuple(norm(x) for x in row) for row in rows]
 
 
+@pytest.mark.slow
+@pytest.mark.sa_direct
 @pytest.mark.skipif(
     not _slow_tests_enabled(),
     reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.",
@@ -496,6 +498,8 @@ def test_direct_transfer_oracle_to_postgres_and_mssql_and_mysql_variants():
     _cleanup_db_containers("mariadb")
 
 
+@pytest.mark.slow
+@pytest.mark.sa_direct
 @pytest.mark.skipif(
     not _slow_tests_enabled(),
     reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.",
@@ -568,6 +572,8 @@ def test_direct_transfer_postgres_to_mssql():
         _cleanup_db_containers("mssql")
 
 
+@pytest.mark.slow
+@pytest.mark.sa_direct
 @pytest.mark.skipif(
     not _slow_tests_enabled(),
     reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.",

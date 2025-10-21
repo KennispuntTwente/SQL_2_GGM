@@ -265,6 +265,8 @@ def _slow_tests_enabled() -> bool:
     return os.getenv("RUN_SLOW_TESTS", "0").lower() in {"1", "true", "yes", "on"}
 
 
+@pytest.mark.slow
+@pytest.mark.cx_dump
 @pytest.mark.skipif(not _slow_tests_enabled(), reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.")
 @pytest.mark.skipif(not _docker_running(), reason="Docker is not available/running; required for this integration test.")
 @pytest.mark.skipif(

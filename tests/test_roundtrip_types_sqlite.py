@@ -4,6 +4,7 @@ from datetime import date, datetime
 from pathlib import Path
 
 import polars as pl
+import pytest
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 
@@ -18,6 +19,7 @@ def _rows(conn, table: str):
     return conn.execute(text(f"SELECT * FROM {table} ORDER BY 1")).fetchall()
 
 
+@pytest.mark.sa_dump
 def test_end_to_end_roundtrip_values_sqlite(tmp_path: Path):
     """
     Create a SQLite source table with a mix of types and NULLs, dump to Parquet in chunks,
@@ -178,6 +180,7 @@ def test_upload_parquet_preserves_nulls_and_values(tmp_path: Path):
             assert abs(a - b) <= 1e-12
 
 
+@pytest.mark.cx_dump
 def test_connectorx_download_then_upload_roundtrip(tmp_path: Path, monkeypatch):
     """
     Simulate ConnectorX arrow_stream batches, write Parquet via download_parquet,

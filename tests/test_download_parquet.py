@@ -39,6 +39,7 @@ def _list_parquet_files(out_dir: Path):
     return sorted([p.name for p in out_dir.glob("*.parquet")])
 
 
+@pytest.mark.sa_dump
 def test_download_parquet_chunking_sqlalchemy(tmp_path: Path):
     # Prepare 7 rows and chunk into size 3 -> expect 3 part files: 0,1,2
     rows = [(i, f"name_{i}") for i in range(1, 8)]
@@ -64,6 +65,7 @@ def test_download_parquet_chunking_sqlalchemy(tmp_path: Path):
     assert total == 7
 
 
+@pytest.mark.sa_dump
 def test_download_parquet_empty_table_creates_no_files(tmp_path: Path):
     # Create empty table and ensure no parquet files are generated
     engine, _ = _setup_sqlite_db(tmp_path, table_name="empty_table", rows=[])
@@ -76,6 +78,7 @@ def test_download_parquet_empty_table_creates_no_files(tmp_path: Path):
     assert _list_parquet_files(out_dir) == []
 
 
+@pytest.mark.sa_dump
 def test_download_parquet_missing_table_raises(tmp_path: Path):
     # DB without the requested table should raise a RuntimeError during COUNT(*)
     engine, _ = _setup_sqlite_db(tmp_path, table_name="some_table", rows=[(1, "a")])

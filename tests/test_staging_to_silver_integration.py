@@ -60,6 +60,7 @@ def _insert_from_select(engine, target_schema: str, select_name: str, select_stm
         conn.execute(dest_table.insert().from_select(dest_cols, select_stmt))
 
 
+@pytest.mark.slow
 @pytest.mark.skipif(not _slow_tests_enabled(), reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.")
 @pytest.mark.skipif(not _docker_running(), reason="Docker is not available/running; required for this integration test.")
 def test_staging_to_silver_postgres(tmp_path):
@@ -152,6 +153,7 @@ def test_staging_to_silver_postgres(tmp_path):
     assert cnt_b >= 1
 
 
+@pytest.mark.slow
 @pytest.mark.skipif(not _slow_tests_enabled(), reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.")
 @pytest.mark.skipif(not _docker_running(), reason="Docker is not available/running; required for this integration test.")
 @pytest.mark.skipif(not _mssql_driver_available(), reason="ODBC Driver 18 for SQL Server not installed; required for MSSQL test.")

@@ -407,6 +407,7 @@ def _two_step_parquet_transfer(
     upload_parquet(engine=dst_engine, schema=dst_schema, input_dir=outdir, cleanup=True)
 
 
+@pytest.mark.slow
 @pytest.mark.skipif(
     not _slow_tests_enabled(),
     reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.",
@@ -420,7 +421,11 @@ def _two_step_parquet_transfer(
     reason="Oracle Instant Client not initialized; required for Oracle tests.",
 )
 @pytest.mark.parametrize(
-    "use_connectorx", [True, False], ids=["connectorx", "sqlalchemy"]
+    "use_connectorx",
+    [
+        pytest.param(True, marks=pytest.mark.cx_dump, id="connectorx"),
+        pytest.param(False, marks=pytest.mark.sa_dump, id="sqlalchemy"),
+    ],
 )
 def test_parquet_dump_oracle_to_postgres_and_mssql_and_mysql_variants(
     tmp_path, use_connectorx
@@ -492,6 +497,7 @@ def test_parquet_dump_oracle_to_postgres_and_mssql_and_mysql_variants(
             _cleanup_db_containers(t)
 
 
+@pytest.mark.slow
 @pytest.mark.skipif(
     not _slow_tests_enabled(),
     reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.",
@@ -501,7 +507,11 @@ def test_parquet_dump_oracle_to_postgres_and_mssql_and_mysql_variants(
     reason="Docker is not available/running; required for this integration test.",
 )
 @pytest.mark.parametrize(
-    "use_connectorx", [True, False], ids=["connectorx", "sqlalchemy"]
+    "use_connectorx",
+    [
+        pytest.param(True, marks=pytest.mark.cx_dump, id="connectorx"),
+        pytest.param(False, marks=pytest.mark.sa_dump, id="sqlalchemy"),
+    ],
 )
 def test_parquet_dump_all_to_oracle(tmp_path, use_connectorx):
     """

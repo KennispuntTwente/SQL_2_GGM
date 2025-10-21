@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pyarrow as pa
 import polars as pl
+import pytest
 from dotenv import load_dotenv
 
 
@@ -21,6 +22,7 @@ def _list_parquet_files(out_dir: Path):
     return sorted([p.name for p in out_dir.glob("*.parquet")])
 
 
+@pytest.mark.cx_dump
 def test_download_parquet_connectorx_iterable_batches(tmp_path, monkeypatch):
     # Mock connectorx.read_sql to return an iterable of RecordBatch
     captured = {}
@@ -53,6 +55,7 @@ def test_download_parquet_connectorx_iterable_batches(tmp_path, monkeypatch):
     assert captured["kwargs"]["batch_size"] == 3
 
 
+@pytest.mark.cx_dump
 def test_download_parquet_connectorx_recordbatchreader(tmp_path, monkeypatch):
     # Mock connectorx.read_sql to return an object with .read_next_batch()
     class FakeReader:
@@ -88,6 +91,7 @@ def test_download_parquet_connectorx_recordbatchreader(tmp_path, monkeypatch):
     assert total == 3
 
 
+@pytest.mark.cx_dump
 def test_download_parquet_connectorx_empty_yields_no_files(tmp_path, monkeypatch):
     # When no batches are produced, ensure no files are written
     def fake_read_sql(conn, query, *, return_type, batch_size, **kwargs):
@@ -105,6 +109,7 @@ def test_download_parquet_connectorx_empty_yields_no_files(tmp_path, monkeypatch
     assert _list_parquet_files(out_dir) == []
 
 
+@pytest.mark.cx_dump
 def test_download_parquet_connectorx_schema_qualification(tmp_path, monkeypatch):
     # Ensure the query passed to ConnectorX includes the provided schema
     captured = {}
