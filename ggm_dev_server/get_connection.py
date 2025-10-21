@@ -206,7 +206,9 @@ def _ensure_container_running(
                         container.remove(force=True)
                     except Exception:
                         pass
-                    raise docker_errors.NotFound("Recreate due to port allocation conflict") from e
+                    raise docker_errors.NotFound(
+                        "Recreate due to port allocation conflict"
+                    ) from e
                 raise
         was_created = False
     except docker_errors.NotFound:
@@ -220,21 +222,23 @@ def _ensure_container_running(
             for c in client.containers.list(all=True):
                 try:
                     c.reload()
-                    ports = (
-                        c.attrs.get("HostConfig", {}).get("PortBindings", {})
-                        or {}
-                    )
+                    ports = c.attrs.get("HostConfig", {}).get("PortBindings", {}) or {}
                     bindings = ports.get(target) or []
                     host_ports = {b.get("HostPort") for b in bindings if b}
                     if str(port) in host_ports:
                         # Only remove if it's likely one of our dev DB containers
                         name_matches = bool(
-                            re.match(r"^(mariadb|mysql|postgres|oracle|mssql)-docker-db-\d+$", c.name or "")
+                            re.match(
+                                r"^(mariadb|mysql|postgres|oracle|mssql)-docker-db-\d+$",
+                                c.name or "",
+                            )
                         )
                         image_matches = False
                         try:
                             image_tags = c.image.tags or []
-                            image_matches = any(t.startswith(cfg["image"]) for t in image_tags) or (
+                            image_matches = any(
+                                t.startswith(cfg["image"]) for t in image_tags
+                            ) or (
                                 c.image.attrs.get("RepoTags")
                                 and cfg["image"] in c.image.attrs.get("RepoTags", [])
                             )
@@ -255,19 +259,23 @@ def _ensure_container_running(
         except Exception:
             # Best-effort cleanup; carry on to creation
             pass
+
         # Try with requested host port first; if it fails due to allocation, fall back to random port
         def _run_with_port_mapping(host_port_mapping):
             return client.containers.run(
                 cfg["image"],
                 name=container_name,
                 environment=cfg["env"](user, password, db_name),
-                ports={f"{cfg.get('container_port', cfg['default_port'])}/tcp": host_port_mapping},
+                ports={
+                    f"{cfg.get('container_port', cfg['default_port'])}/tcp": host_port_mapping
+                },
                 volumes={volume_name: {"bind": "/var/lib/data", "mode": "rw"}},
                 healthcheck={"test": ["CMD", "healthcheck.sh"]}
                 if db_type == "oracle"
                 else None,
                 detach=True,
             )
+
         try:
             container = _run_with_port_mapping(port)
         except Exception as e:
@@ -282,9 +290,7 @@ def _ensure_container_running(
         container.reload()
         cport = cfg.get("container_port", cfg["default_port"])
         key = f"{cport}/tcp"
-        bindings = (
-            container.attrs.get("NetworkSettings", {}).get("Ports", {}) or {}
-        )
+        bindings = container.attrs.get("NetworkSettings", {}).get("Ports", {}) or {}
         bd = bindings.get(key)
         if bd and isinstance(bd, list) and bd:
             port_str = bd[0].get("HostPort")
@@ -566,7 +572,7 @@ def get_connection(
         else:
             _wait_for_db_ready(cfg["connector"], target_cfg, max_wait_seconds)
 
-    # Ensure target database exists and is clean if requested (multi-DB servers)
+        # Ensure target database exists and is clean if requested (multi-DB servers)
         if db_type in ("postgres", "mysql", "mariadb"):
             # Connect using admin to manage databases
             if db_type == "postgres":
@@ -575,6 +581,7 @@ def get_connection(
                     # Ensure autocommit/isolation for DROP/CREATE DATABASE
                     try:
                         from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT  # type: ignore
+
                         admin_conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)  # type: ignore[attr-defined]
                     except Exception:
                         # Fallback to attribute if available
@@ -588,11 +595,13 @@ def get_connection(
                                 "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = %s",
                                 (db_name,),
                             )
-                            cur.execute(f"DROP DATABASE IF EXISTS \"{db_name}\"")
+                            cur.execute(f'DROP DATABASE IF EXISTS "{db_name}"')
                         # create if missing
-                        cur.execute("SELECT 1 FROM pg_database WHERE datname = %s", (db_name,))
+                        cur.execute(
+                            "SELECT 1 FROM pg_database WHERE datname = %s", (db_name,)
+                        )
                         if cur.fetchone() is None:
-                            cur.execute(f"CREATE DATABASE \"{db_name}\"")
+                            cur.execute(f'CREATE DATABASE "{db_name}"')
                 finally:
                     try:
                         admin_conn.close()
@@ -609,7 +618,9 @@ def get_connection(
                         # Ensure user has privileges on the target DB
                         # If user doesn't exist, this will fail; however the image creates it on first init.
                         # Granting again is harmless.
-                        cur.execute(f"GRANT ALL PRIVILEGES ON `{db_name}`.* TO '{user}'@'%' ")
+                        cur.execute(
+                            f"GRANT ALL PRIVILEGES ON `{db_name}`.* TO '{user}'@'%' "
+                        )
                         cur.execute("FLUSH PRIVILEGES")
                         admin_conn.commit()
 
