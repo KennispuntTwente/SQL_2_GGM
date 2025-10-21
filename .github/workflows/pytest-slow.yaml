@@ -35,15 +35,6 @@ jobs:
           docker --version
           docker info
 
-      - name: Install MS ODBC Driver 18 for SQL Server (for MSSQL tests)
-        run: |
-          set -e
-          UBUNTU_VERSION=$(lsb_release -rs)
-          curl -sSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor | sudo tee /usr/share/keyrings/microsoft.gpg >/dev/null
-          curl -sSL https://packages.microsoft.com/config/ubuntu/${UBUNTU_VERSION}/prod.list | sudo tee /etc/apt/sources.list.d/microsoft-prod.list >/dev/null
-          sudo apt-get update
-          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc-dev
-
       - name: Pre-pull DB images
         run: |
           set -e
@@ -58,6 +49,59 @@ jobs:
             echo "Pulling $img"
             docker pull "$img"
           done
+
+      - name: Install MS ODBC Driver 18 for SQL Server (for MSSQL tests)
+        run: |
+          set -e
+          UBUNTU_VERSION=$(lsb_release -rs)
+          curl -sSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor | sudo tee /usr/share/keyrings/microsoft.gpg >/dev/null
+          curl -sSL https://packages.microsoft.com/config/ubuntu/${UBUNTU_VERSION}/prod.list | sudo tee /etc/apt/sources.list.d/microsoft-prod.list >/dev/null
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc-dev
+
+      - name: Install Oracle Instant Client
+        env:
+          # Default public version to download (Basic Lite). Update when needed.
+          ORACLE_IC_VERSION: "21.13.0.0.0dbru"
+        run: |
+          set -e
+          sudo apt-get update
+          sudo apt-get install -y unzip curl libnsl2 || true
+          # Handle libaio package name differences across Ubuntu versions
+          set +e
+          sudo apt-get install -y libaio1
+          if [ $? -ne 0 ]; then
+            sudo apt-get install -y libaio1t64
+          fi
+          set -e
+
+          mkdir -p /opt/oracle
+          # Retrieve Instant Client ZIP via repo artifact, or public Oracle download
+          if [ -f data/instantclient.zip ]; then
+            echo "Using repository artifact at data/instantclient.zip"
+            cp data/instantclient.zip /tmp/instantclient.zip
+          else
+            echo "Downloading Oracle Instant Client (Basic Lite) ${ORACLE_IC_VERSION} from Oracle public site"
+            ORACLE_IC_FILE="instantclient-basiclite-linux.x64-${ORACLE_IC_VERSION}.zip"
+            ORACLE_IC_PUBLIC_URL="https://download.oracle.com/otn_software/linux/instantclient/${ORACLE_IC_FILE}"
+            if ! curl -fsSL "$ORACLE_IC_PUBLIC_URL" -o /tmp/instantclient.zip; then
+              echo "Public download failed; Oracle+ConnectorX tests will be skipped."
+              exit 0
+            fi
+          fi
+
+          sudo unzip -q /tmp/instantclient.zip -d /opt/oracle
+          icdir=$(find /opt/oracle -maxdepth 1 -type d -name "instantclient_*" | head -n1)
+          if [ -z "$icdir" ]; then
+            echo "Could not locate Instant Client directory after unzip" >&2
+            exit 0
+          fi
+          echo "Detected Instant Client at: $icdir"
+          # Make libraries discoverable for native clients
+          echo "$icdir" | sudo tee /etc/ld.so.conf.d/oracle-instantclient.conf >/dev/null
+          sudo ldconfig
+          # Expose for Python code (get_config_value -> initialize_oracle_client)
+          echo "SRC_CONNECTORX_ORACLE_CLIENT_PATH=$icdir" >> "$GITHUB_ENV"
 
       - name: Run slow tests (verbose, uncaptured)
         run: >-
