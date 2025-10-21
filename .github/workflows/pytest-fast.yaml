@@ -1,0 +1,22 @@
+name: Fast tests (pytest)
+
+on:
+  push: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  fast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv + Python
+        uses: astral-sh/setup-uv@v7.1.1
+        with:
+          python-version: '3.12.10'
+          enable-cache: true
+
+      - name: Run tests
+        run: uv run --frozen -m pytest -q 
+
