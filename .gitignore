@@ -6,3 +6,4 @@ source_to_staging/.env
 silver_to_staging/.env
 /tmp_dump
 staging_to_silver/.env
+tests/.env
