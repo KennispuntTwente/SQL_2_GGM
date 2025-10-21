@@ -17,13 +17,12 @@ Vanaf nu gebruikt `source_to_staging` één enkele INI met de secties:
 
 - `[database-source]` (keys: `SRC_*`)
 - `[database-destination]` (keys: `DST_*`)
-- `[settings]` (bijv. `SRC_TABLES`, `SRC_CHUNK_SIZE`, `SRC_CONNECTORX`)
+- `[settings]` (bijv. `SRC_TABLES`, `SRC_CHUNK_SIZE`)
 - `[logging]`
 
 Zie het voorbeeld `source_to_staging/config.ini.example`.
 
-Belangrijk: de key-namen blijven gelijk aan de bestaande environment variabelen (bijv. `SRC_DRIVER`,
-`DST_DB`, etc.). Prioriteit blijft: INI > ENV > default. `.env` in `source_to_staging/` blijft ondersteund.
+Prioriteit bij configuratie is: .ini > environment variables > default.
 
 ### Voorbeeld run
 
@@ -45,11 +44,10 @@ De smoke tests in `docker/smoke` zijn aangepast om één INI te gebruiken (`dock
 
 Kies de modus in `[settings]` via `TRANSFER_MODE`:
 
+- `SQLALCHEMY_DIRECT`: geen Parquet; chunked directe kopie van bron naar doel, met lowercase kolomnamen in staging.
 - `SQLALCHEMY_DUMP`: lees via SQLAlchemy, dump naar Parquet, upload daarna Parquet.
 - `CONNECTORX_DUMP`: lees via ConnectorX (sneller, vaak betere type-fidelity), dump naar Parquet, upload daarna Parquet.
-- `SQLALCHEMY_DIRECT`: geen Parquet; chunked directe kopie van bron naar doel, met lowercase kolomnamen in staging.
 
-Opmerking bij `SQLALCHEMY_DIRECT`:
-- Voorkomt type/precisie issues door Parquet roundtrip te vermijden.
-- Chunk-grootte via `SRC_CHUNK_SIZE`.
-- Standaard schrijfmodus is `replace` (tabel per run opnieuw aanmaken); aanpasbaar in code indien nodig.
+In principe zouden alle manieren met alle database-types moeten werken, maar mocht je fouten tegenkomen dan zou je kunnen
+proberen te switchen naar een andere modus. De 'dump'-varianten kunnen interessant zijn als je bijvoorbeeld
+de parquet-bestanden wil gebruiken om een ruwe historie op te bouwen (buiten de actuele data op de target-SQL-server).

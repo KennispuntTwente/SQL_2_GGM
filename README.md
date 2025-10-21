@@ -13,13 +13,17 @@ Door de 'client' (d.w.z., machine waarop Python-code in dit project draait),
 wordt verbonden met de applicatie-SQL-server waarin de data van de applicatie staat (in dit geval een 
 Oracle-database; zou ook een ander type database kunnen zijn).
 
-De client downloadt de relevante tabellen en dumpt deze naar (tijdelijke) parquet-bestanden
-(dit om te kunnen omgaan met eventuele 'larger-than-memory' data).
-
-De client verbindt dan met de target-SQL-server. Dit is de SQL-server waarop het GGM zal staan.
-De client uploadt alle gedownloadde tabellen naar een 'staging' (oftewel 'brons') database
+De client downloadt de relevante tabellen van de applicatie-SQL-server (is in principe een OracleDB;
+maar kan ook een ander type zijn) en uploadt deze tabellen naar de target-SQL-server. De target-SQL-server
+is de SQL-server waarop het GGM zal staan (kan verschillende types zijn, bijv., Postgres, Microsft SQL Server,
+MySQL, etc.). De upload vindt plaats naar een 'staging' (oftewel 'brons') database
 binnen de target-SQL-server. Wanneer deze stap is afgerond staat dus de data uit de
 applicatie-SQL-server, nog in de originele structuur, nu op de target-SQL-server.
+
+Bij de download & upload wordt er voor gezorgd dat 'larger-than-memory' data ook verwerkt kan worden.
+Dit d.m.v. chunking van de data; chunks worden gestreamd in het werkgeheugen van de client of kunnen
+tijdelijk worden gedumpt naar parquet-bestanden op de schijfruimte van de client. Zo kunnen grote hoeveelheden
+data worden verwerkt ondanks een beperkt werkgeheugen van de client.
 
 ### Van staging naar het GGM ('staging_to_silver')
 
@@ -31,11 +35,12 @@ DDL van Delft gegenereerd wordt (zie map: ggm_selectie en/of map: ggm).
 De client verbindt in deze stap met de SQL-server en geeft opdracht tot queries.
 Die queries worden vewerkt door de SQL-server. De queries zijn uitgewerkt
 in SQLAlchemy; dit is Python-code die erg lijkt op SQL, die vertaald kan worden
-naar de verschillende SQL-dialecten die er zijn (bijv., Postgres heeft een andere
+naar de verschillende SQL-dialecten die er zijn (bijv., Postgres heeft een net andere
 versie van SQL dan bijv. Microsoft SQL Server; door de queries met SQLAlchemy te schrijven
-kunnen we gemakkelijk werken met diverse SQL-server-types) (voor queries, zie map: staging_to_silver/queries).
+kunnen we gemakkelijk werken met diverse SQL-server-types) 
+(voor de queries, zie map: staging_to_silver/queries).
 
-Nadat de SQL-server de queries heeft verwerkt staat de data in het GGM.
+Nadat de SQL-server de queries heeft verwerkt staat de data in het GGM!
 
 ## Installatie & gebruik
 
@@ -208,7 +213,7 @@ $env:RUN_SLOW_TESTS="1"; .\.venv\Scripts\python -m pytest -vv
 
 Specifieke langzame test:
 ```powershell
-$env:RUN_SLOW_TESTS="1"; .\.venv\Scripts\python -m pytest -vv -s -x -l --tb=long tests\test_direct_transfer_integration.py
+$env:RUN_SLOW_TESTS="1"; .\.venv\Scripts\python -m pytest -vv -s -x -l --tb=long tests\test_parquet_dump_integration.py
 ```
 
 Nog specifieker:
