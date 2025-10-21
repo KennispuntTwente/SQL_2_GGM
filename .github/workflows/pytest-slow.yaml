@@ -1,6 +1,12 @@
 name: Slow tests (Docker + pytest)
 
 on:
+  push:
+    branches:
+      [main]
+  pull_request:
+    branches:
+      [main]
   workflow_dispatch:
 
 concurrency:
