@@ -71,6 +71,9 @@ services:
       IN_DOCKER: "1"
       PYTHONPATH: "/app"
     entrypoint: ["/app/.venv/bin/python", "docker/smoke/smoke_get_connection_roundtrip.py"]
+    # Ensure host.docker.internal resolves in Linux CI runners (maps to host gateway)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - type: bind
         source: ../../data

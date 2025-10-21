@@ -6,12 +6,14 @@
 from __future__ import annotations
 
 import os
+import socket
 import sys
 import time
 from pathlib import Path
 from typing import Callable, Dict, Any
 
 import docker
+from docker import errors as docker_errors
 import oracledb
 import psycopg2
 import pyodbc
@@ -168,12 +170,12 @@ def _ensure_container_running(
             old = client.containers.get(container_name)
             old.stop()
             old.remove()
-        except docker.errors.NotFound:
+        except docker_errors.NotFound:
             pass
         try:
             vol = client.volumes.get(volume_name)
             vol.remove(force=True)
-        except docker.errors.NotFound:
+        except docker_errors.NotFound:
             pass
 
     try:
@@ -190,7 +192,7 @@ def _ensure_container_running(
                 # Recreate with correct port mapping
                 container.stop()
                 container.remove()
-                raise docker.errors.NotFound("Recreate due to port change")
+                raise docker_errors.NotFound("Recreate due to port change")
         except Exception:
             # If attrs are missing or structure differs, continue and rely on start
             pass
@@ -204,10 +206,10 @@ def _ensure_container_running(
                         container.remove(force=True)
                     except Exception:
                         pass
-                    raise docker.errors.NotFound("Recreate due to port allocation conflict") from e
+                    raise docker_errors.NotFound("Recreate due to port allocation conflict") from e
                 raise
         was_created = False
-    except docker.errors.NotFound:
+    except docker_errors.NotFound:
         print(f"Creating new {db_type} container '{container_name}'…")
         # Before creating, proactively look for any container already binding the requested host port
         # and shut it down if it looks like one of ours (same image or name pattern), to avoid
@@ -329,8 +331,12 @@ def _wait_for_db_ready(
         except BaseException as exc:
             last_exc = exc
             root = exc
-            while root.__context__ or root.__cause__:
-                root = root.__context__ or root.__cause__
+            while True:
+                ctx = getattr(root, "__context__", None)
+                cause = getattr(root, "__cause__", None)
+                if ctx is None and cause is None:
+                    break
+                root = ctx or cause
             err_msg = f"{type(root).__name__}: {root}"
 
             now = time.time()
@@ -498,9 +504,16 @@ def get_connection(
     )
 
     # Prepare configs for master and target DB
-    # when running inside Docker, localhost refers to the container itself;
-    # use host.docker.internal if available (Docker Desktop) otherwise fall back to 127.0.0.1
-    host_addr = "host.docker.internal" if os.getenv("IN_DOCKER", "0") == "1" else "localhost"
+    # When running inside Docker, localhost refers to the container itself.
+    # Prefer host.docker.internal; if not resolvable on Linux, fall back to Docker bridge gateway.
+    if os.getenv("IN_DOCKER", "0") == "1":
+        host_addr = "host.docker.internal"
+        try:
+            socket.gethostbyname(host_addr)
+        except Exception:
+            host_addr = os.getenv("HOST_GATEWAY_IP", "172.17.0.1")
+    else:
+        host_addr = "localhost"
 
     # Choose appropriate admin DB/user per backend
     if db_type == "postgres":

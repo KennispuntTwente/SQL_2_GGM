@@ -21,5 +21,8 @@ jobs:
 
       - name: Run smoke tests (Docker Compose)
         shell: bash
+        env:
+          # Per-service timeout in seconds (matches docker/smoke/run_all.sh)
+          SMOKE_SERVICE_TIMEOUT: "360"
         run: |
           bash docker/smoke/run_all.sh

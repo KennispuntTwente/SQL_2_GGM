@@ -8,13 +8,39 @@ set -euo pipefail
 
 run_service_detached() {
 	local svc="$1"
+	local timeout_sec="${SMOKE_SERVICE_TIMEOUT:-300}"
 	echo "[smoke] Building and starting $svc detached…"
 	docker compose -f docker/smoke/docker-compose.yml up --build -d "$svc"
 	local cid
 	cid=$(docker compose -f docker/smoke/docker-compose.yml ps -q "$svc")
-	echo "[smoke] Waiting for $svc (container $cid) to exit…"
+	echo "[smoke] Waiting for $svc (container $cid) to exit… (timeout ${timeout_sec}s)"
+
+	# Poll for exit with a timeout instead of blocking indefinitely on docker wait
+	local start_ts now_ts elapsed status
+	start_ts=$(date +%s)
+	status="running"
+	while true; do
+		# Check current status
+		status=$(docker inspect -f '{{.State.Status}}' "$cid" 2>/dev/null || echo "unknown")
+		if [[ "$status" == "exited" || "$status" == "dead" ]]; then
+			break
+		fi
+		now_ts=$(date +%s)
+		elapsed=$(( now_ts - start_ts ))
+		if (( elapsed >= timeout_sec )); then
+			echo "[smoke] TIMEOUT after ${timeout_sec}s waiting for $svc (status=$status). Showing logs and stopping container…" >&2
+			# Show logs to help debugging, then stop the container
+			docker compose -f docker/smoke/docker-compose.yml logs --no-color "$svc" || true
+			docker stop "$cid" >/dev/null 2>&1 || true
+			# Return a distinctive exit code for timeout
+			return 124
+		fi
+		sleep 2
+	done
+
+	# Get the actual exit code
 	local code
-	code=$(docker wait "$cid")
+	code=$(docker inspect -f '{{.State.ExitCode}}' "$cid" 2>/dev/null || echo 1)
 	echo "[smoke] $svc exited with code $code"
 	echo "[smoke] ---- $svc logs (last run) ----"
 	docker compose -f docker/smoke/docker-compose.yml logs --no-color "$svc" || true
