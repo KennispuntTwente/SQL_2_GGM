@@ -89,23 +89,6 @@ column_name_case = get_config_value(
     "COLUMN_NAME_CASE", section="settings", cfg_parser=cfg, default=None
 )
 
-# ─── Fill engine with data for testing (optional) ─────────────────────────────
-if get_config_value("TEST_MODE", cfg_parser=cfg, default=False):
-    from dev_sql_server.get_connection import get_connection
-    from staging_to_silver.functions.test_silver_to_staging import fill_engine_with_data
-
-    engine = get_connection(
-        db_type="postgres",
-        db_name=database,
-        user=username,
-        password=password,
-        force_refresh=True,
-        sql_folder="./ggm_selectie",
-        sql_suffix_filter=True,
-        sql_schema=target_schema,
-    )
-    fill_engine_with_data(engine, schema=source_schema, date_mode="timestamp")
-
 # ─── Reflect destination metadata lazily ──────────────────────────────────────
 metadata_dest = MetaData()
 

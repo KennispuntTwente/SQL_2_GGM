@@ -12,10 +12,6 @@ Uses .on_conflict_do_update on an Insert, which is PostgreSQL-only. The file com
 Recommendation: Add a dialect guard for upsert or document that upsert mode is PG-only and validate before use to give a clear error message.
 Add a test (can be unit-scoped) that staging_to_silver/main.py:1 guards PG-only features and dialect-specific query execution. Even a smoke test with a dummy engine/dialect that asserts guard logic would catch the unconditional SET CONSTRAINTS ALL DEFERRED.
 
-* Remove reference to deleted module
-staging_to_silver/main.py:1 imports staging_to_silver.functions.test_silver_to_staging.fill_engine_with_data under TEST_MODE, but this module isn’t present. This will crash if enabled.
-Recommendation: Remove this path from the code
-
 * Packages/dependencies
 Potentially unnecessary or suspect deps:
 mssql>=1.0.1 seems questionable (commonly pyodbc or pymssql are used; you already have pyodbc).
