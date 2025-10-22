@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 import pytest
 
-from ggm_dev_server.get_connection import get_connection
+from dev_sql_server.get_connection import get_connection
 from source_to_staging.functions.download_parquet import download_parquet
 from source_to_staging.functions.upload_parquet import upload_parquet
 from utils.database.create_connectorx_uri import create_connectorx_uri

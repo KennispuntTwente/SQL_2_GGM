@@ -91,7 +91,7 @@ column_name_case = get_config_value(
 
 # ─── Fill engine with data for testing (optional) ─────────────────────────────
 if get_config_value("TEST_MODE", cfg_parser=cfg, default=False):
-    from ggm_dev_server.get_connection import get_connection
+    from dev_sql_server.get_connection import get_connection
     from staging_to_silver.functions.test_silver_to_staging import fill_engine_with_data
 
     engine = get_connection(

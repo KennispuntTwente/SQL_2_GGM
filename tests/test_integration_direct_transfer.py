@@ -6,7 +6,7 @@ import pytest
 from dotenv import load_dotenv
 from utils.database.initialize_oracle_client import try_init_oracle_client
 
-from ggm_dev_server.get_connection import get_connection
+from dev_sql_server.get_connection import get_connection
 from source_to_staging.functions.direct_transfer import direct_transfer
 from .integration_utils import (
     ports,

@@ -22,7 +22,7 @@ import pytest
 import docker
 from sqlalchemy import text
 
-from ggm_dev_server.get_connection import get_connection
+from dev_sql_server.get_connection import get_connection
 
 
 # Explicit host ports used by integration tests for consistency across files
