@@ -1,12 +1,12 @@
 name: Fast tests (pytest)
 
 on:
-  # push:
-  #   branches:
-  #     [main]
-  # pull_request:
-  #   branches:
-  #     [main]
+  push:
+    branches:
+      [main]
+  pull_request:
+    branches:
+      [main]
   workflow_dispatch:
 
 concurrency:
@@ -29,7 +29,7 @@ jobs:
 
       - name: Run tests
         run: >-
-          uv run --frozen -m pytest -q 
+          uv run --frozen -m pytest -m "not slow"
           -vv -s -rA --durations=25 --maxfail=1
           -o log_cli=true -o log_cli_level=INFO
 

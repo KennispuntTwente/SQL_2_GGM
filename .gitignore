@@ -7,3 +7,8 @@ silver_to_staging/.env
 /tmp_dump
 staging_to_silver/.env
 tests/.env
+tests/_artifacts/
+
+# Occasionally created by local tooling during tests; keep ignored
+available
+use

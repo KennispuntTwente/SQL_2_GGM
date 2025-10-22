@@ -3,6 +3,11 @@
 
 import os
 import pytest
+from pathlib import Path
+
+# Expose fixtures defined in tests.integration_utils (e.g., oracle_source_engine)
+# so they are discoverable by pytest across all test modules.
+pytest_plugins = ["tests.integration_utils"]
 
 # Known database marker names we support for filtering
 KNOWN_DB_MARKERS = {"postgres", "mssql", "mysql", "mariadb", "oracle", "sqlite"}
@@ -82,3 +87,40 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 
         if not matches:
             item.add_marker(pytest.mark.skip(reason=f"Skipped by --db/TEST_DB filter (wanted {','.join(sorted(selected))})"))
+
+
+# ----------------------------------------------------------------------------
+# Test session hygiene for stray root-level marker files
+# ----------------------------------------------------------------------------
+@pytest.fixture(scope="session", autouse=True)
+def _cleanup_root_marker_files():
+    """
+    Some local runs produce empty marker files named 'available' and 'use' in
+    the repository root (likely from external tooling). Keep the repo clean by
+    removing any stale files at session start, and if they reappear during the
+    run, move them into a dedicated test artifacts folder for inspection.
+    """
+    repo_root = Path(__file__).resolve().parents[1]
+    artifacts_dir = repo_root / "tests" / "_artifacts"
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+
+    def _purge_or_stash(stage: str):
+        for name in ("available", "use"):
+            p = repo_root / name
+            if p.exists() and p.is_file():
+                # Move into artifacts with stage suffix to avoid overwriting
+                target = artifacts_dir / f"{name}.{stage}"
+                try:
+                    p.rename(target)
+                except Exception:
+                    # If rename fails (e.g., cross-device), fall back to unlink
+                    try:
+                        p.unlink()
+                    except Exception:
+                        pass
+
+    # Remove or stash stale files before tests start
+    _purge_or_stash(stage="pre")
+    yield
+    # If they were recreated during tests, stash them post-run too
+    _purge_or_stash(stage="post")

@@ -1,12 +1,12 @@
 name: Slow tests (Docker + pytest)
 
 on:
-  # push:
-  #   branches:
-  #     [main]
-  # pull_request:
-  #   branches:
-  #     [main]
+  push:
+    branches:
+      [main]
+  pull_request:
+    branches:
+      [main]
   workflow_dispatch:
 
 concurrency:
@@ -105,7 +105,7 @@ jobs:
 
       - name: Run slow tests (verbose, uncaptured)
         run: >-
-          uv run --frozen -m pytest
+          uv run --frozen -m pytest -m slow 
           -vv -s -rA --durations=25 --maxfail=1
           -o log_cli=true -o log_cli_level=INFO
-          tests/test_*integration*.py
+          tests/test_integration_*.py
