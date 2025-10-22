@@ -49,42 +49,13 @@ jobs:
           docker --version
           docker info
 
-      # ---------- Docker image cache ----------
-      - name: Restore Docker image cache
-        id: cache-docker
-        uses: actions/cache@v4
-        with:
-          path: docker-cache
-          key: docker-images-${{ runner.os }}-${{ env.MONTHLY }}
-          restore-keys: |
-            docker-images-${{ runner.os }}-
-
-      - name: Load cached Docker images (if any)
-        if: steps.cache-docker.outputs.cache-hit == 'true'
-        run: |
-          shopt -s nullglob
-          for tar in docker-cache/*.tar; do
-            echo "Loading $tar"
-            docker load -i "$tar"
-          done
-
-      - name: Pre-pull DB images (will be no-op if already loaded)
+      # ---------- Docker images ----------
+      - name: Pre-pull DB images 
         run: |
           set -e
           for img in $DB_IMAGES; do
             echo "Pulling $img"
             docker pull "$img"
-          done
-
-      - name: Save Docker images into cache (first run per month)
-        if: steps.cache-docker.outputs.cache-hit != 'true'
-        run: |
-          set -e
-          mkdir -p docker-cache
-          for img in $DB_IMAGES; do
-            safe=$(echo "$img" | tr '/:' '__')
-            echo "Saving $img -> docker-cache/${safe}.tar"
-            docker save "$img" -o "docker-cache/${safe}.tar"
           done
 
       # ---------- APT cache for MS ODBC ----------
