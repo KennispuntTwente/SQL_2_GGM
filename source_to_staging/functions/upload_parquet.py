@@ -5,7 +5,10 @@ from pathlib import Path
 import re
 
 import polars as pl
+import pyarrow as pa
+import pyarrow.parquet as pq
 from sqlalchemy import create_engine, text
+from sqlalchemy import types as satypes
 from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.schema import CreateSchema
 
@@ -43,6 +46,70 @@ def group_parquet_files(input_dir: str) -> dict[str, list[str]]:
     for k in list(grouped.keys()):
         grouped[k].sort()
     return grouped
+
+
+def _decimal_type_for(dialect: str, precision: int | None, scale: int | None):
+    """
+    Return an appropriate SQLAlchemy Numeric/Decimal type for the target dialect.
+
+    Falls back to a generic Numeric when no dialect specific type is required.
+    """
+    if precision is None:
+        return None
+
+    try:
+        if dialect in ("postgresql", "sqlite"):
+            return satypes.Numeric(precision=precision, scale=scale)
+        if dialect in ("mysql", "mariadb"):
+            from sqlalchemy.dialects.mysql import DECIMAL as MYSQL_DECIMAL  # type: ignore
+
+            return MYSQL_DECIMAL(precision=precision, scale=scale)
+        if dialect in ("mssql", "sql server"):
+            from sqlalchemy.dialects.mssql import DECIMAL as MSSQL_DECIMAL  # type: ignore
+
+            return MSSQL_DECIMAL(precision, scale)
+        # For other dialects rely on the generic Numeric type
+        return satypes.Numeric(precision=precision, scale=scale)
+    except Exception:
+        return None
+
+
+def _collect_decimal_metadata(file_paths: list[str]) -> dict[str, tuple[int, int]]:
+    """
+    Combine decimal precision/scale across parquet parts for a logical table.
+
+    The first chunk we load needs to create columns wide enough for all
+    subsequent chunks; otherwise later values may be rounded by the destination
+    database (e.g. 99.99 → 100 when the first chunk only carried scale 1).
+    """
+
+    meta: dict[str, tuple[int, int]] = {}
+    for path in file_paths:
+        try:
+            schema = pq.read_schema(path)
+        except Exception:
+            continue
+
+        for name, field in zip(schema.names, schema):
+            try:
+                if pa.types.is_decimal(field.type):
+                    precision = getattr(field.type, "precision", None)
+                    scale = getattr(field.type, "scale", None)
+                    if precision is None or scale is None:
+                        continue
+                    key = name.lower()
+                    prev = meta.get(key)
+                    if prev is None:
+                        meta[key] = (precision, scale)
+                    else:
+                        meta[key] = (
+                            max(prev[0], precision),
+                            max(prev[1], scale),
+                        )
+            except Exception:
+                continue
+
+    return meta
 
 
 def upload_parquet(engine, schema=None, input_dir="data", cleanup=True):
@@ -122,13 +189,44 @@ def upload_parquet(engine, schema=None, input_dir="data", cleanup=True):
         full_table = f"{schema}.{table_name}" if schema else table_name
         logger.info("📦 Uploading %s part(s) to table %s", len(files), full_table)
 
+        decimal_meta = _collect_decimal_metadata(
+            [os.path.join(input_dir, fname) for fname in files]
+        )
+
         for idx, fname in enumerate(files):
             path = os.path.join(input_dir, fname)
             logger.info("🔹 Processing %s", path)
             df = pl.read_parquet(path)
             df = df.rename({col: col.lower() for col in df.columns})
+            dtype_map: dict[str, object] = {}
+
+            # Ensure the in-memory frame uses fixed-precision decimals before writing so
+            # downstream engines don't see float rounding artefacts (e.g. 99.99 -> 100.0).
+            if decimal_meta:
+                casts = []
+                for col, (prec, scale) in decimal_meta.items():
+                    if col not in df.columns:
+                        continue
+                    try:
+                        casts.append(
+                            pl.col(col).cast(
+                                pl.Decimal(precision=prec, scale=scale)
+                            )
+                        )
+                    except Exception:
+                        # If casting fails, fall back to existing representation.
+                        pass
+                if casts:
+                    df = df.with_columns(casts)
+
+            # Apply dialect aware decimal typing (skip Oracle here; handled below).
+            if dialect != "oracle" and decimal_meta:
+                for col, (prec, scale) in decimal_meta.items():
+                    sa_type = _decimal_type_for(dialect, prec, scale)
+                    if sa_type is not None:
+                        dtype_map[col] = sa_type
+
             # For Oracle, guide type creation for floats to avoid generic FLOAT precision issues
-            engine_options = None
             if dialect == "oracle":
                 try:
                     from sqlalchemy.dialects.oracle import (
@@ -143,8 +241,6 @@ def upload_parquet(engine, schema=None, input_dir="data", cleanup=True):
                     ORA_NUMBER = None  # type: ignore
                     ORA_TIMESTAMP = None  # type: ignore
 
-                dtype_map: dict[str, object] = {}
-                # Map float columns explicitly; leave others to defaults unless clearly defined
                 for col, dt in zip(df.columns, df.dtypes):
                     try:
                         # Floats
@@ -160,17 +256,16 @@ def upload_parquet(engine, schema=None, input_dir="data", cleanup=True):
                             dtype_map[col] = ORA_BINARY_FLOAT()
                         # Decimals like Decimal(18,5)
                         elif dt.__class__.__name__ == "Decimal":
-                            # Extract precision/scale if available
-                            prec = getattr(dt, "precision", None)
-                            scale = getattr(dt, "scale", None)
-                            if ORA_NUMBER is not None and prec is not None:
-                                dtype_map[col] = ORA_NUMBER(prec, scale)
+                            if ORA_NUMBER is not None and decimal_meta:
+                                meta = decimal_meta.get(col)
+                                if meta is not None:
+                                    prec, scale = meta
+                                    dtype_map[col] = ORA_NUMBER(prec, scale)
                         # Datetime -> TIMESTAMP(6) to preserve microseconds (Oracle DATE would drop them)
                         elif (
                             (getattr(pl, "Datetime", None) is not None and dt.__class__.__name__ == "Datetime")
                             or str(dt).startswith("Datetime")
                         ) and ORA_TIMESTAMP is not None:
-                            # Use precision 6 (microseconds); Parquet dumps typically use us resolution
                             dtype_map[col] = ORA_TIMESTAMP(6)
                         # Booleans as NUMBER(1)
                         elif str(dt) == "Boolean" and ORA_NUMBER is not None:
@@ -179,8 +274,7 @@ def upload_parquet(engine, schema=None, input_dir="data", cleanup=True):
                         # Best-effort mapping; fallback to default for problematic columns
                         pass
 
-                if dtype_map:
-                    engine_options = {"dtype": dtype_map}
+            engine_options = {"dtype": dtype_map} if dtype_map else None
 
             df.write_database(
                 table_name=full_table,
