@@ -208,36 +208,51 @@ een eigen, afwijkende versie hebben maar toch ook updates van dit project meekri
 
 ### Tests
 
+Om de kwaliteit van de code te verifiëren & te bewaken, bevat dit project.
+Tests worden automatisch gerund op GitHub Actons (zie map: .github/workflows).
+Daarnaast kan je tests ook in je eigen ontwikkeomgeving uitvoeren; zie uitleg hieronder.
+
+#### pytest (slow & fast tests)
+
 De map tests bevat diverse tests in het pytest-framework.
-Enkele tests (test_oracle_db.py; test_source_to_staging.py; test_silver_to_staging_integration.py) 
-vereisen dat je Docker (dan wel Podman) beschikbaar hebt op je machine (er worden hierbij namelijk
-verschillende database-types gerund in Docker).
-De Docker-daemon moet hiervoor draaien. Omdat deze tests traag zijn, is daarnaast ook nodig 
+
+Enkele tests (`test_integration_*.py`; gemarkeerd als 'slow') vereisen
+dat je Docker (dan wel Podman) beschikbaar hebt op je machine (er worden namelijk
+diverse database-types gerund in Docker). De Docker-daemon moet dus draaien op je machine.
+Omdat deze tests traag zijn, is daarnaast ook nodig 
 dat je de environment variables `RUN_SLOW_TESTS=1` bevatten (anders worden ze geskipt).
-Gebruik de volgende commando (PowerShell) om de langzame tests te runnen:
 
-```powershell
-$env:RUN_SLOW_TESTS="1"; .\.venv\Scripts\python -m pytest -vv -s -x -l
-```
+#### Docker Compose (smoke test)
 
-Specifieke langzame test:
-```powershell
-$env:RUN_SLOW_TESTS="1"; .\.venv\Scripts\python -m pytest -vv -s -x -l --tb=long tests\test_parquet_dump_integration.py
-```
-
-Nog specifieker:
-```powershell
-$env:RUN_SLOW_TESTS="1"; .\.venv\Scripts\python -m pytest -vv -s -x -l --tb=long tests\test_type_fidelity_live_dbs.py::test_type_fidelity_roundtrip[True-oracle]
-```
-
-De Docker-image (alsmede de procedures die hierin runnen) kan daarnaast getest worden met de
-'smoke'-scripts. Zie de map: docker/smoke. Run hiervoor het volgende commando (bash):
+De Docker-image wordt getest d.m.v. enkele 'smoke' runs in Docker Compose.
+Zie hiervoor de map: docker. Om alle smoke test in één keer te runnen, 
+kan je het volgende commando runnen (bash):
 
 ```bash
 docker/smoke/run_all.sh
 ```
 
-## Contact
+## Contact & team
 
 Heb je vragen over dit project? Loop je tegen problemen aan? Of wil je samenwerken?
-Neem contact op (...).
+Neem contact op! De volgende organisaties & personen zijn betrokken bij dit project: 
+
+**Kennispunt Twente**: 
+- Luka Koning (l.koning@kennispunttwente.nl)
+- Jos Quist (j.quist@kennispunttwente.nl)
+- Hüseyin Seker (h.seker@kennispunttwente.nl)
+
+**Gemeente Rijssen-Holten**: 
+- Fabian Klaster (f.klaster@rijssen-holten.nl)
+- Rien ten Hove (r.tenhove@rijssen-holten.nl)
+- Joop Voortman (j.voortman@rijssen-holten.nl)
+
+**Gemeente Oldenzaal**: 
+- Joost Barink (j.barink@oldenzaal.nl)
+- Odylia Luttikhuis (o.luttikhuis@oldenzaal.nl)
+
+---
+
+Voor technische vragen: neem contact op met Luka Koning/Joost Barink. Je mag ons mailen, maar kan ook een issue openen in de [GitHub-repository](https://github.com/KennispuntTwente/SQL_2_GGM/issues).
+
+Voor vragen inzake (gemeentelijke) samenwerking: neem contact op met Jos Quist/Fabian Klaster/Joost Barink. 
