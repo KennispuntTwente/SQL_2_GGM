@@ -323,16 +323,18 @@ def _wait_for_db_ready(
         print_errors: Whether to print errors during retries.
         force_print_after: Time after which errors are printed regardless of print_errors (in seconds).
     """
-    print("Waiting for database to become ready...")
     start_time = time.time()
     deadline = start_time + max_wait
     last_exc = None
+    printed_wait_banner = False
 
     while time.time() < deadline:
         try:
             conn = connector(connect_cfg)
             conn.close()
-            print("✅ Database is ready")
+            if printed_wait_banner:
+                # Use carriage return so we overwrite any last retry status line.
+                print("\r✅ Database is ready")
             return
         except BaseException as exc:
             last_exc = exc
@@ -345,6 +347,10 @@ def _wait_for_db_ready(
                 root = ctx or cause
             err_msg = f"{type(root).__name__}: {root}"
 
+            if not printed_wait_banner:
+                print("Waiting for database to become ready...")
+                printed_wait_banner = True
+
             now = time.time()
             past_force_threshold = (
                 force_print_after is not None
@@ -352,7 +358,7 @@ def _wait_for_db_ready(
             )
             if print_errors or past_force_threshold:
                 sys.stdout.write(
-                    f"\rLast connection attempt (errors are normal when DB is not yet ready, but sometimes may indicate a problem): {err_msg}".ljust(
+                    f"\rFeedback from last connection attempt (sometimes errors are OK when DB is not yet ready): {err_msg}".ljust(
                         120
                     )
                 )
