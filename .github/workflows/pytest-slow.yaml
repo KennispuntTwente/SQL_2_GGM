@@ -139,6 +139,26 @@ jobs:
             echo "ORACLE_HOME=$icdir"
           } >> "$GITHUB_ENV"
 
+      - name: Ensure libaio compat symlink on Ubuntu 24.04+
+        run: |
+          set -e
+          sudo apt-get update
+          sudo apt-get install -y libaio1t64
+          # Find the actual libaio.so.* path that the package installed
+          AIO=$(dpkg -L libaio1t64 | grep -E '/libaio\.so(\.1t64|\.1)$' | head -n1 || true)
+          if [ -z "$AIO" ]; then
+            echo "Could not locate libaio from libaio1t64 package" >&2
+            exit 1
+          fi
+          # Create a compat symlink that Instant Client expects
+          for dir in /usr/lib/x86_64-linux-gnu /lib/x86_64-linux-gnu; do
+            if [ -d "$dir" ]; then
+              sudo ln -sf "$AIO" "$dir/libaio.so.1"
+            fi
+          done
+          sudo ldconfig
+          echo "libaio present as: $(ldconfig -p | grep -E 'libaio\.so\.1\b' || true)"
+
       - name: Smoke-test Oracle Instant Client (quick diagnostics)
         run: |
           set -e
