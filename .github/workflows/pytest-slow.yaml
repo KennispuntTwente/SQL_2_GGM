@@ -116,12 +116,7 @@ jobs:
         run: |
           set -e
           sudo apt-get update
-          sudo apt-get install -y unzip curl libnsl2 || true
-
-          # Handle libaio differences across Ubuntu versions (24.04 uses t64)
-          if ! dpkg -s libaio1 >/dev/null 2>&1; then
-            sudo apt-get install -y libaio1 || sudo apt-get install -y libaio1t64
-          fi
+          sudo apt-get install -y unzip curl libnsl2 libaio1t64 || true
 
           sudo mkdir -p /opt/oracle
           sudo unzip -qo .cache/oracle/instantclient.zip -d /opt/oracle
