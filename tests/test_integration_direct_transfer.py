@@ -1,3 +1,7 @@
+# Tests source_to_staging direct_transfer integration; Oracle -> all; all -> Oracle; Postgres -> MSSQL
+# Focuses on correct transfer of various data types between different types of SQL databases
+# This ensures end-to-end functionality of direct_transfer with type fidelity
+
 import os
 import shutil
 import subprocess
@@ -348,7 +352,7 @@ def _normalize_rows(rows):
     not initialized_oracle,
     reason="Oracle Instant Client not initialized; required for Oracle tests.",
 )
-def test_direct_transfer_oracle_to_postgres_and_mssql_and_mysql_variants():
+def test_direct_transfer_oracle_to_all():
     """
     Launch Oracle once, create sample table and data there, then transfer to Postgres
     and MSSQL in sequence, validating roundtrip content each time.

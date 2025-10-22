@@ -1,3 +1,7 @@
+# Tests for direct_transfer type mapping logic between different SQL dialects
+# Focuses on mapping source types to generic types and then to destination-specific types
+# This ensures correct type coercion during direct transfers between heterogeneous databases
+
 import pytest
 from sqlalchemy import MetaData, Table, Column
 from sqlalchemy import types as satypes

@@ -1,3 +1,7 @@
+# Tests for the query_loader module in staging_to_silver
+# Focuses on discovery of query builders, table name normalization, and column name case wrapping
+# This ensures correct loading and transformation of query definitions
+
 import sys
 import types
 import pytest

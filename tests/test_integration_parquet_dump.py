@@ -1,3 +1,8 @@
+# Tests source_to_staging parquet dump integration; Oracle -> all; all -> Oracle
+# Tests both ConnectorX and SQLAlchemy dump modes
+# Focuses on correct dump/upload of various data types between different types of SQL databases
+# This ensures end-to-end functionality of parquet dump/upload with type fidelity
+
 import os
 import shutil
 import subprocess
@@ -430,7 +435,7 @@ def _two_step_parquet_transfer(
         pytest.param(False, marks=pytest.mark.sa_dump, id="sqlalchemy"),
     ],
 )
-def test_parquet_dump_oracle_to_postgres_and_mssql_and_mysql_variants(
+def test_parquet_dump_oracle_to_all(
     tmp_path, use_connectorx
 ):
     """

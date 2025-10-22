@@ -1,3 +1,7 @@
+# Tests staging_to_silver integration; Postgres and MSSQL backends
+# Focuses on correct query execution and data insertion into silver schema from staging schema
+# This ensures end-to-end functionality of staging_to_silver queries against real databases
+
 import os
 import subprocess
 

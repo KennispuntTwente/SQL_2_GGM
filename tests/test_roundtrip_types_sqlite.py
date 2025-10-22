@@ -1,3 +1,7 @@
+# Tests for end-to-end roundtrip of data types via Parquet using SQLite backend
+# Focuses on preserving values and NULLs through download and upload processes
+# This ensures fidelity of various data types including integers, floats, booleans, text, dates, and datetimes
+
 from __future__ import annotations
 
 from datetime import date, datetime

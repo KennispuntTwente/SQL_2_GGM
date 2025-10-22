@@ -1,3 +1,7 @@
+# Tests for query shapes in staging_to_silver module using SQLite in-memory database
+# Focuses on verifying selected column names and order for key queries
+# This ensures that the query definitions match expected schema shapes
+
 import pytest
 from sqlalchemy import create_engine, MetaData, Table, Column, String, Integer, DateTime
 from dotenv import load_dotenv  

@@ -1,3 +1,7 @@
+# Tests for download_parquet function using ConnectorX with mocked database responses
+# Focuses on chunking behavior, empty batches, and schema-qualified table names
+# This ensures correct Parquet file generation from ConnectorX data sources
+
 from pathlib import Path
 
 import pyarrow as pa

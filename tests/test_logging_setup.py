@@ -1,3 +1,7 @@
+# Tests for logging setup functionality
+# Focuses on console and file logging, and configuration precedence
+# This ensures correct logging behavior based on environment variables and config files
+
 import logging
 import os
 import configparser

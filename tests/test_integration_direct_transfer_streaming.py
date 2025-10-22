@@ -1,3 +1,7 @@
+# Tests streaming direct_transfer with small chunk sizes between Postgres source and Postgres dest
+# Focus on just the streaming behavior with chunking
+# This ensures that data is transferred in chunks and all rows arrive correctly
+
 import logging
 import os
 import shutil

@@ -1,3 +1,7 @@
+# Tests for download_parquet function using SQLAlchemy with a temporary SQLite database
+# Focuses on chunking behavior, empty tables, and missing tables
+# This ensures correct Parquet file generation and error handling
+
 from pathlib import Path
 
 import polars as pl

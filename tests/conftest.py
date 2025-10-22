@@ -1,3 +1,6 @@
+# Configures pytest to filter tests based on database markers
+# This allows running tests only for specific databases via CLI or env var
+
 import os
 import pytest
 
