@@ -27,11 +27,10 @@ def try_init_oracle_client() -> bool:
         return False
     try:
         initialize_oracle_client("SRC_CONNECTORX_ORACLE_CLIENT_PATH", cfg_parser=None)
-        print("Oracle Instant Client initialized successfully")
+        logging.getLogger(__name__).info("Oracle Instant Client initialized successfully")
         return True
     except Exception as exc:
         logging.getLogger(__name__).exception(
             "Failed to initialize Oracle Instant Client for ConnectorX: %s", exc
         )
-        print("Failed to initialize Oracle Instant Client for ConnectorX")
         return False

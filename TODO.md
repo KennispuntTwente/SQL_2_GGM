@@ -23,9 +23,6 @@ Remove unused deps or clearly justify them.
 Metadata gaps: description, readme, authors, license (although LICENSE.md exists), and classifiers.
 Fill metadata for better distribution/consumption.
 
-* Move more print to log
-Mixed logging/print: some operations print to stdout while others use logging. Consider standardizing on logging (console handler already added by your logging setup).
-
 * Direct transfer
 Might add a small retry/backoff for transient DB issues during large transfers.
 

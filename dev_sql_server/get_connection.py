@@ -7,8 +7,8 @@ from __future__ import annotations
 
 import os
 import socket
-import sys
 import time
+import logging
 from pathlib import Path
 from typing import Callable, Dict, Any
 
@@ -212,7 +212,9 @@ def _ensure_container_running(
                 raise
         was_created = False
     except docker_errors.NotFound:
-        print(f"Creating new {db_type} container '{container_name}'…")
+        logging.getLogger(__name__).info(
+            "Creating new %s container '%s'…", db_type, container_name
+        )
         # Before creating, proactively look for any container already binding the requested host port
         # and shut it down if it looks like one of ours (same image or name pattern), to avoid
         # "port is already allocated" errors across test runs.
@@ -333,8 +335,7 @@ def _wait_for_db_ready(
             conn = connector(connect_cfg)
             conn.close()
             if printed_wait_banner:
-                # Use carriage return so we overwrite any last retry status line.
-                print("\r✅ Database is ready")
+                logging.getLogger(__name__).info("Database is ready")
             return
         except BaseException as exc:
             last_exc = exc
@@ -348,7 +349,9 @@ def _wait_for_db_ready(
             err_msg = f"{type(root).__name__}: {root}"
 
             if not printed_wait_banner:
-                print("Waiting for database to become ready...")
+                logging.getLogger(__name__).info(
+                    "Waiting for database to become ready..."
+                )
                 printed_wait_banner = True
 
             now = time.time()
@@ -357,12 +360,10 @@ def _wait_for_db_ready(
                 and (now - start_time) >= force_print_after
             )
             if print_errors or past_force_threshold:
-                sys.stdout.write(
-                    f"\rFeedback from last connection attempt (sometimes errors are OK when DB is not yet ready): {err_msg}".ljust(
-                        120
-                    )
+                logging.getLogger(__name__).debug(
+                    "Feedback from last connection attempt (sometimes errors are OK when DB is not yet ready): %s",
+                    err_msg,
                 )
-                sys.stdout.flush()
 
             time.sleep(3)
 
@@ -387,11 +388,15 @@ def _run_sql_scripts(
 
     # ── 1. discover files ───────────────────────────────────
     if not sql_folder.exists():
-        print(f"⚠️  Folder {sql_folder.resolve()} does not exist – nothing to do.")
+        logging.getLogger(__name__).warning(
+            "Folder %s does not exist – nothing to do.", sql_folder.resolve()
+        )
         return
 
     all_sql_files = sorted(sql_folder.glob("*.sql"))
-    print(f"📂 Found {len(all_sql_files)} .sql file(s) in {sql_folder.resolve()}")
+    logging.getLogger(__name__).info(
+        "Found %d .sql file(s) in %s", len(all_sql_files), sql_folder.resolve()
+    )
 
     db_suffix = f"_{db_type}.sql".lower()
     run_files = [
@@ -400,11 +405,13 @@ def _run_sql_scripts(
         if not suffix_filter or f.name.lower().endswith(db_suffix)
     ]
 
-    print(f"🗂️  {len(run_files)} file(s) remain after filtering:")
+    logging.getLogger(__name__).info(
+        "%d file(s) remain after filtering:", len(run_files)
+    )
     for f in run_files:
-        print(f"   • {f.name}")
+        logging.getLogger(__name__).info("   • %s", f.name)
     if not run_files:
-        print("⏭️  Nothing to execute after filtering.")
+        logging.getLogger(__name__).info("Nothing to execute after filtering.")
         return
 
         # ── 2. open one connection and cursor ───────────────────
@@ -427,18 +434,21 @@ def _run_sql_scripts(
                 )
 
             elif db_type == "oracle":
-                print(
-                    "⚠️ Oracle: schemas are users. To CREATE objects in a schema named "
-                    f"{schema!r}, connect as that user or qualify objects "
-                    f"explicitly (e.g., {schema}.table_name). "
-                    "ALTER SESSION SET CURRENT_SCHEMA only affects name resolution, "
-                    "not the target of CREATE statements."
+                logging.getLogger(__name__).warning(
+                    (
+                        "Oracle: schemas are users. To CREATE objects in a schema named %r, "
+                        "connect as that user or qualify objects explicitly (e.g., %s.table_name). "
+                        "ALTER SESSION SET CURRENT_SCHEMA only affects name resolution, not the target "
+                        "of CREATE statements."
+                    ),
+                    schema,
+                    schema,
                 )
 
             elif db_type in ("mysql", "mariadb"):
-                print(
-                    "⚠️ MySQL/MariaDB: a SCHEMA == a DATABASE. Use a separate database "
-                    f"named {schema!r} and pass it as db_name, or qualify objects."
+                logging.getLogger(__name__).warning(
+                    "MySQL/MariaDB: a SCHEMA == a DATABASE. Use a separate database named %r and pass it as db_name, or qualify objects.",
+                    schema,
                 )
 
         for file in run_files:
@@ -447,13 +457,15 @@ def _run_sql_scripts(
             try:
                 cur.execute(sql)
                 conn.commit()
-                print(f"✅ {file.name} executed successfully.")
+                logging.getLogger(__name__).info("%s executed successfully.", file.name)
             except Exception as exc:
                 conn.rollback()
-                print(f"❌ ERROR executing {file.name}: {exc}")
+                logging.getLogger(__name__).error(
+                    "ERROR executing %s: %s", file.name, exc
+                )
                 raise
 
-    print("🏁 SQL boot-strap finished.\n")
+    logging.getLogger(__name__).info("SQL boot-strap finished.")
 
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -478,7 +490,7 @@ def get_connection(
     volume_name: str | None = None,
     force_refresh: bool = False,
 ):
-    print()
+    # Ensure consistent logging (avoid stray blank prints)
     db_type = db_type.lower()
     if db_type not in SETTINGS:
         raise ValueError(f"Unsupported db_type: {db_type}")
@@ -762,7 +774,7 @@ def get_connection(
                 )
 
             rows = conn.execute(stmt).fetchall()
-            print("Tables:", [r[0] for r in rows])
+            logging.getLogger(__name__).info("Tables: %s", [r[0] for r in rows])
 
     return engine
 
