@@ -1,5 +1,5 @@
-import oracledb
 import logging
+import oracledb
 from utils.config.get_config_value import get_config_value
 
 
@@ -29,6 +29,9 @@ def try_init_oracle_client() -> bool:
         initialize_oracle_client("SRC_CONNECTORX_ORACLE_CLIENT_PATH", cfg_parser=None)
         print("Oracle Instant Client initialized successfully")
         return True
-    except Exception:
+    except Exception as exc:
+        logging.getLogger(__name__).exception(
+            "Failed to initialize Oracle Instant Client for ConnectorX: %s", exc
+        )
         print("Failed to initialize Oracle Instant Client for ConnectorX")
         return False

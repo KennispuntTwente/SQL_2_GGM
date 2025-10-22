@@ -2,11 +2,9 @@ name: Slow tests (Docker + pytest)
 
 on:
   push:
-    branches:
-      [main]
+    branches: [main]
   pull_request:
-    branches:
-      [main]
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -20,35 +18,93 @@ jobs:
 
     env:
       RUN_SLOW_TESTS: "1"
+      # Image list used in both pull/save steps
+      DB_IMAGES: >-
+        postgres:latest
+        mariadb:latest
+        mysql:8.0
+        gvenzl/oracle-free:latest-faststart
+        mcr.microsoft.com/mssql/server:2022-latest
 
     steps:
       - uses: actions/checkout@v5
+
+      # Compute a monthly suffix so Docker cache refreshes once a month
+      - name: Compute cache suffix (monthly)
+        id: date
+        run: echo "MONTHLY=$(date -u +'%Y-%m')" >> "$GITHUB_ENV"
 
       - name: Set up uv + Python
         uses: astral-sh/setup-uv@v7.1.1
         with:
           python-version: '3.12.10'
           enable-cache: true
+          # (optional) uncomment if you want to pin the cache to explicit files
+          # cache-dependency-path: |
+          #   pyproject.toml
+          #   uv.lock
 
       - name: Verify Docker availability
         run: |
           docker --version
           docker info
 
-      - name: Pre-pull DB images
+      # ---------- Docker image cache ----------
+      - name: Restore Docker image cache
+        id: cache-docker
+        uses: actions/cache@v4
+        with:
+          path: docker-cache
+          key: docker-images-${{ runner.os }}-${{ env.MONTHLY }}
+          restore-keys: |
+            docker-images-${{ runner.os }}-
+
+      - name: Load cached Docker images (if any)
+        if: steps.cache-docker.outputs.cache-hit == 'true'
+        run: |
+          shopt -s nullglob
+          for tar in docker-cache/*.tar; do
+            echo "Loading $tar"
+            docker load -i "$tar"
+          done
+
+      - name: Pre-pull DB images (will be no-op if already loaded)
         run: |
           set -e
-          images=(
-            "postgres:latest"
-            "mariadb:latest"
-            "mysql:8.0"
-            "gvenzl/oracle-free:latest-faststart"
-            "mcr.microsoft.com/mssql/server:2022-latest"
-          )
-          for img in "${images[@]}"; do
+          for img in $DB_IMAGES; do
             echo "Pulling $img"
             docker pull "$img"
           done
+
+      - name: Save Docker images into cache (first run per month)
+        if: steps.cache-docker.outputs.cache-hit != 'true'
+        run: |
+          set -e
+          mkdir -p docker-cache
+          for img in $DB_IMAGES; do
+            safe=$(echo "$img" | tr '/:' '__')
+            echo "Saving $img -> docker-cache/${safe}.tar"
+            docker save "$img" -o "docker-cache/${safe}.tar"
+          done
+
+      # ---------- APT cache for MS ODBC ----------
+      - name: Configure APT to use a writeable cache
+        run: |
+          set -e
+          CACHE_ROOT="${RUNNER_TEMP}/apt-cache"
+          mkdir -p "$CACHE_ROOT/archives/partial"
+          {
+            echo "Dir::Cache \"$CACHE_ROOT\";";
+            echo "Dir::Cache::archives \"$CACHE_ROOT/archives\";";
+          } | sudo tee /etc/apt/apt.conf.d/99cache >/dev/null
+
+      - name: Cache APT archives
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/apt-cache
+          key: apt-${{ runner.os }}-msodbcsql18
+          restore-keys: |
+            apt-${{ runner.os }}-
 
       - name: Install MS ODBC Driver 18 for SQL Server (for MSSQL tests)
         run: |
@@ -59,53 +115,88 @@ jobs:
           sudo apt-get update
           sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc-dev
 
+      # ---------- Oracle Instant Client cache ----------
+      - name: Restore Oracle Instant Client cache
+        id: cache-oracle
+        uses: actions/cache@v4
+        with:
+          path: .cache/oracle
+          key: oracle-instantclient-${{ runner.os }}-basiclite-23
+          restore-keys: |
+            oracle-instantclient-${{ runner.os }}-
+
+      - name: Prepare Oracle Instant Client zip (download if missing)
+        run: |
+          set -e
+          mkdir -p .cache/oracle
+          if [ -f .cache/oracle/instantclient.zip ]; then
+            echo "Using cached .cache/oracle/instantclient.zip"
+          else
+            echo "Downloading Oracle Instant Client (Basic Lite) permanent link"
+            ORACLE_IC_PERM_BASICLITE="https://download.oracle.com/otn_software/linux/instantclient/instantclient-basiclite-linuxx64.zip"
+            ORACLE_IC_PERM_BASIC="https://download.oracle.com/otn_software/linux/instantclient/instantclient-basic-linuxx64.zip"
+            if ! curl -fsSL "$ORACLE_IC_PERM_BASICLITE" -o .cache/oracle/instantclient.zip; then
+              echo "Basic Lite failed; trying Basic (larger)"
+              curl -fsSL "$ORACLE_IC_PERM_BASIC" -o .cache/oracle/instantclient.zip
+            fi
+          fi
+
       - name: Install Oracle Instant Client
         run: |
           set -e
           sudo apt-get update
           sudo apt-get install -y unzip curl libnsl2 || true
-          # Handle libaio package name differences across Ubuntu versions
-          set +e
-          sudo apt-get install -y libaio1
-          if [ $? -ne 0 ]; then
-            sudo apt-get install -y libaio1t64
-          fi
-          set -e
 
-          mkdir -p /opt/oracle
-          # Retrieve Instant Client ZIP via repo artifact, or public Oracle download
-          if [ -f data/instantclient.zip ]; then
-            echo "Using repository artifact at data/instantclient.zip"
-            cp data/instantclient.zip /tmp/instantclient.zip
-          else
-            echo "Attempting Oracle Instant Client (Basic Light) latest permanent link"
-            ORACLE_IC_PERM_BASICLITE="https://download.oracle.com/otn_software/linux/instantclient/instantclient-basiclite-linuxx64.zip"
-            ORACLE_IC_PERM_BASIC="https://download.oracle.com/otn_software/linux/instantclient/instantclient-basic-linuxx64.zip"
-            if ! curl -fsSL "$ORACLE_IC_PERM_BASICLITE" -o /tmp/instantclient.zip; then
-              echo "Basic Lite permanent link failed; trying Basic (larger) package"
-              if ! curl -fsSL "$ORACLE_IC_PERM_BASIC" -o /tmp/instantclient.zip; then
-                echo "Public download failed; Oracle+ConnectorX tests will be skipped."
-                exit 0
-              fi
-            fi
+          # Handle libaio differences across Ubuntu versions (24.04 uses t64)
+          if ! dpkg -s libaio1 >/dev/null 2>&1; then
+            sudo apt-get install -y libaio1 || sudo apt-get install -y libaio1t64
           fi
 
-          sudo unzip -q /tmp/instantclient.zip -d /opt/oracle
+          sudo mkdir -p /opt/oracle
+          sudo unzip -qo .cache/oracle/instantclient.zip -d /opt/oracle
+
           icdir=$(find /opt/oracle -maxdepth 1 -type d -name "instantclient_*" | head -n1)
           if [ -z "$icdir" ]; then
             echo "Could not locate Instant Client directory after unzip" >&2
-            exit 0
+            exit 1
           fi
           echo "Detected Instant Client at: $icdir"
+
           # Make libraries discoverable for native clients
           echo "$icdir" | sudo tee /etc/ld.so.conf.d/oracle-instantclient.conf >/dev/null
           sudo ldconfig
-          # Expose for Python code (get_config_value -> initialize_oracle_client)
-          echo "SRC_CONNECTORX_ORACLE_CLIENT_PATH=$icdir" >> "$GITHUB_ENV"
+
+          # Expose for your Python code / ConnectorX and ensure runtime linker can find it
+          {
+            echo "SRC_CONNECTORX_ORACLE_CLIENT_PATH=$icdir"
+            echo "LD_LIBRARY_PATH=$icdir:\$LD_LIBRARY_PATH"
+            echo "ORACLE_HOME=$icdir"
+          } >> "$GITHUB_ENV"
+
+      - name: Smoke-test Oracle Instant Client (quick diagnostics)
+        run: |
+          set -e
+          icdir="${SRC_CONNECTORX_ORACLE_CLIENT_PATH}"
+          echo "Instant Client in: $icdir"
+          echo "ldd on libclntsh:"
+          ldd "$icdir"/libclntsh.so* | sed 's/^/  /'
+          # Simple dlopen to catch missing deps early
+          python - <<'PY'
+          import ctypes, os, glob, sys
+          d = os.environ.get("SRC_CONNECTORX_ORACLE_CLIENT_PATH","")
+          so = sorted(glob.glob(os.path.join(d, "libclntsh.so*")))
+          if not so:
+            print("libclntsh not found in", d); sys.exit(1)
+          try:
+            ctypes.CDLL(so[0])
+            print("Loaded", os.path.basename(so[0]), "OK")
+          except OSError as e:
+            print("Failed to load:", e); sys.exit(1)
+          PY
 
       - name: Run slow tests (verbose, uncaptured)
         run: >-
-          uv run --frozen -m pytest -m slow 
+          uv run --frozen -m pytest -m slow
           -vv -s -rA --durations=25 --maxfail=1
           -o log_cli=true -o log_cli_level=INFO
           tests/test_integration_*.py
