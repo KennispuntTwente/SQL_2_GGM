@@ -1,7 +1,16 @@
 {
-    "python.testing.pytestArgs": [
-        "tests"
-    ],
-    "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
+  // Make VS Code Test Explorer run pytest with live logging like CI
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
+  "python.testing.cwd": "${workspaceFolder}",
+  // Pass the same args we use in CI to ensure "live log call" appears
+  "python.testing.pytestArgs": [
+    "-vv",
+    "-s",
+    "-rA",
+    "-o",
+    "log_cli=true",
+    "-o",
+    "log_cli_level=INFO"
+  ]
 }
