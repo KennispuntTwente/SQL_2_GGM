@@ -65,6 +65,19 @@ engine = create_sqlalchemy_engine(
     host=host,
     port=port,
     database=database,
+    mssql_odbc_driver=(
+        cast(
+            str,
+            get_config_value(
+                "DST_MSSQL_ODBC_DRIVER",
+                section="database-destination",
+                cfg_parser=cfg,
+                default="ODBC Driver 18 for SQL Server",
+            ),
+        )
+        if ("mssql" in driver.lower() or "sqlserver" in driver.lower())
+        else None
+    ),
 )
 
 # ─── Read source/target schema from config ─────────────────────────────────────

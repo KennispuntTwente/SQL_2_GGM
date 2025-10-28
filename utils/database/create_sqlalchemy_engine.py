@@ -6,7 +6,14 @@ from sqlalchemy import create_engine
 
 
 def create_sqlalchemy_engine(
-    driver: str, username: str, password: str, host: str, port: int, database: str
+    driver: str,
+    username: str,
+    password: str,
+    host: str,
+    port: int,
+    database: str,
+    *,
+    mssql_odbc_driver: str | None = None,
 ) -> Engine:
     """
     Create a SQLAlchemy Engine for Oracle, PostgreSQL, SQL Server, MySQL or MariaDB,
@@ -52,6 +59,9 @@ def create_sqlalchemy_engine(
 
     # SQL Server (MSSQL)
     elif "mssql" in d or "sqlserver" in d:
+        # Allow overriding the ODBC driver via config (e.g., "ODBC Driver 17 for SQL Server")
+        # Default remains Driver 18 if not provided.
+        odbc_drv = mssql_odbc_driver or "ODBC Driver 18 for SQL Server"
         return create_engine(
             URL.create(
                 drivername=driver,
@@ -60,7 +70,7 @@ def create_sqlalchemy_engine(
                 host=host,
                 port=port,
                 database=database,
-                query={"driver": "ODBC Driver 18 for SQL Server"},
+                query={"driver": odbc_drv},
             )
         )
 

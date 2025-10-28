@@ -94,6 +94,19 @@ if transfer_mode == "SQLALCHEMY_DIRECT":
         host=cast(str, src_host),
         port=src_port,
         database=cast(str, src_db),
+        mssql_odbc_driver=(
+            cast(
+                str,
+                get_config_value(
+                    "SRC_MSSQL_ODBC_DRIVER",
+                    section="database-source",
+                    cfg_parser=cfg,
+                    default="ODBC Driver 18 for SQL Server",
+                ),
+            )
+            if "mssql" in src_driver.lower() or "sqlserver" in src_driver.lower()
+            else None
+        ),
     )
 elif transfer_mode == "CONNECTORX_DUMP":
     # Use ConnectorX URI
@@ -137,6 +150,19 @@ else:  # SQLALCHEMY_DUMP
         host=cast(str, src_host),
         port=src_port,
         database=cast(str, src_db),
+        mssql_odbc_driver=(
+            cast(
+                str,
+                get_config_value(
+                    "SRC_MSSQL_ODBC_DRIVER",
+                    section="database-source",
+                    cfg_parser=cfg,
+                    default="ODBC Driver 18 for SQL Server",
+                ),
+            )
+            if "mssql" in src_driver.lower() or "sqlserver" in src_driver.lower()
+            else None
+        ),
     )
 
 # Build connection to destination database
@@ -179,6 +205,24 @@ dest_engine = create_sqlalchemy_engine(
     ),
     database=cast(
         str, get_config_value("DST_DB", section="database-destination", cfg_parser=cfg)
+    ),
+    mssql_odbc_driver=(
+        cast(
+            str,
+            get_config_value(
+                "DST_MSSQL_ODBC_DRIVER",
+                section="database-destination",
+                cfg_parser=cfg,
+                default="ODBC Driver 18 for SQL Server",
+            ),
+        )
+        if (
+            "mssql"
+            in cast(str, get_config_value("DST_DRIVER", section="database-destination", cfg_parser=cfg)).lower()
+            or "sqlserver"
+            in cast(str, get_config_value("DST_DRIVER", section="database-destination", cfg_parser=cfg)).lower()
+        )
+        else None
     ),
 )
 
@@ -246,7 +290,12 @@ else:
             "DST_SCHEMA", section="database-destination", cfg_parser=cfg
         ),
         input_dir="data",
-        cleanup=get_config_value(
-            "CLEANUP_PARQUET_FILES", section="settings", cfg_parser=cfg, default=True
+        cleanup=bool(
+            get_config_value(
+                "CLEANUP_PARQUET_FILES",
+                section="settings",
+                cfg_parser=cfg,
+                default=True,
+            )
         ),
     )

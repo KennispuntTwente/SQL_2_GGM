@@ -10,6 +10,10 @@ DST_USERNAME=sa
 DST_PASSWORD=SecureP@ss1!24323482349
 DST_DB=ggm
 DST_SCHEMA=ggm
+# Optioneel (alleen voor Microsoft SQL Server via pyodbc): kies de ODBC-driver
+# Mogelijke waarden: "ODBC Driver 18 for SQL Server", "ODBC Driver 17 for SQL Server", "SQL Server"
+# Laat leeg om standaard (18) te gebruiken
+DST_MSSQL_ODBC_DRIVER=
 
 [settings]
 # Schema/database waarin de applicatie-data ('brons'/'staging') staat
