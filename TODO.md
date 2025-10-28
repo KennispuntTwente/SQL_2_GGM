@@ -30,11 +30,6 @@ Might add a small retry/backoff for transient DB issues during large transfers.
 Clarify dialect support per query module (or a matrix).
 Explain write_modes and how to configure/override them.
 
-* Add configuration option to specify Microsoft SQL server driver (e.g. odbc 18/odbc 17/sql server)
-
-* Adjust oracle client configuration option to not just apply to connectorx mode but also apply to sqlalchemy modes (direct transfer + dump)
-Add proper support for tns alias in building the sqlalchemy engines
-
 * Remove duplicate log printing
 
 
