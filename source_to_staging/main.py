@@ -2,7 +2,7 @@ import os
 import logging
 from typing import Optional, cast
 from dotenv import load_dotenv
-import oracledb
+from utils.database.initialize_oracle_client import initialize_oracle_client
 
 from utils.config.cli_ini_config import load_single_ini_config
 from utils.config.get_config_value import get_config_value
@@ -94,6 +94,14 @@ if transfer_mode == "SQLALCHEMY_DIRECT":
         host=cast(str, src_host),
         port=src_port,
         database=cast(str, src_db),
+        oracle_tns_alias=bool(
+            get_config_value(
+                "SRC_ORACLE_TNS_ALIAS",
+                section="settings",
+                cfg_parser=cfg,
+                default=False,
+            )
+        ),
         mssql_odbc_driver=(
             cast(
                 str,
@@ -127,17 +135,17 @@ elif transfer_mode == "CONNECTORX_DUMP":
         ),
     )
 
-    # If SRC_CONNECTORX_ORACLE_CLIENT_PATH is set, use it to try to initialize Oracle client
-    oracle_client_path = get_config_value(
-        "SRC_CONNECTORX_ORACLE_CLIENT_PATH", cfg_parser=cfg
-    )
+    # If Oracle client path is set, initialize it for ConnectorX (new unified key)
+    oracle_client_path = get_config_value("SRC_ORACLE_CLIENT_PATH", cfg_parser=cfg)
     if oracle_client_path:
-        log.info(f"Initializing Oracle client with path: {oracle_client_path}")
-        oracledb.init_oracle_client(lib_dir=oracle_client_path)
-    # If driver contains "oracle", warn user to set SRC_CONNECTORX_ORACLE_CLIENT_PATH
+        try:
+            initialize_oracle_client(cfg_parser=cfg)
+        except Exception as e:
+            log.warning("Oracle client init failed: %s", e)
+    # If driver contains "oracle" and no client configured, warn for possible issues
     elif "oracle" in src_driver.lower():
         log.warning(
-            "Using CONNECTORX & Oracle, but SRC_CONNECTORX_ORACLE_CLIENT_PATH is not set; "
+            "Using CONNECTORX & Oracle, but no Oracle client path (SRC_ORACLE_CLIENT_PATH) is set; "
             "ConnectorX may not work correctly with Oracle. Download Instant Client and set the path "
             "(e.g., C:\\oracle\\instantclient_21_18)."
         )
@@ -150,6 +158,14 @@ else:  # SQLALCHEMY_DUMP
         host=cast(str, src_host),
         port=src_port,
         database=cast(str, src_db),
+        oracle_tns_alias=bool(
+            get_config_value(
+                "SRC_ORACLE_TNS_ALIAS",
+                section="settings",
+                cfg_parser=cfg,
+                default=False,
+            )
+        ),
         mssql_odbc_driver=(
             cast(
                 str,
@@ -206,6 +222,14 @@ dest_engine = create_sqlalchemy_engine(
     database=cast(
         str, get_config_value("DST_DB", section="database-destination", cfg_parser=cfg)
     ),
+    oracle_tns_alias=bool(
+        get_config_value(
+            "DST_ORACLE_TNS_ALIAS",
+            section="settings",
+            cfg_parser=cfg,
+            default=False,
+        )
+    ),
     mssql_odbc_driver=(
         cast(
             str,
@@ -218,9 +242,19 @@ dest_engine = create_sqlalchemy_engine(
         )
         if (
             "mssql"
-            in cast(str, get_config_value("DST_DRIVER", section="database-destination", cfg_parser=cfg)).lower()
+            in cast(
+                str,
+                get_config_value(
+                    "DST_DRIVER", section="database-destination", cfg_parser=cfg
+                ),
+            ).lower()
             or "sqlserver"
-            in cast(str, get_config_value("DST_DRIVER", section="database-destination", cfg_parser=cfg)).lower()
+            in cast(
+                str,
+                get_config_value(
+                    "DST_DRIVER", section="database-destination", cfg_parser=cfg
+                ),
+            ).lower()
         )
         else None
     ),

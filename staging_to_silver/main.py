@@ -65,6 +65,11 @@ engine = create_sqlalchemy_engine(
     host=host,
     port=port,
     database=database,
+    oracle_tns_alias=bool(
+        get_config_value(
+            "DST_ORACLE_TNS_ALIAS", section="settings", cfg_parser=cfg, default=False
+        )
+    ),
     mssql_odbc_driver=(
         cast(
             str,

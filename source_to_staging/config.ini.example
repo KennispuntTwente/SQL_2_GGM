@@ -43,15 +43,14 @@ SRC_CHUNK_SIZE = 100000
 #  - CONNECTORX_DUMP: lees via ConnectorX en dump naar Parquet, upload daarna Parquet
 TRANSFER_MODE = SQLALCHEMY_DIRECT
 
-# Wanneer je CONNECTORX_DUMP gebruikt i.c.m. met een OracleDB (als 'database-source'), kan het 
-# nodig zijn om het pad naar een Oracle-client te specificeren (bijv., "C:\oracle\instantclient_21_18")
-# (Je kan dit eventueel hier downloaden: https://www.oracle.com/database/technologies/instant-client/downloads.html)
-SRC_CONNECTORX_ORACLE_CLIENT_PATH =
+# Wanneer je met een OracleDB werkt (in alle modi: SQLAlchemy of ConnectorX), kan het 
+# nodig zijn om het pad naar een Oracle Instant Client te specificeren (bijv., "C:\oracle\instantclient_21_18")
+# (Je kan dit downloaden: https://www.oracle.com/database/technologies/instant-client/downloads.html)
+SRC_ORACLE_CLIENT_PATH =
 
-# Wanneer je CONNECTORX_DUMP gebruikt i.c.m. met een OracleDB (als 'database-source'), kan het
-# nodig zijn om een TNS Alias (DNS) te gebruiken. Zo ja, zet onderstaande value op 'True'
-# en vul dan de alias bij 'SRC_HOST' ('SRC_DB' & 'SRC_PORT' mogen dan leeg zijn; die worden
-# dan namelijk in de details onder de alias gespecificeerd)
+# Wanneer je i.c.m. met een OracleDB een TNS‑alias (DNS) gebruikt, zet onderstaande value op 'True'.
+# Geef de alias-naam op via 'SRC_HOST' (of desnoods 'SRC_DB'); 'SRC_PORT' en 'SRC_DB' mogen dan leeg blijven.
+# Dit werkt zowel voor SQLAlchemy (oracle+oracledb) als ConnectorX.
 SRC_ORACLE_TNS_ALIAS = False
 
 # Of wachtwoord gevraagd wordt in de console i.p.v. uit te lezen uit je environment variables

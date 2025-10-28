@@ -16,9 +16,8 @@ def main():
 
     # If Oracle thick mode is configured, initialize the client for ConnectorX
     try:
-        initialize_oracle_client(
-            config_key="SRC_CONNECTORX_ORACLE_CLIENT_PATH", cfg_parser=cfg
-        )
+        # Initialize Oracle client if configured via unified key (legacy key works via fallback)
+        initialize_oracle_client(cfg_parser=cfg)
     except Exception as e:
         # Non-fatal: continue; environments without Oracle client will still work for other drivers
         print(f"[smoke-cx] Oracle client init skipped or failed: {e}")

@@ -22,6 +22,10 @@ SOURCE_SCHEMA=staging
 # Schema/database waarin de tabellenstructuur van het GGM staat ('silver')
 TARGET_SCHEMA=silver
 
+# (Optioneel) Als je naar een OracleDB schrijft met een TNS‑alias, zet dit op True en geef de alias
+# op via 'DST_HOST' (of 'DST_DB').
+DST_ORACLE_TNS_ALIAS=False
+
 # Of wachtwoord gevraagd wordt in de console i.p.v. uit te lezen uit je environment variables
 # of uit je .ini-config. Als je hiervan gebruikt maakt betekent het ook dat het script
 # alleen interactief gerund kan worden

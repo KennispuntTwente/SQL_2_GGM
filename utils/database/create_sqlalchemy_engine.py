@@ -4,6 +4,8 @@ import logging
 from sqlalchemy.engine import URL, Engine
 from sqlalchemy import create_engine
 
+from utils.database.initialize_oracle_client import try_init_oracle_client
+
 
 def create_sqlalchemy_engine(
     driver: str,
@@ -14,6 +16,7 @@ def create_sqlalchemy_engine(
     database: str,
     *,
     mssql_odbc_driver: str | None = None,
+    oracle_tns_alias: bool | None = None,
 ) -> Engine:
     """
     Create a SQLAlchemy Engine for Oracle, PostgreSQL, SQL Server, MySQL or MariaDB,
@@ -21,8 +24,29 @@ def create_sqlalchemy_engine(
     """
     d = driver.lower()
 
-    # Oracle: use service_name query parameter
+    # Oracle: initialize client if configured; support TNS alias via DSN
     if "oracle" in d:
+        # Initialize Oracle Instant Client if configured (no-op otherwise)
+        try_init_oracle_client()
+
+        # If configured to use a TNS alias, treat host (or database) as alias name
+        if oracle_tns_alias:
+            alias_name = host or database
+            if not alias_name:
+                raise ValueError(
+                    "Oracle TNS alias requested, but no alias name provided in host or database"
+                )
+            return create_engine(
+                URL.create(
+                    drivername=driver,
+                    username=username,
+                    password=password,
+                    host=None,
+                    port=None,
+                    query={"dsn": alias_name},
+                )
+            )
+        # Default: use service_name query parameter
         return create_engine(
             URL.create(
                 drivername=driver,

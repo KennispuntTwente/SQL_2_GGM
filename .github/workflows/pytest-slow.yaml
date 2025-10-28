@@ -134,7 +134,7 @@ jobs:
 
           # Expose for your Python code / ConnectorX and ensure runtime linker can find it
           {
-            echo "SRC_CONNECTORX_ORACLE_CLIENT_PATH=$icdir"
+            echo "SRC_ORACLE_CLIENT_PATH=$icdir"
             echo "LD_LIBRARY_PATH=$icdir:\$LD_LIBRARY_PATH"
             echo "ORACLE_HOME=$icdir"
           } >> "$GITHUB_ENV"
@@ -162,14 +162,14 @@ jobs:
       - name: Smoke-test Oracle Instant Client (quick diagnostics)
         run: |
           set -e
-          icdir="${SRC_CONNECTORX_ORACLE_CLIENT_PATH}"
+          icdir="${SRC_ORACLE_CLIENT_PATH}"
           echo "Instant Client in: $icdir"
           echo "ldd on libclntsh:"
           ldd "$icdir"/libclntsh.so* | sed 's/^/  /'
           # Simple dlopen to catch missing deps early
           python - <<'PY'
           import ctypes, os, glob, sys
-          d = os.environ.get("SRC_CONNECTORX_ORACLE_CLIENT_PATH","")
+          d = os.environ.get("SRC_ORACLE_CLIENT_PATH","")
           so = sorted(glob.glob(os.path.join(d, "libclntsh.so*")))
           if not so:
             print("libclntsh not found in", d); sys.exit(1)
