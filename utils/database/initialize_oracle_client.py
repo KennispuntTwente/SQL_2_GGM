@@ -13,7 +13,7 @@ def initialize_oracle_client(
     - config_key (str): The key to fetch the Oracle client path from config.
     - cfg_parser: Configuration parser object passed to get_config_value (if needed).
     """
-    # Only use the unified key
+    # Read the configured client path for the provided key (INI > ENV)
     oracle_client_path = get_config_value(config_key, cfg_parser=cfg_parser)
     if oracle_client_path:
         logging.getLogger(__name__).info(
@@ -23,12 +23,31 @@ def initialize_oracle_client(
 
 
 def try_init_oracle_client() -> bool:
-    # Only initialize if a path is configured; otherwise no-op
-    client_path = get_config_value("SRC_ORACLE_CLIENT_PATH")
-    if not client_path:
-        return False
+    """
+    Best-effort initialization of the Oracle Instant Client for SQLAlchemy paths.
+
+    Checks environment variables (no INI parser available here) for either
+    destination or source keys, preferring destination when present:
+      - DST_ORACLE_CLIENT_PATH
+      - SRC_ORACLE_CLIENT_PATH
+
+    Returns True on successful initialization, False otherwise. Exceptions are
+    caught and logged.
+    """
+    # Prefer destination key for staging_to_silver; fall back to source key
+    client_path_dst = get_config_value("DST_ORACLE_CLIENT_PATH")
+    client_path_src = get_config_value("SRC_ORACLE_CLIENT_PATH")
+    chosen_key: str | None = None
+
+    if client_path_dst:
+        chosen_key = "DST_ORACLE_CLIENT_PATH"
+    elif client_path_src:
+        chosen_key = "SRC_ORACLE_CLIENT_PATH"
+    else:
+        return False  # nothing configured in ENV
+
     try:
-        initialize_oracle_client("SRC_ORACLE_CLIENT_PATH", cfg_parser=None)
+        initialize_oracle_client(chosen_key, cfg_parser=None)
         logging.getLogger(__name__).info(
             "Oracle Instant Client initialized successfully"
         )

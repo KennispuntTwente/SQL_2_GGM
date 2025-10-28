@@ -8,8 +8,15 @@ from utils.config.cli_ini_config import load_single_ini_config
 from utils.config.get_config_value import get_config_value
 
 from utils.database.create_sqlalchemy_engine import create_sqlalchemy_engine
+from utils.database.initialize_oracle_client import initialize_oracle_client
 
 from staging_to_silver.functions.query_loader import load_queries
+from staging_to_silver.functions.guards import (
+    should_defer_constraints,
+    validate_upsert_supported,
+    parse_name_list,
+    filter_queries,
+)
 from utils.logging.setup_logging import setup_logging
 
 # ─── Load .env & .ini from command line ────────────────────────────────────────
@@ -23,6 +30,19 @@ setup_logging(app_name="staging_to_silver", cfg_parsers=[cfg])
 log = logging.getLogger("staging_to_silver")
 
 # ─── Build connection to database ──────────────────────────────────────────────
+# Initialize Oracle Instant Client if a destination path is configured in INI/ENV
+dst_oracle_client_path = get_config_value(
+    "DST_ORACLE_CLIENT_PATH", cfg_parser=cfg, default=None
+)
+if dst_oracle_client_path:
+    try:
+        initialize_oracle_client("DST_ORACLE_CLIENT_PATH", cfg_parser=cfg)
+        logging.getLogger(__name__).info("Oracle client initialized (destination)")
+    except Exception as e:
+        logging.getLogger(__name__).warning(
+            "Oracle client init failed for destination: %s", e
+        )
+
 ask_password_in_cli = bool(
     get_config_value(
         "ASK_PASSWORD_IN_CLI", section="settings", cfg_parser=cfg, default=False
@@ -133,13 +153,37 @@ queries = load_queries(
     column_name_case=column_name_case,
 )
 
+# Optional: filter queries by allow/deny list from configuration
+allow_cfg = cast(
+    str,
+    get_config_value("QUERY_ALLOWLIST", section="settings", cfg_parser=cfg, default=""),
+)
+deny_cfg = cast(
+    str,
+    get_config_value("QUERY_DENYLIST", section="settings", cfg_parser=cfg, default=""),
+)
+
+# Normalize allow/deny to the same case as the keys in `queries`
+allow = parse_name_list(allow_cfg)
+deny = parse_name_list(deny_cfg)
+if allow:
+    # If table_name_case coerces to UPPER by default, recommend users list UPPER too;
+    # we still match case-insensitively in filter_queries.
+    pass
+
+selected = filter_queries(queries, allowlist=allow or None, denylist=deny or None)
+skipped = set(queries.keys()) - set(selected.keys())
+if skipped:
+    log.info("Skipping queries (filtered): %s", ", ".join(sorted(skipped)))
+queries = selected
+
 # All work happens **on the SQL server** and **inside one transaction**
 # Executing everything on the SQL server, we avoid issues with data volumes & performance
 # Executing everything in one transaction, we avoid issues with foreign key constraints
 
 with engine.begin() as conn:  # single, atomic transaction
     # Optional but useful when FK dependencies exist (PostgreSQL only)
-    if engine.dialect.name.lower() == "postgresql":
+    if should_defer_constraints(engine):
         conn.execute(text("SET CONSTRAINTS ALL DEFERRED"))
 
     for name, query_fn in queries.items():
@@ -200,6 +244,7 @@ with engine.begin() as conn:  # single, atomic transaction
             # This will only work with PostgreSQL databases. For other databases, you must implement
             # a database-agnostic upsert or handle upserts differently.
             # On PostgreSQL – adjust index_elements to your PK/UK definition
+            validate_upsert_supported(engine)
             upsert_stmt = insert_from_select.on_conflict_do_update(  # type: ignore[attr-defined]
                 index_elements=list(dest_table.primary_key.columns.keys()),
                 set_={

@@ -3,28 +3,33 @@
 # (.ini-bestanden moet je in de commandline meegeven bij het runnen van deze module; zie README.md)
 
 [database-destination]
-DST_DRIVER=postgresql+psycopg2
-DST_HOST=localhost
-DST_PORT=5432
-DST_USERNAME=sa
-DST_PASSWORD=SecureP@ss1!24323482349
-DST_DB=ggm
-DST_SCHEMA=ggm
+DST_DRIVER = postgresql+psycopg2
+DST_HOST = localhost
+DST_PORT = 5432
+DST_USERNAME = sa
+DST_PASSWORD = SecureP@ss1!24323482349
+DST_DB = ggm
+DST_SCHEMA = ggm
 # Optioneel (alleen voor Microsoft SQL Server via pyodbc): kies de ODBC-driver
 # Mogelijke waarden: "ODBC Driver 18 for SQL Server", "ODBC Driver 17 for SQL Server", "SQL Server"
 # Laat leeg om standaard (18) te gebruiken
-DST_MSSQL_ODBC_DRIVER=
+DST_MSSQL_ODBC_DRIVER = 
 
 [settings]
 # Schema/database waarin de applicatie-data ('brons'/'staging') staat
-SOURCE_SCHEMA=staging
+SOURCE_SCHEMA = staging
 
 # Schema/database waarin de tabellenstructuur van het GGM staat ('silver')
-TARGET_SCHEMA=silver
+TARGET_SCHEMA = silver
+
+# (Optioneel) Wanneer je naar een Oracle‑database schrijft kan thick‑mode nodig zijn.
+# Zet hieronder het pad naar de Oracle Instant Client (bijv. "C:\\oracle\\instantclient_21_18").
+# Als je een TNS‑alias gebruikt, kan thick‑mode ook vereist zijn.
+DST_ORACLE_CLIENT_PATH =
 
 # (Optioneel) Als je naar een OracleDB schrijft met een TNS‑alias, zet dit op True en geef de alias
 # op via 'DST_HOST' (of 'DST_DB').
-DST_ORACLE_TNS_ALIAS=False
+DST_ORACLE_TNS_ALIAS = False
 
 # Of wachtwoord gevraagd wordt in de console i.p.v. uit te lezen uit je environment variables
 # of uit je .ini-config. Als je hiervan gebruikt maakt betekent het ook dat het script
@@ -33,8 +38,14 @@ ASK_PASSWORD_IN_CLI = False
 
 # Of de case van tabel- en kolomnamen moet worden genormaliseerd
 # Mogelijk: upper (capslock), lower (kleine letters), of laat leeg (geen normalisatie)
-TABLE_NAME_CASE=upper
-COLUMN_NAME_CASE=
+TABLE_NAME_CASE = upper
+COLUMN_NAME_CASE =
+
+# (Optioneel) Alleen specifieke queries uitvoeren of bepaalde queries uitsluiten.
+# Lijsten zijn komma/semicolon/whitespace-gescheiden, matching is case-insensitief.
+# Voorbeeld: QUERY_ALLOWLIST=BESCHIKKING, CLIENT
+# QUERY_ALLOWLIST =
+# QUERY_DENYLIST =
 
 [logging]
 # Globale logging-niveau; vanaf welk type message moet gelogd worden?

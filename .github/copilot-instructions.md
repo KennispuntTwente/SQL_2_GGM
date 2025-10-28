@@ -19,7 +19,7 @@ Purpose: equip AI coding agents to be immediately productive in this repo by cap
 ## Configuration (single INIs; INI > ENV > defaults)
 - `source_to_staging`: one INI with sections `[database-source]`, `[database-destination]`, `[settings]`, `[logging]` (see `source_to_staging/config.ini.example`).
   - `[settings]`: `TRANSFER_MODE=SQLALCHEMY_DIRECT|CONNECTORX_DUMP|SQLALCHEMY_DUMP`, `SRC_TABLES`, `SRC_CHUNK_SIZE`, `CLEANUP_PARQUET_FILES`, `ASK_PASSWORD_IN_CLI`.
-  - Oracle: set `SRC_ORACLE_CLIENT_PATH` for thick‑mode (Instant Client). TNS alias supported via `SRC_ORACLE_TNS_ALIAS=True`.
+  - Oracle: set `SRC_ORACLE_CLIENT_PATH` (source_to_staging) or `DST_ORACLE_CLIENT_PATH` (staging_to_silver) for thick‑mode (Instant Client). TNS alias supported via `SRC_ORACLE_TNS_ALIAS=True` / `DST_ORACLE_TNS_ALIAS=True`.
 - `staging_to_silver`: one INI with sections `[database-destination]`, `[settings]`, optional `[logging]` (see `staging_to_silver/config.ini.example`).
   - `[settings]`: `SOURCE_SCHEMA` (default staging), `TARGET_SCHEMA` (default silver), `TABLE_NAME_CASE` (default upper), `COLUMN_NAME_CASE` (optional), `ASK_PASSWORD_IN_CLI`.
 - Python: `pyproject.toml` targets Python ≥ 3.12.10; dependencies include SQLAlchemy 2.x, ConnectorX, polars/pyarrow, psycopg2, pyodbc, oracledb.
@@ -42,7 +42,7 @@ Purpose: equip AI coding agents to be immediately productive in this repo by cap
   - `python -m staging_to_silver.main --config staging_to_silver/config.ini`
 - Tests: `pytest` (fast by default). Set `RUN_SLOW_TESTS=1` to include Docker‑backed integration tests for multiple DBs. See markers in `pytest.ini`.
 - Smoke via Docker Compose: `bash docker/smoke/run_all.sh` runs staged services sequentially; INIs under `docker/config`.
-- Tips: for Dockerized runs, use `host.docker.internal` to reach host DBs; Parquet dumps go to `./data` (mount if you want to persist); for MSSQL via ODBC, ensure msodbcsql driver; Oracle thin by default, thick via Instant Client + `SRC_ORACLE_CLIENT_PATH`.
+- Tips: for Dockerized runs, use `host.docker.internal` to reach host DBs; Parquet dumps go to `./data` (mount if you want to persist); for MSSQL via ODBC, ensure msodbcsql driver; Oracle thin by default, thick via Instant Client + `SRC_ORACLE_CLIENT_PATH`/`DST_ORACLE_CLIENT_PATH`.
 
 ## Guardrails and patterns
 - Preserve streaming/chunking semantics and column‑lowercasing in all upload paths.
