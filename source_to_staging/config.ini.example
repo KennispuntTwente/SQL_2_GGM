@@ -10,6 +10,11 @@ SRC_USERNAME = sa
 SRC_PASSWORD = SecureP@ss1!24323482349
 SRC_DB = ggm
 SRC_SCHEMA = 
+# (Optioneel) Wanneer je met een OracleDB werkt kan thick‑mode nodig zijn.
+# Zet hier het pad naar de Oracle Instant Client (bijv. "C:\\oracle\\instantclient_21_18").
+SRC_ORACLE_CLIENT_PATH =
+# (Optioneel) Als je een Oracle TNS‑alias gebruikt, zet dit op True en geef de alias op via SRC_HOST of SRC_DB.
+SRC_ORACLE_TNS_ALIAS = False
 # Optioneel (alleen voor Microsoft SQL Server via pyodbc): kies de ODBC-driver
 # Mogelijke waarden: "ODBC Driver 18 for SQL Server", "ODBC Driver 17 for SQL Server", "SQL Server"
 # Laat leeg om standaard (18) te gebruiken
@@ -23,6 +28,11 @@ DST_USERNAME = sa
 DST_PASSWORD = SecureP@ss1!24323482349
 DST_DB = ggm
 DST_SCHEMA = ggm
+# (Optioneel) Wanneer je met een OracleDB schrijft kan thick‑mode nodig zijn.
+# Zet hier het pad naar de Oracle Instant Client (bijv. "C:\\oracle\\instantclient_21_18").
+DST_ORACLE_CLIENT_PATH =
+# (Optioneel) Als je een Oracle TNS‑alias gebruikt, zet dit op True en geef de alias op via DST_HOST of DST_DB.
+DST_ORACLE_TNS_ALIAS = False
 # Optioneel (alleen voor Microsoft SQL Server via pyodbc): kies de ODBC-driver
 # Mogelijke waarden: "ODBC Driver 18 for SQL Server", "ODBC Driver 17 for SQL Server", "SQL Server"
 # Laat leeg om standaard (18) te gebruiken
@@ -42,16 +52,6 @@ SRC_CHUNK_SIZE = 100000
 #  - SQLALCHEMY_DUMP: lees via SQLAlchemy en dump naar Parquet, upload daarna Parquet
 #  - CONNECTORX_DUMP: lees via ConnectorX en dump naar Parquet, upload daarna Parquet
 TRANSFER_MODE = SQLALCHEMY_DIRECT
-
-# Wanneer je met een OracleDB werkt (in alle modi: SQLAlchemy of ConnectorX), kan het 
-# nodig zijn om het pad naar een Oracle Instant Client te specificeren (bijv., "C:\oracle\instantclient_21_18")
-# (Je kan dit downloaden: https://www.oracle.com/database/technologies/instant-client/downloads.html)
-SRC_ORACLE_CLIENT_PATH =
-
-# Wanneer je i.c.m. met een OracleDB een TNS‑alias (DNS) gebruikt, zet onderstaande value op 'True'.
-# Geef de alias-naam op via 'SRC_HOST' (of desnoods 'SRC_DB'); 'SRC_PORT' en 'SRC_DB' mogen dan leeg blijven.
-# Dit werkt zowel voor SQLAlchemy (oracle+oracledb) als ConnectorX.
-SRC_ORACLE_TNS_ALIAS = False
 
 # Of wachtwoord gevraagd wordt in de console i.p.v. uit te lezen uit je environment variables
 # of uit je .ini-config. Als je hiervan gebruikt maakt betekent het ook dat het script

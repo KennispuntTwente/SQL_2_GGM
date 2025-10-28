@@ -4,7 +4,9 @@ from utils.config.get_config_value import get_config_value
 
 
 def initialize_oracle_client(
-    config_key: str = "SRC_ORACLE_CLIENT_PATH", cfg_parser=None
+    config_key: str = "SRC_ORACLE_CLIENT_PATH",
+    cfg_parser=None,
+    section: str | None = None,
 ):
     """
     Initialize the Oracle client using a path specified in configuration.
@@ -13,8 +15,19 @@ def initialize_oracle_client(
     - config_key (str): The key to fetch the Oracle client path from config.
     - cfg_parser: Configuration parser object passed to get_config_value (if needed).
     """
+    # Determine INI section automatically if not provided
+    if section is None:
+        if config_key.startswith("SRC_"):
+            section = "database-source"
+        elif config_key.startswith("DST_"):
+            section = "database-destination"
+        else:
+            section = "database"
+
     # Read the configured client path for the provided key (INI > ENV)
-    oracle_client_path = get_config_value(config_key, cfg_parser=cfg_parser)
+    oracle_client_path = get_config_value(
+        config_key, section=section, cfg_parser=cfg_parser
+    )
     if oracle_client_path:
         logging.getLogger(__name__).info(
             "Initializing Oracle client with path: %s", oracle_client_path

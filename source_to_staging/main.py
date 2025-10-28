@@ -85,6 +85,23 @@ src_db = cast(
     Optional[str], get_config_value("SRC_DB", section="database-source", cfg_parser=cfg)
 )
 
+"""
+Ensure Oracle Instant Client is initialized when configured via INI/ENV.
+We initialize explicitly for both source and destination so INI values are honored
+for SQLAlchemy paths (create_sqlalchemy_engine's best-effort ENV init remains as fallback).
+"""
+# Initialize Oracle client for SOURCE if configured
+try:
+    if get_config_value(
+        "SRC_ORACLE_CLIENT_PATH",
+        section="database-source",
+        cfg_parser=cfg,
+        default=None,
+    ):
+        initialize_oracle_client("SRC_ORACLE_CLIENT_PATH", cfg_parser=cfg)
+except Exception as e:
+    log.warning("Oracle client init failed for source: %s", e)
+
 if transfer_mode == "SQLALCHEMY_DIRECT":
     # Force SQLAlchemy engine for direct copy mode
     source_connection = create_sqlalchemy_engine(
@@ -97,7 +114,7 @@ if transfer_mode == "SQLALCHEMY_DIRECT":
         oracle_tns_alias=bool(
             get_config_value(
                 "SRC_ORACLE_TNS_ALIAS",
-                section="settings",
+                section="database-source",
                 cfg_parser=cfg,
                 default=False,
             )
@@ -128,15 +145,17 @@ elif transfer_mode == "CONNECTORX_DUMP":
         alias=bool(
             get_config_value(
                 "SRC_ORACLE_TNS_ALIAS",
-                section="settings",
+                section="database-source",
                 cfg_parser=cfg,
                 default=False,
             )
         ),
     )
 
-    # If Oracle client path is set, initialize it for ConnectorX (new unified key)
-    oracle_client_path = get_config_value("SRC_ORACLE_CLIENT_PATH", cfg_parser=cfg)
+    # If Oracle client path is set, initialize it for ConnectorX (source-specific key)
+    oracle_client_path = get_config_value(
+        "SRC_ORACLE_CLIENT_PATH", section="database-source", cfg_parser=cfg
+    )
     if oracle_client_path:
         try:
             initialize_oracle_client(cfg_parser=cfg)
@@ -161,7 +180,7 @@ else:  # SQLALCHEMY_DUMP
         oracle_tns_alias=bool(
             get_config_value(
                 "SRC_ORACLE_TNS_ALIAS",
-                section="settings",
+                section="database-source",
                 cfg_parser=cfg,
                 default=False,
             )
@@ -182,6 +201,17 @@ else:  # SQLALCHEMY_DUMP
     )
 
 # Build connection to destination database
+# Initialize Oracle client for DESTINATION if configured
+try:
+    if get_config_value(
+        "DST_ORACLE_CLIENT_PATH",
+        section="database-destination",
+        cfg_parser=cfg,
+        default=None,
+    ):
+        initialize_oracle_client("DST_ORACLE_CLIENT_PATH", cfg_parser=cfg)
+except Exception as e:
+    log.warning("Oracle client init failed for destination: %s", e)
 dest_engine = create_sqlalchemy_engine(
     driver=cast(
         str,
@@ -225,7 +255,7 @@ dest_engine = create_sqlalchemy_engine(
     oracle_tns_alias=bool(
         get_config_value(
             "DST_ORACLE_TNS_ALIAS",
-            section="settings",
+            section="database-destination",
             cfg_parser=cfg,
             default=False,
         )

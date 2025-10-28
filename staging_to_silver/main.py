@@ -32,7 +32,10 @@ log = logging.getLogger("staging_to_silver")
 # ─── Build connection to database ──────────────────────────────────────────────
 # Initialize Oracle Instant Client if a destination path is configured in INI/ENV
 dst_oracle_client_path = get_config_value(
-    "DST_ORACLE_CLIENT_PATH", cfg_parser=cfg, default=None
+    "DST_ORACLE_CLIENT_PATH",
+    section="database-destination",
+    cfg_parser=cfg,
+    default=None,
 )
 if dst_oracle_client_path:
     try:
@@ -87,7 +90,10 @@ engine = create_sqlalchemy_engine(
     database=database,
     oracle_tns_alias=bool(
         get_config_value(
-            "DST_ORACLE_TNS_ALIAS", section="settings", cfg_parser=cfg, default=False
+            "DST_ORACLE_TNS_ALIAS",
+            section="database-destination",
+            cfg_parser=cfg,
+            default=False,
         )
     ),
     mssql_odbc_driver=(
