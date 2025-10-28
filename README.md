@@ -12,6 +12,13 @@ Omdat deze tool geheel open-source is, kan elke gemeente deze toepassen. Voor ge
 uit CSSD willen ontsluiten, is deze tool zo veel als mogelijk 'plug-and-play' gemaakt (d.w.z., niet alleen de mapping wordt
 geleverd; ook de technische uitwerking van de mapping in Python-code).
 
+---
+
+**Status van dit project (28/10/2025)**: *dit project is nabij afronding maar nog in ontwikkeling.
+Enkele queries in 'staging_to_silver' vereisen bijvoorbeeld mogelijk nog wijzigingen.
+Een GitHub-release zal binnenkort worden uitgegeven wanneer bevestigd is dat alle huidige queries functioneren.
+In mogelijke toekomstige releases wordt de set queries uitgebreid naar meer tabellen die voorkomen in het GGM en ontsloten kunnen worden uit CSDD.*
+
 ## Overzicht
 
 Hieronder staat beschreven hoe data vanuit de applicatie wordt overgebracht naar het GGM.
@@ -208,7 +215,7 @@ een eigen, afwijkende versie hebben maar toch ook updates van dit project meekri
 
 ### Tests
 
-Om de kwaliteit van de code te verifiëren & te bewaken, bevat dit project.
+Om de kwaliteit van de code te verifiëren & te bewaken, bevat dit project tests.
 Tests worden automatisch gerund op GitHub Actons (zie map: .github/workflows).
 Daarnaast kan je tests ook in je eigen ontwikkeomgeving uitvoeren; zie uitleg hieronder.
 
@@ -253,6 +260,6 @@ Neem contact op! De volgende organisaties & personen zijn betrokken bij dit proj
 
 ---
 
-Voor technische vragen: neem contact op met Luka Koning/Joost Barink. Je mag ons mailen, maar kan ook een issue openen in de [GitHub-repository](https://github.com/KennispuntTwente/SQL_2_GGM/issues).
+Voor technische vragen: neem contact op met Luka Koning en Joost Barink. Je mag ons mailen, maar kan ook een issue openen in de [GitHub-repository](https://github.com/KennispuntTwente/SQL_2_GGM/issues).
 
-Voor vragen inzake (gemeentelijke) samenwerking: neem contact op met Jos Quist/Fabian Klaster/Joost Barink. 
+Voor vragen inzake (gemeentelijke) samenwerking: neem contact op met Jos Quist, Fabian Klaster en Joost Barink. Hiervoor graag per mail contact opnemen.
