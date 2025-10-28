@@ -51,3 +51,16 @@ Kies de modus in `[settings]` via `TRANSFER_MODE`:
 In principe zouden alle manieren met alle database-types moeten werken, maar mocht je fouten tegenkomen dan zou je kunnen
 proberen te switchen naar een andere modus. De 'dump'-varianten kunnen interessant zijn als je bijvoorbeeld
 de parquet-bestanden wil gebruiken om een ruwe historie op te bouwen (buiten de actuele data op de target-SQL-server).
+
+## Parquet dump/upload details
+
+- Bestandsnamen: voor grote tabellen worden part-bestanden geschreven met het patroon `<tabelnaam>_part0000.parquet`, `<tabelnaam>_part0001.parquet`, enzovoort.
+- Manifest per run: bij een dump met `SQLALCHEMY_DUMP` of `CONNECTORX_DUMP` wordt een manifest-bestand aangemaakt in de outputmap (standaard `data`). Dit manifest bevat uitsluitend de in deze run aangemaakte parquet-bestanden. De upload-stap gebruikt dit manifest zodat er nooit per ongeluk oude/overgebleven bestanden worden meegepakt.
+- Cleanup bij fouten: wanneer `CLEANUP_PARQUET_FILES=True` (default) worden de parquet-bestanden na upload verwijderd. Dit gebeurt ook als er tijdens de upload een fout optreedt; cleanup draait in een `finally`-blok. Het manifest-bestand wordt eveneens opgeschoond.
+- Lowercase kolomnamen: alle kolomnamen worden tijdens upload naar lowercase geconverteerd voor consistentie in de staging-laag.
+
+Relevante instellingen in `[settings]`:
+
+- `SRC_TABLES`: kommagescheiden lijst van tabellen om te dumpen.
+- `SRC_CHUNK_SIZE`: aantal rijen per chunk tijdens dump/streaming.
+- `CLEANUP_PARQUET_FILES`: of parquet-bestanden (en manifest) na upload verwijderd moeten worden (default: `True`).

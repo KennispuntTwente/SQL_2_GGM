@@ -1,5 +1,8 @@
 import os
+import json
+import uuid
 import logging
+from datetime import datetime, timezone
 from typing import Iterable
 
 import polars as pl
@@ -36,6 +39,11 @@ def download_parquet(
 
     # Create destination directory once
     os.makedirs(output_dir, exist_ok=True)
+
+    # Track files created during this run and emit a manifest so the upload step can
+    # limit itself strictly to these files (avoids picking up leftovers from previous runs).
+    run_id = uuid.uuid4().hex
+    created_files: list[str] = []  # file names relative to output_dir
 
     # ──────────────────────────────────────────────────────────────────────
     # 1 Identify connection mode
@@ -114,6 +122,7 @@ def download_parquet(
                     output_dir, f"{table}_part{part_written:04d}.parquet"
                 )
                 df.write_parquet(out)
+                created_files.append(os.path.basename(out))
                 wrote_any = True
                 try:
                     nrows = len(df)
@@ -155,6 +164,30 @@ def download_parquet(
                 for idx, batch_df in enumerate(batches):
                     out = os.path.join(output_dir, f"{table}_part{idx:04d}.parquet")
                     batch_df.write_parquet(out)
+                    created_files.append(os.path.basename(out))
                     logger.info("✅ pl.read_database chunk %s written: %s", idx, out)
 
+    # Write a manifest for this run so upload can be restricted to the current files only
+    manifest_path = os.path.join(
+        output_dir, f".ggmpilot_parquet_manifest_{run_id}.json"
+    )
+    try:
+        manifest = {
+            "run_id": run_id,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "output_dir": os.path.abspath(output_dir),
+            "files": created_files,
+        }
+        with open(manifest_path, "w", encoding="utf-8") as f:
+            json.dump(manifest, f, ensure_ascii=False, indent=2)
+        logger.info(
+            "🧾 Manifest written: %s (%s files)", manifest_path, len(created_files)
+        )
+    except Exception as e:
+        logger.warning("Failed to write manifest %s: %s", manifest_path, e)
+        manifest_path = None  # type: ignore[assignment]
+
     logger.info("🎉 Export complete – all tables written")
+
+    # Return the manifest path for callers that wish to limit subsequent upload
+    return manifest_path

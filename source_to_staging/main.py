@@ -327,7 +327,7 @@ if transfer_mode == "SQLALCHEMY_DIRECT":
     )
 else:
     # Step 1/2: Dump tables from source to parquet files
-    download_parquet(
+    manifest_path = download_parquet(
         source_connection,
         schema=cast(
             str | None,
@@ -362,4 +362,5 @@ else:
                 default=True,
             )
         ),
+        manifest_path=manifest_path,
     )

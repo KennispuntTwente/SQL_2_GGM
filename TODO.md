@@ -30,8 +30,4 @@ Might add a small retry/backoff for transient DB issues during large transfers.
 Clarify dialect support per query module (or a matrix).
 Explain write_modes and how to configure/override them.
 
-* Cleanup parquet; on error during upload still perform the cleanup
-Also, when during a run, ensure only the parquets which were downloaded during that
-run get uploaded (i.e., dont upload any leftover/irrelevant files)
-
 
