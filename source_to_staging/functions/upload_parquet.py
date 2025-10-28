@@ -227,6 +227,30 @@ def upload_parquet(engine, schema=None, input_dir="data", cleanup=True):
                     if sa_type is not None:
                         dtype_map[col] = sa_type
 
+            # For Microsoft SQL Server, ensure datetime-like columns use DATETIME2 to avoid
+            # out-of-range errors caused by the narrower DATETIME type (which starts at 1753-01-01).
+            if dialect in ("mssql", "sql server"):
+                try:
+                    from sqlalchemy.dialects.mssql import DATETIME2 as MSSQL_DATETIME2  # type: ignore
+                except Exception:
+                    MSSQL_DATETIME2 = None  # type: ignore
+
+                if MSSQL_DATETIME2 is not None:
+                    for col, dt in zip(df.columns, df.dtypes):
+                        try:
+                            # Polars dtypes stringify like "Datetime(time_unit='us', time_zone=None)"
+                            if dt.__class__.__name__ == "Datetime" or str(
+                                dt
+                            ).startswith("Datetime"):
+                                # Use DATETIME2(6) to preserve microseconds if present
+                                try:
+                                    dtype_map[col] = MSSQL_DATETIME2(precision=6)  # type: ignore[call-arg]
+                                except Exception:
+                                    dtype_map[col] = MSSQL_DATETIME2()
+                        except Exception:
+                            # Best-effort mapping; fallback to default for problematic columns
+                            pass
+
             # For Oracle, guide type creation for floats to avoid generic FLOAT precision issues
             if dialect == "oracle":
                 try:
