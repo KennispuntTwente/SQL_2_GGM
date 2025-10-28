@@ -27,6 +27,16 @@ def create_sqlalchemy_engine(
             )
         )
 
+    # SQLite (file path or in-memory). Ignores username/host/port parameters.
+    if "sqlite" in d:
+        # Allow plain "sqlite" or "sqlite+pysqlite" driver strings
+        drv = driver if "+" in driver else "sqlite+pysqlite"
+        # database can be a file path (relative or absolute) or ":memory:"
+        db = database or ""
+        # Use 3 slashes for relative/absolute file path, special case for memory
+        url = f"{drv}:///:memory:" if db == ":memory:" else f"{drv}:///{db}"
+        return create_engine(url)
+
     # PostgreSQL
     elif "postgresql" in d or "postgres" in d:
         return create_engine(

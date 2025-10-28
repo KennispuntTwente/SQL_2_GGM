@@ -121,7 +121,8 @@ queries = load_queries(
 
 with engine.begin() as conn:  # single, atomic transaction
     # Optional but useful when FK dependencies exist (PostgreSQL only)
-    conn.execute(text("SET CONSTRAINTS ALL DEFERRED"))
+    if engine.dialect.name.lower() == "postgresql":
+        conn.execute(text("SET CONSTRAINTS ALL DEFERRED"))
 
     for name, query_fn in queries.items():
         # 1) build the SELECT statement that extracts from the source schema
@@ -134,7 +135,7 @@ with engine.begin() as conn:  # single, atomic transaction
         dest_table = Table(
             name,
             metadata_dest,
-            schema=target_schema,
+            schema=(target_schema or None),
             autoload_with=engine,
             extend_existing=True,
         )
@@ -158,13 +159,16 @@ with engine.begin() as conn:  # single, atomic transaction
 
         # 3) determine how we load into the destination
         mode = write_modes_ci.get(name.lower(), "append").lower()
-        full_name = f"{target_schema}.{name}"
+        full_name = f"{target_schema}.{name}" if target_schema else name
 
         # 4a) pre‑action for destructive modes
         if mode == "overwrite":
             conn.execute(text(f"DELETE FROM {full_name}"))
         elif mode == "truncate":
-            conn.execute(text(f"TRUNCATE TABLE {full_name}"))
+            if engine.dialect.name.lower() == "sqlite":
+                conn.execute(text(f"DELETE FROM {full_name}"))
+            else:
+                conn.execute(text(f"TRUNCATE TABLE {full_name}"))
 
         # 4b) build INSERT … from SELECT
         insert_from_select = dest_table.insert().from_select(dest_cols, select_stmt)

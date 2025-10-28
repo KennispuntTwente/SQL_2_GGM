@@ -78,6 +78,9 @@ def _ensure_database_and_schema(engine: Engine, schema: str | None) -> None:
             elif dialect in ("mysql", "mariadb"):
                 # MySQL doesn't support schemas outside of databases
                 pass
+            elif dialect == "sqlite":
+                # SQLite has no schema namespace; skip
+                pass
             else:
                 try:
                     conn.execute(CreateSchema(schema))
@@ -351,7 +354,11 @@ def direct_transfer(
             elif write_mode == "truncate":
                 # Create if missing, then truncate
                 dest_table.create(bind=dconn, checkfirst=True)
-                dconn.execute(text(f"TRUNCATE TABLE {qualified_dst}"))
+                # SQLite does not support TRUNCATE; fall back to DELETE
+                if dest_engine.dialect.name.lower() == "sqlite":
+                    dconn.execute(text(f"DELETE FROM {qualified_dst}"))
+                else:
+                    dconn.execute(text(f"TRUNCATE TABLE {qualified_dst}"))
             else:  # append
                 dest_table.create(bind=dconn, checkfirst=True)
 

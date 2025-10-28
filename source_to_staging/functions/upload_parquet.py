@@ -174,6 +174,9 @@ def upload_parquet(engine, schema=None, input_dir="data", cleanup=True):
             elif dialect in ("mysql", "mariadb"):
                 # MySQL doesn't support schemas other than databases
                 pass
+            elif dialect == "sqlite":
+                # SQLite has no schema namespace; skip
+                pass
             else:
                 try:
                     conn.execute(CreateSchema(schema))
@@ -209,9 +212,7 @@ def upload_parquet(engine, schema=None, input_dir="data", cleanup=True):
                         continue
                     try:
                         casts.append(
-                            pl.col(col).cast(
-                                pl.Decimal(precision=prec, scale=scale)
-                            )
+                            pl.col(col).cast(pl.Decimal(precision=prec, scale=scale))
                         )
                     except Exception:
                         # If casting fails, fall back to existing representation.
@@ -263,10 +264,17 @@ def upload_parquet(engine, schema=None, input_dir="data", cleanup=True):
                                     dtype_map[col] = ORA_NUMBER(prec, scale)
                         # Datetime -> TIMESTAMP(6) to preserve microseconds (Oracle DATE would drop them)
                         elif (
-                            (getattr(pl, "Datetime", None) is not None and dt.__class__.__name__ == "Datetime")
+                            (
+                                getattr(pl, "Datetime", None) is not None
+                                and dt.__class__.__name__ == "Datetime"
+                            )
                             or str(dt).startswith("Datetime")
                         ) and ORA_TIMESTAMP is not None:
-                            dtype_map[col] = ORA_TIMESTAMP(6)
+                            # Use TIMESTAMP(6) to preserve microseconds
+                            try:
+                                dtype_map[col] = ORA_TIMESTAMP(precision=6)  # type: ignore[call-arg]
+                            except Exception:
+                                dtype_map[col] = ORA_TIMESTAMP()
                         # Booleans as NUMBER(1)
                         elif str(dt) == "Boolean" and ORA_NUMBER is not None:
                             dtype_map[col] = ORA_NUMBER(1, 0)
