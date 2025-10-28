@@ -3,13 +3,21 @@ import logging
 
 
 def _ensure_console_logging():
-    """Ensure there's at least a console handler so INFO logs show like print()."""
+    """Ensure there's at least one console handler without causing duplicates.
+
+    We attach a minimal StreamHandler only when no handlers exist, and mark it as
+    _ggmpilot_managed so our main setup can later replace/remove it cleanly.
+    Avoids duplicate console output when setup_logging runs after early config reads.
+    """
     root = logging.getLogger()
     if not root.handlers:
-        logging.basicConfig(
-            level=logging.INFO,
-            format="%(asctime)s %(levelname)-8s [%(name)s] %(message)s",
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.INFO)
+        ch.setFormatter(
+            logging.Formatter("%(asctime)s %(levelname)-8s [%(name)s] %(message)s")
         )
+        setattr(ch, "_ggmpilot_managed", True)
+        root.addHandler(ch)
 
 
 def interpret_value(value):
