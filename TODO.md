@@ -1,17 +1,3 @@
-* Cross-dialect guarding
-Cross-dialect query portability in staging_to_silver:
-Query modules contain dialect-specific constructs (e.g., Postgres’ timezone() in staging_to_silver/queries/BeschikteVoorziening.py:1), while staging_to_silver/main.py:1 unconditionally loads and executes all queries. Running these against MSSQL/MySQL will fail.
-Recommendation:
-Make builder functions dialect-aware (branch in the builder by engine.dialect.name) and emit equivalent constructs per dialect, or
-Add a filtering mechanism (configurable allowlist/denylist) to only execute queries compatible with the current backend, and document per-query backend support in staging_to_silver/README.md:1.
-Postgres-only statement in a generic path:
-staging_to_silver/main.py:1 always executes SET CONSTRAINTS ALL DEFERRED, which is PostgreSQL-specific. This will break on other DBs.
-Recommendation: Guard with if engine.dialect.name == 'postgresql' before executing.
-Upsert mode:
-Uses .on_conflict_do_update on an Insert, which is PostgreSQL-only. The file comments acknowledge this, but the dispatcher (write_modes) doesn’t guard by engine.dialect.name.
-Recommendation: Add a dialect guard for upsert or document that upsert mode is PG-only and validate before use to give a clear error message.
-Add a test (can be unit-scoped) that staging_to_silver/main.py:1 guards PG-only features and dialect-specific query execution. Even a smoke test with a dummy engine/dialect that asserts guard logic would catch the unconditional SET CONSTRAINTS ALL DEFERRED.
-
 * Packages/dependencies
 Potentially unnecessary or suspect deps:
 mssql>=1.0.1 seems questionable (commonly pyodbc or pymssql are used; you already have pyodbc).
