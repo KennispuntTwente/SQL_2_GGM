@@ -16,4 +16,10 @@ Might add a small retry/backoff for transient DB issues during large transfers.
 Clarify dialect support per query module (or a matrix).
 Explain write_modes and how to configure/override them.
 
+* Add option to easily work with subset of data (e.g., only first 1k rows), for development purposes
+
+* Add function (similar to what is present in dev_sql_server) to take (folder of) SQL scripts and executes
+in target connection, to easily create database tables per GGM. Optionally integrate in staging_to_silver.
+With option to delete existing GGM tables potentially
+
 
