@@ -9,9 +9,6 @@ Remove unused deps or clearly justify them.
 Metadata gaps: description, readme, authors, license (although LICENSE.md exists), and classifiers.
 Fill metadata for better distribution/consumption.
 
-* Direct transfer
-Might add a small retry/backoff for transient DB issues during large transfers.
-
 * staging_to_silver/README.md:1 is succinct; add:
 Clarify dialect support per query module (or a matrix).
 Explain write_modes and how to configure/override them.

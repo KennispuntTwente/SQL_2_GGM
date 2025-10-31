@@ -52,6 +52,15 @@ In principe zouden alle manieren met alle database-types moeten werken, maar moc
 proberen te switchen naar een andere modus. De 'dump'-varianten kunnen interessant zijn als je bijvoorbeeld
 de parquet-bestanden wil gebruiken om een ruwe historie op te bouwen (buiten de actuele data op de target-SQL-server).
 
+### Transient errors en retries (alleen direct transfer)
+
+De directe kopie (`SQLALCHEMY_DIRECT`) voert inserts uit in batches. Bij tijdelijke databasefouten (bijv. deadlocks,
+time-outs of weggevallen verbinding) probeert de kopie de batch opnieuw met een kleine exponential backoff met jitter.
+
+- Standaard: maximaal 3 retries, start-backoff 0.5s, max-backoff 8s.
+- Herproberen gebeurt per batch binnen een transactie; bij een fout wordt de batch-transactie teruggedraaid en blijft de broncursor gewoon doorstreamen.
+- Deze instellingen zijn ook als optionele parameters in `direct_transfer(...)` beschikbaar (`max_retries`, `backoff_base_seconds`, `backoff_max_seconds`).
+
 ## Parquet dump/upload details
 
 - Bestandsnamen: voor grote tabellen worden part-bestanden geschreven met het patroon `<tabelnaam>_part0000.parquet`, `<tabelnaam>_part0001.parquet`, enzovoort.

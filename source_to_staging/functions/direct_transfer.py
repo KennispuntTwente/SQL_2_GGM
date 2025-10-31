@@ -1,10 +1,12 @@
 import logging
+import random
+import time
 from typing import Sequence
 
 from sqlalchemy import MetaData, Table, Column, select, text
 from sqlalchemy import types as satypes
 from sqlalchemy.engine import Engine
-from sqlalchemy.exc import ProgrammingError
+from sqlalchemy.exc import ProgrammingError, DBAPIError
 from sqlalchemy.schema import CreateSchema
 
 logger = logging.getLogger("source_to_staging.direct_transfer")
@@ -304,6 +306,10 @@ def direct_transfer(
     lowercase_columns: bool = True,
     write_mode: str = "replace",  # replace | truncate | append
     row_limit: int | None = None,
+    # Retry/backoff for transient insert errors
+    max_retries: int = 3,
+    backoff_base_seconds: float = 0.5,
+    backoff_max_seconds: float = 8.0,
 ) -> None:
     """
     Copy listed tables from source to destination using SQLAlchemy only, in chunks.
@@ -388,8 +394,55 @@ def direct_transfer(
                 else:
                     batch = [dict(row) for row in rows]  # type: ignore[union-attr]
 
-                with dest_engine.begin() as dconn:
-                    dconn.execute(insert_stmt, batch)
+                # Execute insert with small retry/backoff on transient DB errors
+                attempt = 0
+                while True:
+                    try:
+                        with dest_engine.begin() as dconn:
+                            dconn.execute(insert_stmt, batch)
+                        break  # success
+                    except DBAPIError as e:  # type: ignore[asynckind]
+                        # Determine if error looks transient and should be retried
+                        msg = str(e).lower()
+                        is_disconnect = bool(
+                            getattr(e, "is_disconnect", False)
+                            or getattr(e, "connection_invalidated", False)
+                        )
+                        looks_transient = is_disconnect or any(
+                            tok in msg
+                            for tok in (
+                                "deadlock",
+                                "timeout",
+                                "could not serialize access",
+                                "lock wait timeout exceeded",
+                                "connection reset",
+                                "broken pipe",
+                            )
+                        )
+                        if attempt >= max_retries or not looks_transient:
+                            logger.error(
+                                "Insert batch failed (attempt %s/%s). Giving up. Error: %s",
+                                attempt + 1,
+                                max_retries,
+                                e,
+                            )
+                            raise
+                        # Backoff with jitter
+                        sleep = min(
+                            backoff_max_seconds,
+                            backoff_base_seconds * (2 ** attempt),
+                        )
+                        # full jitter in [0.5x, 1.5x]
+                        sleep *= 0.5 + random.random()
+                        attempt += 1
+                        logger.warning(
+                            "Transient DB error on insert (attempt %s/%s). Retrying in %.2fs: %s",
+                            attempt,
+                            max_retries,
+                            sleep,
+                            e,
+                        )
+                        time.sleep(sleep)
 
                 inserted_total += len(batch)
                 logger.info(

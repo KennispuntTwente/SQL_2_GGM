@@ -332,6 +332,37 @@ if transfer_mode == "SQLALCHEMY_DIRECT":
         lowercase_columns=True,
         write_mode="replace",
         row_limit=row_limit,
+            # Optional retry/backoff tuning for direct transfer inserts
+            max_retries=int(
+                str(
+                    get_config_value(
+                        "DIRECT_MAX_RETRIES",
+                        section="settings",
+                        cfg_parser=cfg,
+                        default=3,
+                    )
+                )
+            ),
+            backoff_base_seconds=float(
+                str(
+                    get_config_value(
+                        "DIRECT_BACKOFF_BASE_SECONDS",
+                        section="settings",
+                        cfg_parser=cfg,
+                        default=0.5,
+                    )
+                )
+            ),
+            backoff_max_seconds=float(
+                str(
+                    get_config_value(
+                        "DIRECT_BACKOFF_MAX_SECONDS",
+                        section="settings",
+                        cfg_parser=cfg,
+                        default=8.0,
+                    )
+                )
+            ),
     )
 else:
     # Step 1/2: Dump tables from source to parquet files
