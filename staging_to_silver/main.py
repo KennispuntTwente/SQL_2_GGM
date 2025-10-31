@@ -252,6 +252,13 @@ if skipped:
     log.info("Skipping queries (filtered): %s", ", ".join(sorted(skipped)))
 queries = selected
 
+# Optional developer row limit: limit rows produced by each mapping (0/blank disables)
+row_limit_cfg = get_config_value("ROW_LIMIT", section="settings", cfg_parser=cfg, default="")
+try:
+    dev_row_limit = int(str(row_limit_cfg)) if str(row_limit_cfg).strip() != "" else None
+except Exception:
+    dev_row_limit = None
+
 # All work happens **on the SQL server** and **inside one transaction**
 # Executing everything on the SQL server, we avoid issues with data volumes & performance
 # Executing everything in one transaction, we avoid issues with foreign key constraints
@@ -264,6 +271,12 @@ with engine.begin() as conn:  # single, atomic transaction
     for name, query_fn in queries.items():
         # 1) build the SELECT statement that extracts from the source schema
         select_stmt = query_fn(engine, source_schema=source_schema)
+        if dev_row_limit and dev_row_limit > 0:
+            try:
+                select_stmt = select_stmt.limit(dev_row_limit)
+            except Exception:
+                # If a query is non-limitable (e.g. contains certain constructs), skip limiting
+                log.warning("ROW_LIMIT could not be applied to mapping %s", name)
 
         # Get the column names from the select statement
         select_col_order = [col.name for col in select_stmt.selected_columns]

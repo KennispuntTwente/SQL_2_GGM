@@ -33,6 +33,11 @@ TARGET_SCHEMA = silver
 # alleen interactief gerund kan worden
 ASK_PASSWORD_IN_CLI = False
 
+# (Optioneel) Ontwikkelinstelling om slechts een subset van de data te verwerken.
+# Beperk het aantal rijen dat door elke mapping (SELECT) wordt geproduceerd (0 of leeg = geen limiet)
+# Voorbeeld: alleen eerste 1000 rijen laden tijdens lokale ontwikkeling
+# ROW_LIMIT = 1000
+
 # Of de case van tabel- en kolomnamen moet worden genormaliseerd
 # Mogelijk: upper (capslock), lower (kleine letters), of laat leeg (geen normalisatie)
 TABLE_NAME_CASE = upper

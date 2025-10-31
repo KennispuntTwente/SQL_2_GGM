@@ -64,3 +64,4 @@ Relevante instellingen in `[settings]`:
 - `SRC_TABLES`: kommagescheiden lijst van tabellen om te dumpen.
 - `SRC_CHUNK_SIZE`: aantal rijen per chunk tijdens dump/streaming.
 - `CLEANUP_PARQUET_FILES`: of parquet-bestanden (en manifest) na upload verwijderd moeten worden (default: `True`).
+- `ROW_LIMIT` (optioneel): beperkt het aantal rijen per bron‑tabel voor snelle lokale ontwikkeling (0/leeg = geen limiet).

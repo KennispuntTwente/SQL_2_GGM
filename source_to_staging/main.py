@@ -296,6 +296,13 @@ tables_str = cast(
 )
 tables = [t.strip() for t in tables_str.split(",")]
 
+# Optional developer row limit: limit rows read per source table (0/blank disables)
+row_limit_cfg = get_config_value("ROW_LIMIT", section="settings", cfg_parser=cfg, default="")
+try:
+    row_limit = int(str(row_limit_cfg)) if str(row_limit_cfg).strip() != "" else None
+except Exception:
+    row_limit = None
+
 if transfer_mode == "SQLALCHEMY_DIRECT":
     # Direct SQLAlchemy-to-SQLAlchemy chunked copy
     direct_transfer(
@@ -324,6 +331,7 @@ if transfer_mode == "SQLALCHEMY_DIRECT":
         ),
         lowercase_columns=True,
         write_mode="replace",
+        row_limit=row_limit,
     )
 else:
     # Step 1/2: Dump tables from source to parquet files
@@ -345,6 +353,7 @@ else:
                 )
             )
         ),
+        row_limit=row_limit,
     )
 
     # Step 2/2: Upload parquet files into destination database

@@ -303,6 +303,7 @@ def direct_transfer(
     chunk_size: int = 100_000,
     lowercase_columns: bool = True,
     write_mode: str = "replace",  # replace | truncate | append
+    row_limit: int | None = None,
 ) -> None:
     """
     Copy listed tables from source to destination using SQLAlchemy only, in chunks.
@@ -362,8 +363,10 @@ def direct_transfer(
             else:  # append
                 dest_table.create(bind=dconn, checkfirst=True)
 
-        # Stream copy rows
+        # Stream copy rows (optionally limited for development)
         select_stmt = select(src_table)
+        if row_limit and row_limit > 0:
+            select_stmt = select_stmt.limit(row_limit)
         inserted_total = 0
         with source_engine.connect() as sconn:
             # Enable streaming results to avoid reading entire result set into memory

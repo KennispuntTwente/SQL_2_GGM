@@ -40,6 +40,11 @@ bepaalde queries te draaien.
 
 Prioriteit: INI > ENV > defaults, net als in `source_to_staging`.
 
+### Sneller ontwikkelen met een rij‑limiet
+
+Voor lokale ontwikkeling kun je een subset van de data verwerken door in `[settings]` `ROW_LIMIT` te zetten.
+Dit limiet wordt toegepast op elke mapping (`SELECT … LIMIT n` of equivalent per dialect). Laat leeg of zet `0` om te uitschakelen.
+
 ## Optioneel: GGM‑tabellen aanmaken via SQL‑scripts
 
 Je kunt vóór het uitvoeren van de mappings de GGM‑doeltabellen aanmaken door een map met `.sql`‑bestanden uit te voeren (bijv. de bestanden in `ggm_selectie/`). Dit is handig voor een snelle start of lokale demo.

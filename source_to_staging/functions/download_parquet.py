@@ -20,6 +20,8 @@ def download_parquet(
     output_dir: str = "data",
     chunk_size: int = 100_000,
     schema: str | None = None,
+    *,
+    row_limit: int | None = None,
 ):
     """
     Dumps specified *tables* to Parquet files **without ever holding more than
@@ -75,6 +77,17 @@ def download_parquet(
         # ── ConnectorX path ───────────────────────────────────
         if is_uri:
             logger.info("📥 Dumping table via ConnectorX (arrow_stream): %s", qualified)
+            # Apply optional row limit by dialect when using URI
+            if row_limit and row_limit > 0:
+                scheme = uri.split("://", 1)[0].lower()
+                if scheme in ("postgres", "postgresql", "mysql", "sqlite", "redshift"):
+                    base_select = f"{base_select} LIMIT {row_limit}"
+                elif scheme in ("mssql", "sqlserver", "sql server"):
+                    base_select = f"SELECT TOP ({row_limit}) * FROM {qualified}"
+                elif scheme == "oracle":
+                    base_select = f"{base_select} FETCH FIRST {row_limit} ROWS ONLY"
+                else:
+                    logger.warning("Unknown URI scheme %r – skipping ROW_LIMIT for %s", scheme, qualified)
             # Stream arrow record batches directly from the source using ConnectorX
             reader_or_iter: Iterable
             reader_or_iter = cx.read_sql(
@@ -154,8 +167,21 @@ def download_parquet(
 
                 logger.info("   (total rows: %s)", f"{row_count:,}")
 
+                # Apply optional row limit based on SQLAlchemy engine dialect
+                limited_select = base_select
+                if row_limit and row_limit > 0:
+                    dname = engine.dialect.name.lower()
+                    if dname in ("postgresql", "mysql", "sqlite"):
+                        limited_select = f"{base_select} LIMIT {row_limit}"
+                    elif dname in ("mssql", "sql server"):
+                        limited_select = f"SELECT TOP ({row_limit}) * FROM {qualified}"
+                    elif dname == "oracle":
+                        limited_select = f"{base_select} FETCH FIRST {row_limit} ROWS ONLY"
+                    else:
+                        logger.warning("Unknown dialect %r – skipping ROW_LIMIT for %s", dname, qualified)
+
                 batches = pl.read_database(
-                    query=base_select,
+                    query=limited_select,
                     connection=conn,
                     iter_batches=True,
                     batch_size=chunk_size,
