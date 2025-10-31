@@ -13,18 +13,16 @@ concurrency:
 
 jobs:
   slow:
+    name: Slow tests - ${{ matrix.db }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        db: [postgres, mariadb, mysql, oracle, mssql]
 
     env:
       RUN_SLOW_TESTS: "1"
-      # Image list used in both pull/save steps
-      DB_IMAGES: >-
-        postgres:latest
-        mariadb:latest
-        mysql:8.0
-        gvenzl/oracle-free:latest-faststart
-        mcr.microsoft.com/mssql/server:2022-latest
 
     steps:
       - uses: actions/checkout@v5
@@ -49,17 +47,30 @@ jobs:
           docker --version
           docker info
 
-      # ---------- Docker images ----------
-      - name: Pre-pull DB images 
+      # ---------- Docker images (pre-pull only what's needed per DB) ----------
+      - name: Pre-pull DB image(s)
         run: |
           set -e
-          for img in $DB_IMAGES; do
+          case "${{ matrix.db }}" in
+            postgres)
+              IMAGES="postgres:latest gvenzl/oracle-free:latest-faststart mcr.microsoft.com/mssql/server:2022-latest" ;;
+            mssql)
+              IMAGES="mcr.microsoft.com/mssql/server:2022-latest gvenzl/oracle-free:latest-faststart" ;;
+            mysql)
+              IMAGES="mysql:8.0 gvenzl/oracle-free:latest-faststart" ;;
+            mariadb)
+              IMAGES="mariadb:latest gvenzl/oracle-free:latest-faststart" ;;
+            oracle)
+              IMAGES="gvenzl/oracle-free:latest-faststart" ;;
+          esac
+          for img in $IMAGES; do
             echo "Pulling $img"
             docker pull "$img"
           done
 
-      # ---------- APT cache for MS ODBC ----------
+      # ---------- APT cache for MS ODBC (needed for mssql and for postgres→mssql cross test) ----------
       - name: Configure APT to use a writeable cache
+        if: matrix.db == 'mssql' || matrix.db == 'postgres'
         run: |
           set -e
           CACHE_ROOT="${RUNNER_TEMP}/apt-cache"
@@ -70,6 +81,7 @@ jobs:
           } | sudo tee /etc/apt/apt.conf.d/99cache >/dev/null
 
       - name: Cache APT archives
+        if: matrix.db == 'mssql' || matrix.db == 'postgres'
         uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/apt-cache
@@ -77,7 +89,8 @@ jobs:
           restore-keys: |
             apt-${{ runner.os }}-
 
-      - name: Install MS ODBC Driver 18 for SQL Server (for MSSQL tests)
+      - name: Install MS ODBC Driver 18 for SQL Server
+        if: matrix.db == 'mssql' || matrix.db == 'postgres'
         run: |
           set -e
           UBUNTU_VERSION=$(lsb_release -rs)
@@ -86,7 +99,7 @@ jobs:
           sudo apt-get update
           sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18 unixodbc-dev
 
-      # ---------- Oracle Instant Client cache ----------
+      # ---------- Oracle Instant Client cache (needed in all jobs; tests transfer to/from Oracle under other DB markers) ----------
       - name: Restore Oracle Instant Client cache
         id: cache-oracle
         uses: actions/cache@v4
@@ -180,9 +193,29 @@ jobs:
             print("Failed to load:", e); sys.exit(1)
           PY
 
-      - name: Run slow tests (verbose, uncaptured)
+      # ---------- Run tests per-DB ----------
+      - name: Run marker-based slow tests for ${{ matrix.db }}
         run: >-
-          uv run --frozen -m pytest -m slow
+          uv run --frozen -m pytest
+          -m "slow and ${{ matrix.db }}"
           -vv -s -rA --durations=25 --maxfail=1
           -o log_cli=true -o log_cli_level=INFO
           tests/test_integration_*.py
+
+      - name: Run extra unmarked slow tests (postgres cross-tests)
+        if: matrix.db == 'postgres'
+        run: >-
+          uv run --frozen -m pytest
+          -vv -s -rA --durations=25 --maxfail=1
+          -o log_cli=true -o log_cli_level=INFO
+          tests/test_integration_direct_transfer.py::test_direct_transfer_postgres_to_mssql
+          tests/test_integration_staging_to_silver.py::test_staging_to_silver_postgres
+
+      - name: Run extra unmarked slow tests (mssql-specific)
+        if: matrix.db == 'mssql'
+        run: >-
+          uv run --frozen -m pytest
+          -vv -s -rA --durations=25 --maxfail=1
+          -o log_cli=true -o log_cli_level=INFO
+          tests/test_upload_parquet_mssql_datetime2.py::test_upload_parquet_mssql_uses_datetime2
+          tests/test_integration_staging_to_silver.py::test_staging_to_silver_mssql
