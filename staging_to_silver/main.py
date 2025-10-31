@@ -9,6 +9,10 @@ from utils.config.get_config_value import get_config_value
 
 from utils.database.create_sqlalchemy_engine import create_sqlalchemy_engine
 from utils.database.initialize_oracle_client import initialize_oracle_client
+from utils.database.execute_sql_folder import (
+    execute_sql_folder,
+    drop_schema_objects,
+)
 
 from staging_to_silver.functions.query_loader import load_queries
 from staging_to_silver.functions.guards import (
@@ -124,6 +128,71 @@ target_schema = cast(
         "TARGET_SCHEMA", section="settings", cfg_parser=cfg, default="silver"
     ),
 )
+
+# ─── Optional: pre-init silver schema via SQL scripts / cleanup ───────────────
+init_sql_folder = cast(
+    str,
+    get_config_value(
+        "INIT_SQL_FOLDER", section="settings", cfg_parser=cfg, default=""
+    ),
+)
+init_sql_suffix_filter = bool(
+    get_config_value(
+        "INIT_SQL_SUFFIX_FILTER",
+        section="settings",
+        cfg_parser=cfg,
+        default=True,
+    )
+)
+init_sql_schema = cast(
+    str,
+    get_config_value(
+        "INIT_SQL_SCHEMA",
+        section="settings",
+        cfg_parser=cfg,
+        default=(target_schema or ""),
+    ),
+)
+# Support new key DELETE_EXISTING_SCHEMA with a fallback to legacy DROP_EXISTING_GGM (deprecated)
+delete_existing = bool(
+    get_config_value(
+        "DELETE_EXISTING_SCHEMA",
+        section="settings",
+        cfg_parser=cfg,
+        default=False,
+    )
+)
+if not delete_existing:
+    legacy_drop = bool(
+        get_config_value(
+            "DROP_EXISTING_GGM",
+            section="settings",
+            cfg_parser=cfg,
+            default=False,
+        )
+    )
+    if legacy_drop:
+        logging.getLogger(__name__).warning(
+            "Config key DROP_EXISTING_GGM is deprecated; use DELETE_EXISTING_SCHEMA instead."
+        )
+        delete_existing = True
+
+if delete_existing and (target_schema or ""):  # avoid for SQLite/no schema
+    logging.getLogger(__name__).info(
+        "Dropping existing objects in schema %r before initialization", target_schema
+    )
+    drop_schema_objects(engine, target_schema or None)
+
+if init_sql_folder:
+    logging.getLogger(__name__).info(
+        "Executing SQL scripts from %s", init_sql_folder
+    )
+    execute_sql_folder(
+        engine,
+        init_sql_folder,
+        suffix_filter=init_sql_suffix_filter,
+        schema=(init_sql_schema or None),
+    )
 
 # ─── Read case-normalization settings ─────────────────────────────────────────
 table_name_case = get_config_value(

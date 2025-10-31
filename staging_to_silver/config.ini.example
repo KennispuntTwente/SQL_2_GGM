@@ -44,6 +44,14 @@ COLUMN_NAME_CASE =
 # QUERY_ALLOWLIST =
 # QUERY_DENYLIST =
 
+# (Optioneel) GGM-tabellen initieren via SQL-scripts
+# Voer *.sql uit de opgegeven map uit vóór de mappings. Standaard alleen bestanden met suffix _<dialect>.sql
+# Bijvoorbeeld: ggm_selectie/*_postgres.sql voor PostgreSQL, *_mssql.sql voor SQL Server
+# INIT_SQL_FOLDER = ggm_selectie
+# INIT_SQL_SUFFIX_FILTER = True
+# INIT_SQL_SCHEMA = silver
+# DELETE_EXISTING_SCHEMA = False
+
 [logging]
 # Globale logging-niveau; vanaf welk type message moet gelogd worden?
 # Kan zijn: DEBUG, INFO, WARNING, of ERROR
