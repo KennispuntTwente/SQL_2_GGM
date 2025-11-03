@@ -1,38 +1,61 @@
 from sqlalchemy import MetaData, select, and_, or_, func, cast, Date, literal
 
+
+def _local_date_amsterdam(col, engine):
+    """Cross-dialect conversion of a UTC timestamp to Europe/Amsterdam date.
+
+    - PostgreSQL: use timezone('Europe/Amsterdam', timezone('UTC', ts)) then cast Date
+    - MSSQL:       use ts AT TIME ZONE 'UTC' AT TIME ZONE 'W. Europe Standard Time' then cast Date
+    - Fallback:    just cast to Date (no tz conversion) to keep query buildable on other dialects
+    """
+    dialect = (engine.dialect.name or "").lower()
+    if dialect == "mssql":
+        # Windows timezone ID for Europe/Amsterdam in SQL Server
+        return cast(
+            col.op("AT TIME ZONE")("UTC").op("AT TIME ZONE")("W. Europe Standard Time"),
+            Date,
+        )
+    elif dialect.startswith("postgres"):
+        return cast(func.timezone("Europe/Amsterdam", func.timezone("UTC", col)), Date)
+    else:
+        # For SQLite or other engines used in shape tests, avoid dialect-specific functions
+        return cast(col, Date)
+
+
 def build_beschikte_voorziening(engine, source_schema=None):
     table_names = ["wvind_b", "szregel", "wvbesl", "wvdos", "abc_refcod"]
 
     metadata = MetaData()
     metadata.reflect(bind=engine, schema=source_schema, only=table_names)
 
-    fq_names = [f"{source_schema + '.' if source_schema else ''}{n}" for n in table_names]
-    wvind_b, szregel, wvbesl, wvdos, abc_refcod = (metadata.tables[name] for name in fq_names)
+    fq_names = [
+        f"{source_schema + '.' if source_schema else ''}{n}" for n in table_names
+    ]
+    wvind_b, szregel, wvbesl, wvdos, abc_refcod = (
+        metadata.tables[name] for name in fq_names
+    )
 
     return (
         select(
-            # Timestamp zonder timezone (aanname is UTC-timezone; TODO: check of dit klopt) -> 
+            # Timestamp zonder timezone (aanname is UTC-timezone; TODO: check of dit klopt) ->
             # UTC-timezone op zetten; dan omzetten naar Amsterdam-tijdzone ->
             # dan casten naar Date
-            cast(func.timezone('Europe/Amsterdam', func.timezone('UTC', wvind_b.c.dd_eind)),  Date).label('datumeinde'),
-            cast(func.timezone('Europe/Amsterdam', func.timezone('UTC', wvind_b.c.dd_begin)), Date).label('datumstart'),
-
+            _local_date_amsterdam(wvind_b.c.dd_eind, engine).label("datumeinde"),
+            _local_date_amsterdam(wvind_b.c.dd_begin, engine).label("datumstart"),
             # Alternatief:
             # cast(wvind_b.c.dd_eind.op("AT TIME ZONE")("UTC").op("AT TIME ZONE")("Europe/Amsterdam"), Date).label("datumeinde"),
             # cast(wvind_b.c.dd_begin.op("AT TIME ZONE")("UTC").op("AT TIME ZONE")("Europe/Amsterdam"), Date).label("datumstart"),
-
             # Of misschien:
             # cast(func.to_timestamp(wvind_b.c.dd_eind ).op("AT TIME ZONE")("Europe/Amsterdam"), Date).label("datumeinde"),
             # cast(func.to_timestamp(wvind_b.c.dd_begin).op("AT TIME ZONE")("Europe/Amsterdam"), Date).label("datumstart"),
-
             wvind_b.c.volume.label("omvang"),
             wvind_b.c.status_indicatie.label("status"),
-            func.concat(wvind_b.c.besluitnr, wvind_b.c.volgnr_ind).label("beschikte_voorziening_id"),
-
+            func.concat(wvind_b.c.besluitnr, wvind_b.c.volgnr_ind).label(
+                "beschikte_voorziening_id"
+            ),
             # 'redeneinde' lijkt date te zijn in target? (Is tekst in bron, wat logisch lijkt)
             # abc_refcod.c.omschrijving.label("redeneinde"),
             literal(None).label("redeneinde"),
-
             # Add missing columns as cast(null)
             literal(None).label("code"),
             literal(None).label("datumeindeoorspronkelijk"),
@@ -71,6 +94,7 @@ def build_beschikte_voorziening(engine, source_schema=None):
             ),
         )
     )
+
 
 # Map target table names to query builder functions
 __query_exports__ = {
