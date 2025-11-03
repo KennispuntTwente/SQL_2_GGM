@@ -21,7 +21,7 @@ Purpose: equip AI coding agents to be immediately productive in this repo by cap
   - `[settings]`: `TRANSFER_MODE=SQLALCHEMY_DIRECT|CONNECTORX_DUMP|SQLALCHEMY_DUMP`, `SRC_TABLES`, `SRC_CHUNK_SIZE`, `CLEANUP_PARQUET_FILES`, `ASK_PASSWORD_IN_CLI`.
   - Oracle: set `SRC_ORACLE_CLIENT_PATH` (source_to_staging) or `DST_ORACLE_CLIENT_PATH` (staging_to_silver) for thick‑mode (Instant Client). TNS alias supported via `SRC_ORACLE_TNS_ALIAS=True` / `DST_ORACLE_TNS_ALIAS=True`.
 - `staging_to_silver`: one INI with sections `[database-destination]`, `[settings]`, optional `[logging]` (see `staging_to_silver/config.ini.example`).
-  - `[settings]`: `SOURCE_SCHEMA` (default staging), `TARGET_SCHEMA` (default silver), `TABLE_NAME_CASE` (default upper), `COLUMN_NAME_CASE` (optional), `ASK_PASSWORD_IN_CLI`.
+  - `[settings]`: `SILVER_SCHEMA` (default silver), optional `SILVER_DB` (MSSQL cross‑database only), `TABLE_NAME_CASE` (default upper), `COLUMN_NAME_CASE` (optional), `ASK_PASSWORD_IN_CLI`.
 - Python: `pyproject.toml` targets Python ≥ 3.12.10; dependencies include SQLAlchemy 2.x, ConnectorX, polars/pyarrow, psycopg2, pyodbc, oracledb.
 
 ## Source → staging
