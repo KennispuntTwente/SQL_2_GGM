@@ -5,18 +5,24 @@ requires-python = ">= 3.12.10"
 dependencies = [
     "configparser>=7.2.0",
     "connectorx>=0.4.4",
-    "docker>=7.1.0",
     "python-dotenv>=1.0.1",
-    "mssql>=1.0.1",
     "oracledb>=3.2.0",
-    "pandas>=2.3.1",
     "polars>=1.31.0",
     "psycopg2>=2.9.10",
     "pyarrow>=21.0.0",
     "pymysql>=1.1.1",
     "pyodbc>=5.2.0",
     "pypiwin32>=223; sys_platform == 'win32'",
-    "pytest>=8.4.1",
     "sqlalchemy>=2.0.41",
-    "sqlparse>=0.5.3",
 ]
+
+[project.optional-dependencies]
+# Developer / CI extras
+dev = [
+    "pytest>=8.4.1",
+    "docker>=7.1.0",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
