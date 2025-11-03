@@ -267,6 +267,22 @@ if init_sql_folder:
         # Fallback to the main engine if creating a second engine fails
         engine_for_init = engine
 
+    # If explicitly requested, drop existing objects in the INIT target schema
+    # when initializing against a separate MSSQL SILVER_DB to avoid re-run DDL collisions.
+    if (
+        delete_existing
+        and init_sql_schema
+        and dialect_name == "mssql"
+        and silver_db
+        and silver_db.lower() != (database or "").lower()
+    ):
+        logging.getLogger(__name__).info(
+            "Dropping existing objects in schema %r on target DB %s before initialization",
+            init_sql_schema,
+            silver_db,
+        )
+        drop_schema_objects(engine_for_init, init_sql_schema)
+
     execute_sql_folder(
         engine_for_init,
         init_sql_folder,
