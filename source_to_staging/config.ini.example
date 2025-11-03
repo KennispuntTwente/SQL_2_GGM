@@ -58,6 +58,11 @@ TRANSFER_MODE = SQLALCHEMY_DIRECT
 # alleen interactief gerund kan worden
 ASK_PASSWORD_IN_CLI = False
 
+# (Optioneel) Ontwikkelinstelling om slechts een subset van de data op te halen.
+# Beperk het aantal rijen per tabel dat uit de brondatabase wordt gelezen (0 of leeg = geen limiet)
+# Voorbeeld: alleen eerste 1000 rijen kopiëren tijdens lokale ontwikkeling
+# ROW_LIMIT = 1000
+
 # (Optioneel) Direct transfer transient error retries (alleen SQLALCHEMY_DIRECT)
 # Aantal keer dat een batch-insert opnieuw geprobeerd wordt bij tijdelijke fouten
 # (deadlock, timeout, disconnect). Defaults: 3; 0 om retries uit te schakelen.
@@ -66,11 +71,6 @@ DIRECT_MAX_RETRIES = 3
 DIRECT_BACKOFF_BASE_SECONDS = 0.5
 # Max-backoff in seconden voor retries. Default: 8.0
 DIRECT_BACKOFF_MAX_SECONDS = 8.0
-
-# (Optioneel) Ontwikkelinstelling om slechts een subset van de data op te halen.
-# Beperk het aantal rijen per tabel dat uit de brondatabase wordt gelezen (0 of leeg = geen limiet)
-# Voorbeeld: alleen eerste 1000 rijen kopiëren tijdens lokale ontwikkeling
-# ROW_LIMIT = 1000
 
 # Of de gedownloadde parquet-files na het uploaden naar 'database-destination' moeten
 # worden verwijderd van de schijfruimte van de machine waar de Python-code draait
