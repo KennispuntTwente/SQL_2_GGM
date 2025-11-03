@@ -12,11 +12,14 @@ De SQL-queries zijn in feite de GGM-mappings, direct ook in de vorm van uitvoerb
 
 ## Configuratie
 
-`staging_to_silver` gebruikt één INI-bestand (`--config`) met secties `[database]`, `[settings]` en optioneel `[logging]`.
+
+`staging_to_silver` gebruikt één INI-bestand (`--config`) met secties `[database-destination]`, `[settings]` en optioneel `[logging]`.
 Een voorbeeld staat in `staging_to_silver/config.ini.example`.
 
-- `[database]` keys: `DRIVER`, `HOST`, `PORT`, `USER`, `PASSWORD`, `DB` (en optioneel `SCHEMA`) – deze corresponderen 1-op-1 met environment variabelen met dezelfde namen.
-- `[settings]` bevat o.a. `SOURCE_SCHEMA`, `TARGET_SCHEMA`, `ASK_PASSWORD_IN_CLI`, en optioneel `TABLE_NAME_CASE` en `COLUMN_NAME_CASE`.
+- `[database-destination]` keys: `DST_DRIVER`, `DST_HOST`, `DST_PORT`, `DST_USERNAME`, `DST_PASSWORD`, `DST_DB`, `DST_SCHEMA`.
+	- Opmerking: `DST_DB/DST_SCHEMA` bepalen de staging (brons) locatie
+	- Het silver (GGM) schema wordt NIET hier ingesteld; gebruik daarvoor `SILVER_DB` en/of `SILVER_SCHEMA` in `[settings]`.
+- `[settings]` bevat o.a. `SILVER_SCHEMA`, optioneel `SILVER_DB` (MSSQL), `ASK_PASSWORD_IN_CLI`, en optioneel `TABLE_NAME_CASE` en `COLUMN_NAME_CASE`.
 	- Dialect-filtering van queries: `QUERY_ALLOWLIST` en/of `QUERY_DENYLIST` (komma/; gescheiden lijst van doeltabellen) om enkel de gewenste mappings uit te voeren. Namen matchen case-insensitief na normalisatie.
 
 ### Oracle (optioneel thick‑mode)
@@ -30,6 +33,16 @@ Een voorbeeld staat in `staging_to_silver/config.ini.example`.
 - Write modes per doel‑tabel: `append` (standaard), `overwrite`, `truncate`, `upsert`.
 	- `upsert` is PostgreSQL‑only: op niet‑PostgreSQL backends geeft de pipeline een duidelijke foutmelding. Gebruik daar `append/overwrite/truncate`.
 	- Per‑tabel write modes staan in `staging_to_silver/main.py` (dict `write_modes`).
+
+#### Cross‑database (MSSQL)
+
+- Staging staat in `DST_DB.DST_SCHEMA`. Je kunt de doeldatabase specificeren via `SILVER_DB`. Dit resulteert in drie‑delige kwalificatie: `[DB].[SCHEMA].[TABLE]`.
+- Voor andere backends:
+	- PostgreSQL ondersteunt geen cross‑database queries/tabel‑referenties; `SILVER_DB` wordt genegeerd met een waarschuwing.
+	- MySQL/MariaDB zien “database” als “schema”; laat `SILVER_DB` leeg en gebruik `SILVER_SCHEMA` (of laat leeg) passend bij je setup.
+	- Oracle gebruikt gebruikers als schema; connect als de juiste gebruiker en laat `SILVER_DB` leeg.
+
+Destructieve init‑stap (`DELETE_EXISTING_SCHEMA`) wordt overgeslagen met een waarschuwing wanneer `SILVER_DB` verschilt van de verbonden database (`DST_DB`).
 
 ### Queries selecteren
 

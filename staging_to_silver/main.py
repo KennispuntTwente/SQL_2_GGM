@@ -15,6 +15,7 @@ from utils.database.execute_sql_folder import (
 )
 
 from staging_to_silver.functions.query_loader import load_queries
+from staging_to_silver.functions.schema_qualifier import qualify_schema
 from staging_to_silver.functions.guards import (
     should_defer_constraints,
     validate_upsert_supported,
@@ -115,26 +116,57 @@ engine = create_sqlalchemy_engine(
     ),
 )
 
+# Note: staging (source) location comes from [database-destination] → DST_DB/DST_SCHEMA.
+
 # ─── Read source/target schema from config ─────────────────────────────────────
-source_schema = cast(
+# Source (staging) lives in the connected destination DB unless overridden per‑backend.
+dst_schema = cast(
     str,
     get_config_value(
-        "SOURCE_SCHEMA", section="settings", cfg_parser=cfg, default="staging"
+        "DST_SCHEMA", section="database-destination", cfg_parser=cfg, default="staging"
     ),
 )
-target_schema = cast(
+source_schema = dst_schema
+source_db = database
+# New preferred keys for destination (silver) location
+silver_schema = cast(
     str,
-    get_config_value(
-        "TARGET_SCHEMA", section="settings", cfg_parser=cfg, default="silver"
-    ),
+    get_config_value("SILVER_SCHEMA", section="settings", cfg_parser=cfg, default=""),
 )
+if not silver_schema:
+    # Legacy fallback to TARGET_SCHEMA
+    silver_schema = cast(
+        str,
+        get_config_value(
+            "TARGET_SCHEMA", section="settings", cfg_parser=cfg, default="silver"
+        ),
+    )
+
+silver_db = cast(
+    str,
+    get_config_value("SILVER_DB", section="settings", cfg_parser=cfg, default=""),
+)
+
+# Compute dialect-specific schema qualifier used for SQLAlchemy Table reflection
+dialect_name = engine.dialect.name.lower()
+target_schema_for_sa = qualify_schema(
+    dialect_name, silver_db, silver_schema, default_schema="dbo"
+)
+source_schema_for_sa = qualify_schema(
+    dialect_name, source_db, source_schema, default_schema="dbo"
+)
+
+# Warnings for unsupported cross-DB config on non-MSSQL
+if silver_db and dialect_name != "mssql":
+    log.warning(
+        "SILVER_DB is set but backend %s does not support cross-database references; SILVER_DB will be ignored.",
+        dialect_name,
+    )
 
 # ─── Optional: pre-init silver schema via SQL scripts / cleanup ───────────────
 init_sql_folder = cast(
     str,
-    get_config_value(
-        "INIT_SQL_FOLDER", section="settings", cfg_parser=cfg, default=""
-    ),
+    get_config_value("INIT_SQL_FOLDER", section="settings", cfg_parser=cfg, default=""),
 )
 init_sql_suffix_filter = bool(
     get_config_value(
@@ -150,7 +182,7 @@ init_sql_schema = cast(
         "INIT_SQL_SCHEMA",
         section="settings",
         cfg_parser=cfg,
-        default=(target_schema or ""),
+        default=(silver_schema or ""),
     ),
 )
 # Support new key DELETE_EXISTING_SCHEMA with a fallback to legacy DROP_EXISTING_GGM (deprecated)
@@ -172,21 +204,31 @@ if not delete_existing:
         )
     )
     if legacy_drop:
-        logging.getLogger(__name__).warning(
-            "Config key DROP_EXISTING_GGM is deprecated; use DELETE_EXISTING_SCHEMA instead."
-        )
+        # Support legacy key silently
         delete_existing = True
 
-if delete_existing and (target_schema or ""):  # avoid for SQLite/no schema
-    logging.getLogger(__name__).info(
-        "Dropping existing objects in schema %r before initialization", target_schema
-    )
-    drop_schema_objects(engine, target_schema or None)
+if delete_existing and (silver_schema or ""):  # avoid for SQLite/no schema
+    # On cross-database targets (e.g., SQL Server SILVER_DB != DST_DB), we cannot safely drop
+    # objects in another database via this connection. Warn and skip the destructive step.
+    if (
+        silver_db
+        and (dialect_name == "mssql")
+        and (silver_db.lower() != (database or "").lower())
+    ):
+        logging.getLogger(__name__).warning(
+            "DELETE_EXISTING_SCHEMA is not supported when SILVER_DB (%s) != DST_DB (%s); skipping drop.",
+            silver_db,
+            database,
+        )
+    else:
+        logging.getLogger(__name__).info(
+            "Dropping existing objects in schema %r before initialization",
+            silver_schema,
+        )
+        drop_schema_objects(engine, silver_schema or None)
 
 if init_sql_folder:
-    logging.getLogger(__name__).info(
-        "Executing SQL scripts from %s", init_sql_folder
-    )
+    logging.getLogger(__name__).info("Executing SQL scripts from %s", init_sql_folder)
     execute_sql_folder(
         engine,
         init_sql_folder,
@@ -253,9 +295,13 @@ if skipped:
 queries = selected
 
 # Optional developer row limit: limit rows produced by each mapping (0/blank disables)
-row_limit_cfg = get_config_value("ROW_LIMIT", section="settings", cfg_parser=cfg, default="")
+row_limit_cfg = get_config_value(
+    "ROW_LIMIT", section="settings", cfg_parser=cfg, default=""
+)
 try:
-    dev_row_limit = int(str(row_limit_cfg)) if str(row_limit_cfg).strip() != "" else None
+    dev_row_limit = (
+        int(str(row_limit_cfg)) if str(row_limit_cfg).strip() != "" else None
+    )
 except Exception:
     dev_row_limit = None
 
@@ -270,7 +316,7 @@ with engine.begin() as conn:  # single, atomic transaction
 
     for name, query_fn in queries.items():
         # 1) build the SELECT statement that extracts from the source schema
-        select_stmt = query_fn(engine, source_schema=source_schema)
+        select_stmt = query_fn(engine, source_schema=source_schema_for_sa)
         if dev_row_limit and dev_row_limit > 0:
             try:
                 select_stmt = select_stmt.limit(dev_row_limit)
@@ -285,7 +331,7 @@ with engine.begin() as conn:  # single, atomic transaction
         dest_table = Table(
             name,
             metadata_dest,
-            schema=(target_schema or None),
+            schema=(target_schema_for_sa or None),
             autoload_with=engine,
             extend_existing=True,
         )
@@ -309,7 +355,10 @@ with engine.begin() as conn:  # single, atomic transaction
 
         # 3) determine how we load into the destination
         mode = write_modes_ci.get(name.lower(), "append").lower()
-        full_name = f"{target_schema}.{name}" if target_schema else name
+        if silver_db and dialect_name == "mssql":
+            full_name = f"{silver_db}.{silver_schema or 'dbo'}.{name}"
+        else:
+            full_name = f"{silver_schema}.{name}" if silver_schema else name
 
         # 4a) pre‑action for destructive modes
         if mode == "overwrite":

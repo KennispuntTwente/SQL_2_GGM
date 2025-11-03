@@ -1,5 +1,6 @@
 import os
 import sys
+from typing import cast
 from sqlalchemy import text
 
 from utils.config.cli_ini_config import load_single_ini_config
@@ -12,23 +13,63 @@ def main():
     # Load single config passed via command line
     args, cfg = load_single_ini_config()
 
-    # Build engine
+    # Build engine (align with production keys)
     engine = create_sqlalchemy_engine(
-        driver=get_config_value("DRIVER", section="database", cfg_parser=cfg),
-        username=get_config_value("USERNAME", section="database", cfg_parser=cfg),
-        password=get_config_value(
-            "PASSWORD", section="database", cfg_parser=cfg, print_value=False
+        driver=cast(
+            str,
+            get_config_value(
+                "DST_DRIVER", section="database-destination", cfg_parser=cfg
+            ),
         ),
-        host=get_config_value("HOST", section="database", cfg_parser=cfg),
-        port=int(get_config_value("PORT", section="database", cfg_parser=cfg)),
-        database=get_config_value("DB", section="database", cfg_parser=cfg),
+        username=cast(
+            str,
+            get_config_value(
+                "DST_USERNAME", section="database-destination", cfg_parser=cfg
+            ),
+        ),
+        password=cast(
+            str,
+            get_config_value(
+                "DST_PASSWORD",
+                section="database-destination",
+                cfg_parser=cfg,
+                print_value=False,
+            ),
+        ),
+        host=cast(
+            str,
+            get_config_value(
+                "DST_HOST", section="database-destination", cfg_parser=cfg
+            ),
+        ),
+        port=int(
+            cast(
+                str,
+                get_config_value(
+                    "DST_PORT", section="database-destination", cfg_parser=cfg
+                ),
+            )
+        ),
+        database=cast(
+            str,
+            get_config_value("DST_DB", section="database-destination", cfg_parser=cfg),
+        ),
     )
 
-    source_schema = get_config_value(
-        "SOURCE_SCHEMA", section="settings", cfg_parser=cfg, default="staging"
+    source_schema = cast(
+        str,
+        get_config_value(
+            "DST_SCHEMA",
+            section="database-destination",
+            cfg_parser=cfg,
+            default="staging",
+        ),
     )
-    target_schema = get_config_value(
-        "TARGET_SCHEMA", section="settings", cfg_parser=cfg, default="silver"
+    target_schema = cast(
+        str,
+        get_config_value(
+            "SILVER_SCHEMA", section="settings", cfg_parser=cfg, default="silver"
+        ),
     )
 
     # Ensure we can import the local smoke query module by adding this folder to sys.path
