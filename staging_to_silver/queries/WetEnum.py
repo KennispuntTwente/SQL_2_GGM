@@ -1,7 +1,7 @@
 from sqlalchemy import MetaData, select
 
 
-def build_szregel(engine, source_schema=None):
+def build_wet_enum(engine, source_schema=None):
     table_names = ["szregel"]
 
     metadata = MetaData()
@@ -19,5 +19,5 @@ def build_szregel(engine, source_schema=None):
 
 
 __query_exports__ = {
-    "SZREGEL": build_szregel,
+    "WET_ENUM": build_wet_enum,
 }
