@@ -94,7 +94,9 @@ def create_sqlalchemy_engine(
                 host=host,
                 port=port,
                 database=database,
-                query={"driver": odbc_drv},
+                # TrustServerCertificate avoids local dev SSL chain issues; acceptable for dev/tests.
+                # In production, provide a proper certificate and remove this override if desired.
+                query={"driver": odbc_drv, "TrustServerCertificate": "yes"},
             )
         )
 

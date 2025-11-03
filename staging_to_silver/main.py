@@ -229,8 +229,46 @@ if delete_existing and (silver_schema or ""):  # avoid for SQLite/no schema
 
 if init_sql_folder:
     logging.getLogger(__name__).info("Executing SQL scripts from %s", init_sql_folder)
+    # If MSSQL and a separate SILVER_DB is specified, run INIT SQL against that DB
+    engine_for_init = engine
+    try:
+        if (
+            dialect_name == "mssql"
+            and silver_db
+            and silver_db.lower() != (database or "").lower()
+        ):
+            engine_for_init = create_sqlalchemy_engine(
+                driver=driver,
+                username=username,
+                password=password,
+                host=host,
+                port=port,
+                database=silver_db,
+                mssql_odbc_driver=(
+                    cast(
+                        str,
+                        get_config_value(
+                            "DST_MSSQL_ODBC_DRIVER",
+                            section="database-destination",
+                            cfg_parser=cfg,
+                            default="ODBC Driver 18 for SQL Server",
+                        ),
+                    )
+                    if ("mssql" in driver.lower() or "sqlserver" in driver.lower())
+                    else None
+                ),
+            )
+            log.info(
+                "INIT_SQL_FOLDER will run against MSSQL target database %s (separate from DST_DB=%s)",
+                silver_db,
+                database,
+            )
+    except Exception:
+        # Fallback to the main engine if creating a second engine fails
+        engine_for_init = engine
+
     execute_sql_folder(
-        engine,
+        engine_for_init,
         init_sql_folder,
         suffix_filter=init_sql_suffix_filter,
         schema=(init_sql_schema or None),

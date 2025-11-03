@@ -219,3 +219,4 @@ jobs:
           -o log_cli=true -o log_cli_level=INFO
           tests/test_upload_parquet_mssql_datetime2.py::test_upload_parquet_mssql_uses_datetime2
           tests/test_integration_staging_to_silver.py::test_staging_to_silver_mssql
+          tests/test_staging_to_silver_mssql_crossdb.py::test_mssql_crossdb_init_and_load

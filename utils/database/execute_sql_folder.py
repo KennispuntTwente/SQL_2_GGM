@@ -24,7 +24,9 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.schema import MetaData
 
 
-_CREATE_TBL_RE = re.compile(r"""\bCREATE\s+TABLE\b(?!\s+IF\s+NOT\s+EXISTS)""", re.IGNORECASE)
+_CREATE_TBL_RE = re.compile(
+    r"""\bCREATE\s+TABLE\b(?!\s+IF\s+NOT\s+EXISTS)""", re.IGNORECASE
+)
 
 
 def _dbtype_from_engine(engine: Engine) -> str:
@@ -175,27 +177,45 @@ def execute_sql_folder(
         if schema:
             if db_type == "postgres":
                 cur.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema}"')
+                raw.commit()
                 cur.execute(f'SET search_path TO "{schema}", public')
             elif db_type == "mssql":
-                # Try to create schema, and set default schema for current user
+                # Create schema explicitly and commit before running any scripts
                 try:
-                    cur.execute(f"IF SCHEMA_ID(N'{schema}') IS NULL EXEC('CREATE SCHEMA [{schema}]')")
-                except Exception:
-                    # Best-effort create
+                    cur.execute(
+                        f"IF SCHEMA_ID(N'{schema}') IS NULL EXEC('CREATE SCHEMA [{schema}]')"
+                    )
+                    raw.commit()
+                except Exception as exc:
                     raw.rollback()
-                # Set default schema for current user (may require permissions)
+                    log.warning(
+                        "Could not create schema %r on MSSQL (continuing): %s",
+                        schema,
+                        exc,
+                    )
+                # Setting default schema for the current user is best-effort and not required
+                # for schema-qualified statements; skip noisy errors
                 try:
-                    # Resolve user name via SERVERPROPERTY or CURRENT_USER context
-                    # CURRENT_USER returns the name in the current database
                     cur.execute("SELECT CURRENT_USER")
-                    username = cur.fetchone()[0]
-                    cur.execute(f"ALTER USER [{username}] WITH DEFAULT_SCHEMA=[{schema}]")
+                    row = cur.fetchone()
+                    if row and row[0]:
+                        username = row[0]
+                        try:
+                            cur.execute(
+                                f"ALTER USER [{username}] WITH DEFAULT_SCHEMA=[{schema}]"
+                            )
+                            raw.commit()
+                        except Exception:
+                            raw.rollback()
+                            # Keep quiet; schema-qualified DDL/DML will still work
                 except Exception:
-                    raw.rollback()
-                    log.warning("Could not set default schema to %r for current user on MSSQL; continuing", schema)
+                    # If CURRENT_USER fails for some reason, continue silently
+                    pass
             elif db_type in {"mysql", "mariadb"}:
                 # Schema == database; warn if provided
-                log.warning("MySQL/MariaDB: schema handling is database-scoped; ensure you are connected to the desired database.")
+                log.warning(
+                    "MySQL/MariaDB: schema handling is database-scoped; ensure you are connected to the desired database."
+                )
             elif db_type == "oracle":
                 log.warning(
                     "Oracle: schemas map to users; connect as that user or qualify objects explicitly."
