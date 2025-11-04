@@ -34,8 +34,12 @@ def main():
         host=cast(
             str, get_config_value("SRC_HOST", section="database-source", cfg_parser=cfg)
         ),
-        port=int(
-            str(get_config_value("SRC_PORT", section="database-source", cfg_parser=cfg))
+        port=get_config_value(
+            "SRC_PORT",
+            section="database-source",
+            cfg_parser=cfg,
+            cast_type=int,
+            allow_none_if_cast_fails=True,
         ),
         database=cast(
             str, get_config_value("SRC_DB", section="database-source", cfg_parser=cfg)
@@ -71,12 +75,12 @@ def main():
                 "DST_HOST", section="database-destination", cfg_parser=cfg
             ),
         ),
-        port=int(
-            str(
-                get_config_value(
-                    "DST_PORT", section="database-destination", cfg_parser=cfg
-                )
-            )
+        port=get_config_value(
+            "DST_PORT",
+            section="database-destination",
+            cfg_parser=cfg,
+            cast_type=int,
+            allow_none_if_cast_fails=True,
         ),
         database=cast(
             str,

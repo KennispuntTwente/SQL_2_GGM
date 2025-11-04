@@ -28,22 +28,33 @@ def load_source_connection(cfg: Any, transfer_mode: str):
             section="database-source",
             cfg_parser=cfg,
             print_value=False,
-            ask_in_command_line=bool(
-                get_config_value(
-                    "ASK_PASSWORD_IN_CLI",
-                    section="settings",
-                    cfg_parser=cfg,
-                    default=False,
-                )
+            ask_in_command_line=get_config_value(
+                "ASK_PASSWORD_IN_CLI",
+                section="settings",
+                cfg_parser=cfg,
+                default=False,
+                cast_type=bool,
             ),
         ),
     )
-    src_host = cast(
-        Optional[str],
-        get_config_value("SRC_HOST", section="database-source", cfg_parser=cfg),
+
+    (
+        get_config_value(
+            "SRC_HOST",
+            section="database-source",
+            cfg_parser=cfg,
+            cast_type=str,
+            allow_none_if_cast_fails=True,
+        ),
     )
-    src_port = int(
-        str(get_config_value("SRC_PORT", section="database-source", cfg_parser=cfg))
+
+    # Allow SRC_PORT to be unset/empty (e.g., Oracle TNS alias scenarios)
+    src_port = get_config_value(
+        "SRC_PORT",
+        section="database-source",
+        cfg_parser=cfg,
+        cast_type=int,
+        allow_none_if_cast_fails=True,
     )
     src_db = cast(
         Optional[str],
@@ -73,13 +84,12 @@ def load_source_connection(cfg: Any, transfer_mode: str):
             host=cast(str, src_host),
             port=src_port,
             database=cast(str, src_db),
-            oracle_tns_alias=bool(
-                get_config_value(
-                    "SRC_ORACLE_TNS_ALIAS",
-                    section="database-source",
-                    cfg_parser=cfg,
-                    default=False,
-                )
+            oracle_tns_alias=get_config_value(
+                "SRC_ORACLE_TNS_ALIAS",
+                section="database-source",
+                cfg_parser=cfg,
+                default=False,
+                cast_type=bool,
             ),
             mssql_odbc_driver=(
                 cast(
@@ -104,13 +114,12 @@ def load_source_connection(cfg: Any, transfer_mode: str):
             host=src_host,
             port=src_port,
             database=src_db,
-            alias=bool(
-                get_config_value(
-                    "SRC_ORACLE_TNS_ALIAS",
-                    section="database-source",
-                    cfg_parser=cfg,
-                    default=False,
-                )
+            alias=get_config_value(
+                "SRC_ORACLE_TNS_ALIAS",
+                section="database-source",
+                cfg_parser=cfg,
+                default=False,
+                cast_type=bool,
             ),
         )
 
@@ -139,13 +148,12 @@ def load_source_connection(cfg: Any, transfer_mode: str):
             host=cast(str, src_host),
             port=src_port,
             database=cast(str, src_db),
-            oracle_tns_alias=bool(
-                get_config_value(
-                    "SRC_ORACLE_TNS_ALIAS",
-                    section="database-source",
-                    cfg_parser=cfg,
-                    default=False,
-                )
+            oracle_tns_alias=get_config_value(
+                "SRC_ORACLE_TNS_ALIAS",
+                section="database-source",
+                cfg_parser=cfg,
+                default=False,
+                cast_type=bool,
             ),
             mssql_odbc_driver=(
                 cast(
@@ -201,13 +209,12 @@ def load_destination_engine(cfg: Any):
                 section="database-destination",
                 cfg_parser=cfg,
                 print_value=False,
-                ask_in_command_line=bool(
-                    get_config_value(
-                        "ASK_PASSWORD_IN_CLI",
-                        section="settings",
-                        cfg_parser=cfg,
-                        default=False,
-                    )
+                ask_in_command_line=get_config_value(
+                    "ASK_PASSWORD_IN_CLI",
+                    section="settings",
+                    cfg_parser=cfg,
+                    default=False,
+                    cast_type=bool,
                 ),
             ),
         ),
@@ -217,24 +224,24 @@ def load_destination_engine(cfg: Any):
                 "DST_HOST", section="database-destination", cfg_parser=cfg
             ),
         ),
-        port=int(
-            str(
-                get_config_value(
-                    "DST_PORT", section="database-destination", cfg_parser=cfg
-                )
-            )
+        # Allow DST_PORT to be unset/empty (e.g., Oracle TNS alias scenarios)
+        port=get_config_value(
+            "DST_PORT",
+            section="database-destination",
+            cfg_parser=cfg,
+            cast_type=int,
+            allow_none_if_cast_fails=True,
         ),
         database=cast(
             str,
             get_config_value("DST_DB", section="database-destination", cfg_parser=cfg),
         ),
-        oracle_tns_alias=bool(
-            get_config_value(
-                "DST_ORACLE_TNS_ALIAS",
-                section="database-destination",
-                cfg_parser=cfg,
-                default=False,
-            )
+        oracle_tns_alias=get_config_value(
+            "DST_ORACLE_TNS_ALIAS",
+            section="database-destination",
+            cfg_parser=cfg,
+            default=False,
+            cast_type=bool,
         ),
         mssql_odbc_driver=(
             cast(

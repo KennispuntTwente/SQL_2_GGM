@@ -60,13 +60,13 @@ tables_str = cast(
 tables = [t.strip() for t in tables_str.split(",")]
 
 # Optional developer row limit: limit rows read per source table (0/blank disables)
-row_limit_cfg = get_config_value(
-    "ROW_LIMIT", section="settings", cfg_parser=cfg, default=""
+row_limit = get_config_value(
+    "ROW_LIMIT",
+    section="settings",
+    cfg_parser=cfg,
+    cast_type=int,
+    allow_none_if_cast_fails=True,
 )
-try:
-    row_limit = int(str(row_limit_cfg)) if str(row_limit_cfg).strip() != "" else None
-except Exception:
-    row_limit = None
 
 if transfer_mode == "SQLALCHEMY_DIRECT":
     # Direct SQLAlchemy-to-SQLAlchemy chunked copy
@@ -84,49 +84,37 @@ if transfer_mode == "SQLALCHEMY_DIRECT":
                 "DST_SCHEMA", section="database-destination", cfg_parser=cfg
             ),
         ),
-        chunk_size=int(
-            str(
-                get_config_value(
-                    "SRC_CHUNK_SIZE",
-                    section="settings",
-                    cfg_parser=cfg,
-                    default=100_000,
-                )
-            )
+        chunk_size=get_config_value(
+            "SRC_CHUNK_SIZE",
+            section="settings",
+            cfg_parser=cfg,
+            default=100_000,
+            cast_type=int,
         ),
         lowercase_columns=True,
         write_mode="replace",
         row_limit=row_limit,
         # Optional retry/backoff tuning for direct transfer inserts
-        max_retries=int(
-            str(
-                get_config_value(
-                    "DIRECT_MAX_RETRIES",
-                    section="settings",
-                    cfg_parser=cfg,
-                    default=3,
-                )
-            )
+        max_retries=get_config_value(
+            "DIRECT_MAX_RETRIES",
+            section="settings",
+            cfg_parser=cfg,
+            default=3,
+            cast_type=int,
         ),
-        backoff_base_seconds=float(
-            str(
-                get_config_value(
-                    "DIRECT_BACKOFF_BASE_SECONDS",
-                    section="settings",
-                    cfg_parser=cfg,
-                    default=0.5,
-                )
-            )
+        backoff_base_seconds=get_config_value(
+            "DIRECT_BACKOFF_BASE_SECONDS",
+            section="settings",
+            cfg_parser=cfg,
+            default=0.5,
+            cast_type=float,
         ),
-        backoff_max_seconds=float(
-            str(
-                get_config_value(
-                    "DIRECT_BACKOFF_MAX_SECONDS",
-                    section="settings",
-                    cfg_parser=cfg,
-                    default=8.0,
-                )
-            )
+        backoff_max_seconds=get_config_value(
+            "DIRECT_BACKOFF_MAX_SECONDS",
+            section="settings",
+            cfg_parser=cfg,
+            default=8.0,
+            cast_type=float,
         ),
     )
 else:
@@ -139,15 +127,12 @@ else:
         ),
         tables=tables,
         output_dir="data",
-        chunk_size=int(
-            str(
-                get_config_value(
-                    "SRC_CHUNK_SIZE",
-                    section="settings",
-                    cfg_parser=cfg,
-                    default=100_000,
-                )
-            )
+        chunk_size=get_config_value(
+            "SRC_CHUNK_SIZE",
+            section="settings",
+            cfg_parser=cfg,
+            default=100_000,
+            cast_type=int,
         ),
         row_limit=row_limit,
     )
@@ -159,13 +144,12 @@ else:
             "DST_SCHEMA", section="database-destination", cfg_parser=cfg
         ),
         input_dir="data",
-        cleanup=bool(
-            get_config_value(
-                "CLEANUP_PARQUET_FILES",
-                section="settings",
-                cfg_parser=cfg,
-                default=True,
-            )
+        cleanup=get_config_value(
+            "CLEANUP_PARQUET_FILES",
+            section="settings",
+            cfg_parser=cfg,
+            default=True,
+            cast_type=bool,
         ),
         manifest_path=manifest_path,
     )

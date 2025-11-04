@@ -86,31 +86,28 @@ init_sql_folder = cast(
     str,
     get_config_value("INIT_SQL_FOLDER", section="settings", cfg_parser=cfg, default=""),
 )
-init_sql_suffix_filter = bool(
-    get_config_value(
-        "INIT_SQL_SUFFIX_FILTER",
-        section="settings",
-        cfg_parser=cfg,
-        default=True,
-    )
+init_sql_suffix_filter = get_config_value(
+    "INIT_SQL_SUFFIX_FILTER",
+    section="settings",
+    cfg_parser=cfg,
+    default=True,
+    cast_type=bool,
 )
 # Support new key DELETE_EXISTING_SCHEMA with a fallback to legacy DROP_EXISTING_GGM (deprecated)
-delete_existing = bool(
-    get_config_value(
-        "DELETE_EXISTING_SCHEMA",
+delete_existing = get_config_value(
+    "DELETE_EXISTING_SCHEMA",
+    section="settings",
+    cfg_parser=cfg,
+    default=False,
+    cast_type=bool,
+)
+if not delete_existing:
+    legacy_drop = get_config_value(
+        "DROP_EXISTING_GGM",
         section="settings",
         cfg_parser=cfg,
         default=False,
-    )
-)
-if not delete_existing:
-    legacy_drop = bool(
-        get_config_value(
-            "DROP_EXISTING_GGM",
-            section="settings",
-            cfg_parser=cfg,
-            default=False,
-        )
+        cast_type=bool,
     )
     if legacy_drop:
         # Support legacy key silently
@@ -182,13 +179,12 @@ if init_sql_folder:
                     "DST_HOST", section="database-destination", cfg_parser=cfg
                 ),
             )
-            port = int(
-                cast(
-                    str,
-                    get_config_value(
-                        "DST_PORT", section="database-destination", cfg_parser=cfg
-                    ),
-                )
+            port = get_config_value(
+                "DST_PORT",
+                section="database-destination",
+                cfg_parser=cfg,
+                cast_type=int,
+                allow_none_if_cast_fails=True,
             )
             database = cast(
                 str,
@@ -329,15 +325,13 @@ if skipped:
 queries = selected
 
 # Optional developer row limit: limit rows produced by each mapping (0/blank disables)
-row_limit_cfg = get_config_value(
-    "ROW_LIMIT", section="settings", cfg_parser=cfg, default=""
+dev_row_limit = get_config_value(
+    "ROW_LIMIT",
+    section="settings",
+    cfg_parser=cfg,
+    cast_type=int,
+    allow_none_if_cast_fails=True,
 )
-try:
-    dev_row_limit = (
-        int(str(row_limit_cfg)) if str(row_limit_cfg).strip() != "" else None
-    )
-except Exception:
-    dev_row_limit = None
 
 # All work happens **on the SQL server** and **inside one transaction**
 # Executing everything on the SQL server, we avoid issues with data volumes & performance

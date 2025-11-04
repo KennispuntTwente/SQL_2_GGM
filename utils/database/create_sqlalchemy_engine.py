@@ -9,11 +9,11 @@ from utils.database.initialize_oracle_client import try_init_oracle_client
 
 def create_sqlalchemy_engine(
     driver: str,
-    username: str,
-    password: str,
-    host: str,
-    port: int,
-    database: str,
+    username: str | None,
+    password: str | None,
+    host: str | None,
+    port: int | None,
+    database: str | None,
     *,
     mssql_odbc_driver: str | None = None,
     oracle_tns_alias: bool | None = None,
@@ -47,6 +47,9 @@ def create_sqlalchemy_engine(
                 )
             )
         # Default: use service_name query parameter
+        query_params: dict[str, str] = {}
+        if database:
+            query_params["service_name"] = database
         return create_engine(
             URL.create(
                 drivername=driver,
@@ -54,7 +57,7 @@ def create_sqlalchemy_engine(
                 password=password,
                 host=host,
                 port=port,
-                query={"service_name": database},
+                query=query_params,
             )
         )
 
