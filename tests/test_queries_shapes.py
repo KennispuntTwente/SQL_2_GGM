@@ -30,10 +30,10 @@ def test_beschikking_shape(sqlite_engine):
     # Create only the table(s) needed for reflection
     _create_table(
         sqlite_engine,
-        "WVBESL",
+        "wvbesl",
         [
-            Column("BESLUITNR", String),
-            Column("CLIENTNR", String),
+            Column("besluitnr", String),
+            Column("clientnr", String),
         ],
     )
 
@@ -55,10 +55,10 @@ def test_beschikking_shape(sqlite_engine):
 def test_client_shape(sqlite_engine):
     _create_table(
         sqlite_engine,
-        "SZCLIENT",
+        "szclient",
         [
-            Column("CLIENTNR", String),
-            Column("IND_GEZAG", String),
+            Column("clientnr", String),
+            Column("ind_gezag", String),
         ],
     )
 
@@ -73,15 +73,15 @@ def test_client_shape(sqlite_engine):
 def test_medewerker_shape(sqlite_engine):
     _create_table(
         sqlite_engine,
-        "SZWERKER",
+        "szwerker",
         [
-            Column("KODE_WERKER", String),
-            Column("NAAM", String),
-            Column("KODE_INSTAN", String),
-            Column("E_MAIL", String),
-            Column("IND_GESLACHT", String),
-            Column("TOELICHTING", String),
-            Column("TELEFOON", String),
+            Column("kode_werker", String),
+            Column("naam", String),
+            Column("kode_instan", String),
+            Column("e_mail", String),
+            Column("ind_geslacht", String),
+            Column("toelichting", String),
+            Column("telefoon", String),
         ],
     )
 
