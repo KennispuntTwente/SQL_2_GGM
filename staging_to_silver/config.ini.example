@@ -17,7 +17,7 @@ DST_SCHEMA = staging
 # Zet hieronder het pad naar de Oracle Instant Client (bijv. "C:\\oracle\\instantclient_21_18").
 DST_ORACLE_CLIENT_PATH =
 # (Optioneel) Als je naar een OracleDB schrijft met een TNS‑alias, zet dit op True en geef de alias
-# op via 'DST_HOST' of 'DST_DB'.
+# op via 'DST_HOST' (of 'DST_DB'). Let op, als je een TNS‑alias gebruikt, worden DST_HOST en DST_PORT genegeerd
 DST_ORACLE_TNS_ALIAS = False
 # Optioneel (alleen voor Microsoft SQL Server via pyodbc): kies de ODBC-driver
 # Mogelijke waarden: "ODBC Driver 18 for SQL Server", "ODBC Driver 17 for SQL Server", "SQL Server"
@@ -39,17 +39,19 @@ ASK_PASSWORD_IN_CLI = False
 # Voorbeeld: alleen eerste 1000 rijen laden tijdens lokale ontwikkeling
 # ROW_LIMIT = 1000
 
-# Of de case van tabel- en kolomnamen moet worden genormaliseerd
-# Mogelijk: upper (capslock), lower (kleine letters), of laat leeg (geen normalisatie)
-TABLE_NAME_CASE = upper
-COLUMN_NAME_CASE =
-
-# Matching van staging (bron) tabel- en kolomnamen tijdens reflectie
+# Matching van staging ('brons') tabel- en kolomnamen tijdens reflectie
 # SOURCE_NAME_MATCHING: auto (case-insensitive, standaard) of strict (exacte namen vereisen)
 SOURCE_NAME_MATCHING = auto
 # (Optioneel) Voorkeurscase voor staging tabelnamen (helpt bij ambiguïteit): upper | lower
 # Laat leeg voor geen voorkeur
 SOURCE_TABLE_NAME_CASE =
+
+# Of de case van tabel- en kolomnamen moet worden genormaliseerd
+# Mogelijk: upper (capslock), lower (kleine letters), of laat leeg (geen normalisatie)
+# (Dit betreft de DOEL-tabellen van het GGM in 'silver'; we houden upper aan,
+# naar hoe de tabellen worden gemaakt in de GGM-DDL)
+TABLE_NAME_CASE = upper
+COLUMN_NAME_CASE =
 
 # (Optioneel) Alleen specifieke queries uitvoeren of bepaalde queries uitsluiten.
 # Lijsten zijn komma/semicolon/whitespace-gescheiden, matching is case-insensitief.
