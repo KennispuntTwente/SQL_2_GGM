@@ -37,17 +37,13 @@ def load_source_connection(cfg: Any, transfer_mode: str):
             ),
         ),
     )
-
-    (
-        get_config_value(
-            "SRC_HOST",
-            section="database-source",
-            cfg_parser=cfg,
-            cast_type=str,
-            allow_none_if_cast_fails=True,
-        ),
+    src_host = get_config_value(
+        "SRC_HOST",
+        section="database-source",
+        cfg_parser=cfg,
+        cast_type=str,
+        allow_none_if_cast_fails=True,
     )
-
     # Allow SRC_PORT to be unset/empty (e.g., Oracle TNS alias scenarios)
     src_port = get_config_value(
         "SRC_PORT",
