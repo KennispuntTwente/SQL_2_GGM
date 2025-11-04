@@ -176,15 +176,6 @@ init_sql_suffix_filter = bool(
         default=True,
     )
 )
-init_sql_schema = cast(
-    str,
-    get_config_value(
-        "INIT_SQL_SCHEMA",
-        section="settings",
-        cfg_parser=cfg,
-        default=(silver_schema or ""),
-    ),
-)
 # Support new key DELETE_EXISTING_SCHEMA with a fallback to legacy DROP_EXISTING_GGM (deprecated)
 delete_existing = bool(
     get_config_value(
@@ -271,23 +262,23 @@ if init_sql_folder:
     # when initializing against a separate MSSQL SILVER_DB to avoid re-run DDL collisions.
     if (
         delete_existing
-        and init_sql_schema
+        and silver_schema
         and dialect_name == "mssql"
         and silver_db
         and silver_db.lower() != (database or "").lower()
     ):
         logging.getLogger(__name__).info(
             "Dropping existing objects in schema %r on target DB %s before initialization",
-            init_sql_schema,
+            silver_schema,
             silver_db,
         )
-        drop_schema_objects(engine_for_init, init_sql_schema)
+        drop_schema_objects(engine_for_init, silver_schema)
 
     execute_sql_folder(
         engine_for_init,
         init_sql_folder,
         suffix_filter=init_sql_suffix_filter,
-        schema=(init_sql_schema or None),
+        schema=(silver_schema or None),
     )
 
 # ─── Read case-normalization settings ─────────────────────────────────────────
