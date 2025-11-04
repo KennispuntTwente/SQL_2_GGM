@@ -5,7 +5,7 @@ from sqlalchemy import text
 
 from utils.config.cli_ini_config import load_single_ini_config
 from utils.config.get_config_value import get_config_value
-from utils.database.create_sqlalchemy_engine import create_sqlalchemy_engine
+from staging_to_silver.functions.engine_loaders import load_destination_engine
 from staging_to_silver.functions.query_loader import load_queries
 
 
@@ -13,48 +13,8 @@ def main():
     # Load single config passed via command line
     args, cfg = load_single_ini_config()
 
-    # Build engine (align with production keys)
-    engine = create_sqlalchemy_engine(
-        driver=cast(
-            str,
-            get_config_value(
-                "DST_DRIVER", section="database-destination", cfg_parser=cfg
-            ),
-        ),
-        username=cast(
-            str,
-            get_config_value(
-                "DST_USERNAME", section="database-destination", cfg_parser=cfg
-            ),
-        ),
-        password=cast(
-            str,
-            get_config_value(
-                "DST_PASSWORD",
-                section="database-destination",
-                cfg_parser=cfg,
-                print_value=False,
-            ),
-        ),
-        host=cast(
-            str,
-            get_config_value(
-                "DST_HOST", section="database-destination", cfg_parser=cfg
-            ),
-        ),
-        port=int(
-            cast(
-                str,
-                get_config_value(
-                    "DST_PORT", section="database-destination", cfg_parser=cfg
-                ),
-            )
-        ),
-        database=cast(
-            str,
-            get_config_value("DST_DB", section="database-destination", cfg_parser=cfg),
-        ),
-    )
+    # Build engine via the same loader used in main.py
+    engine = load_destination_engine(cfg)
 
     source_schema = cast(
         str,

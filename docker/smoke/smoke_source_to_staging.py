@@ -4,7 +4,10 @@ from sqlalchemy import text
 # Use shared helpers directly to avoid side effects from importing main modules
 from utils.config.cli_ini_config import load_single_ini_config
 from utils.config.get_config_value import get_config_value
-from utils.database.create_sqlalchemy_engine import create_sqlalchemy_engine
+from source_to_staging.functions.engine_loaders import (
+    load_source_connection,
+    load_destination_engine,
+)
 from typing import cast
 
 
@@ -12,81 +15,22 @@ def main():
     # Load single INI passed via command line
     args, cfg = load_single_ini_config()
 
-    # Build source connection (SQLAlchemy engine)
-    source_connection = create_sqlalchemy_engine(
-        driver=cast(
-            str,
-            get_config_value("SRC_DRIVER", section="database-source", cfg_parser=cfg),
-        ),
-        username=cast(
-            str,
-            get_config_value("SRC_USERNAME", section="database-source", cfg_parser=cfg),
-        ),
-        password=cast(
-            str,
-            get_config_value(
-                "SRC_PASSWORD",
-                section="database-source",
-                cfg_parser=cfg,
-                print_value=False,
-            ),
-        ),
-        host=cast(
-            str, get_config_value("SRC_HOST", section="database-source", cfg_parser=cfg)
-        ),
-        port=get_config_value(
-            "SRC_PORT",
-            section="database-source",
+    # Determine transfer mode (default to SQLALCHEMY_DUMP for smoke)
+    transfer_mode = cast(
+        str,
+        get_config_value(
+            "TRANSFER_MODE",
+            section="settings",
             cfg_parser=cfg,
-            cast_type=int,
-            allow_none_if_cast_fails=True,
-        ),
-        database=cast(
-            str, get_config_value("SRC_DB", section="database-source", cfg_parser=cfg)
+            default="SQLALCHEMY_DUMP",
         ),
     )
 
+    # Build source connection using the loader from main.py
+    source_connection = load_source_connection(cfg, transfer_mode)
+
     # Build destination engine
-    dest_engine = create_sqlalchemy_engine(
-        driver=cast(
-            str,
-            get_config_value(
-                "DST_DRIVER", section="database-destination", cfg_parser=cfg
-            ),
-        ),
-        username=cast(
-            str,
-            get_config_value(
-                "DST_USERNAME", section="database-destination", cfg_parser=cfg
-            ),
-        ),
-        password=cast(
-            str,
-            get_config_value(
-                "DST_PASSWORD",
-                section="database-destination",
-                cfg_parser=cfg,
-                print_value=False,
-            ),
-        ),
-        host=cast(
-            str,
-            get_config_value(
-                "DST_HOST", section="database-destination", cfg_parser=cfg
-            ),
-        ),
-        port=get_config_value(
-            "DST_PORT",
-            section="database-destination",
-            cfg_parser=cfg,
-            cast_type=int,
-            allow_none_if_cast_fails=True,
-        ),
-        database=cast(
-            str,
-            get_config_value("DST_DB", section="database-destination", cfg_parser=cfg),
-        ),
-    )
+    dest_engine = load_destination_engine(cfg)
 
     # Read list of tables
     tables_str = cast(

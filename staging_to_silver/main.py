@@ -21,6 +21,9 @@ from utils.logging.setup_logging import setup_logging
 # ─── Load .env & .ini from command line ────────────────────────────────────────
 if os.path.exists("staging_to_silver/.env"):
     load_dotenv(dotenv_path="staging_to_silver/.env")
+    logging.getLogger(__name__).info(
+        "Loaded environment variables from staging_to_silver/.env"
+    )
 
 args, cfg = load_single_ini_config()
 

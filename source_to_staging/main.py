@@ -6,9 +6,6 @@ from dotenv import load_dotenv
 from utils.config.cli_ini_config import load_single_ini_config
 from utils.config.get_config_value import get_config_value
 
-from source_to_staging.functions.download_parquet import download_parquet
-from source_to_staging.functions.upload_parquet import upload_parquet
-from source_to_staging.functions.direct_transfer import direct_transfer
 from source_to_staging.functions.engine_loaders import (
     load_source_connection,
     load_destination_engine,
@@ -70,6 +67,8 @@ row_limit = get_config_value(
 
 if transfer_mode == "SQLALCHEMY_DIRECT":
     # Direct SQLAlchemy-to-SQLAlchemy chunked copy
+    from source_to_staging.functions.direct_transfer import direct_transfer
+
     direct_transfer(
         source_engine=source_connection,  # type: ignore[arg-type]
         dest_engine=dest_engine,
@@ -119,6 +118,8 @@ if transfer_mode == "SQLALCHEMY_DIRECT":
     )
 else:
     # Step 1/2: Dump tables from source to parquet files
+    from source_to_staging.functions.download_parquet import download_parquet
+
     manifest_path = download_parquet(
         source_connection,
         schema=cast(
@@ -138,6 +139,8 @@ else:
     )
 
     # Step 2/2: Upload parquet files into destination database
+    from source_to_staging.functions.upload_parquet import upload_parquet
+
     upload_parquet(
         dest_engine,
         schema=get_config_value(
