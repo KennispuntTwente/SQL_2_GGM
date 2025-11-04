@@ -7,20 +7,14 @@ from sqlalchemy import MetaData, Table, text
 from utils.config.cli_ini_config import load_single_ini_config
 from utils.config.get_config_value import get_config_value
 
-from utils.database.create_sqlalchemy_engine import create_sqlalchemy_engine
 from staging_to_silver.functions.engine_loaders import load_destination_engine
-from utils.database.execute_sql_folder import (
-    execute_sql_folder,
-    drop_schema_objects,
-)
+from staging_to_silver.functions.init_sql import run_init_sql
 
-from staging_to_silver.functions.query_loader import load_queries
+from staging_to_silver.functions.queries_setup import prepare_queries
 from staging_to_silver.functions.schema_qualifier import qualify_schema
 from staging_to_silver.functions.guards import (
     should_defer_constraints,
     validate_upsert_supported,
-    parse_name_list,
-    filter_queries,
 )
 from utils.logging.setup_logging import setup_logging
 
@@ -37,29 +31,28 @@ log = logging.getLogger("staging_to_silver")
 # ─── Build connection to database ──────────────────────────────────────────────
 engine = load_destination_engine(cfg)
 
-# Note: staging (source) location comes from [database-destination] → DST_DB/DST_SCHEMA.
+# Note: staging location comes from [database-destination] → DST_DB/DST_SCHEMA.
 
-# ─── Read source/target schema from config ─────────────────────────────────────
-# Source (staging) lives in the connected destination DB unless overridden per‑backend.
-database = cast(
+# ─── Read staging/target schema from config ────────────────────────────────────
+
+# Staging lives in the connected destination DB (unless overridden per‑backend)
+staging_database = cast(
     str, get_config_value("DST_DB", section="database-destination", cfg_parser=cfg)
 )
-dst_schema = cast(
+staging_schema = cast(
     str,
     get_config_value(
         "DST_SCHEMA", section="database-destination", cfg_parser=cfg, default="staging"
     ),
 )
-source_schema = dst_schema
-source_db = database
-# New preferred keys for destination (silver) location
+
+# Get target (silver) schema & database
 silver_schema = cast(
     str,
     get_config_value(
         "SILVER_SCHEMA", section="settings", cfg_parser=cfg, default="silver"
     ),
 )
-
 silver_db = cast(
     str,
     get_config_value("SILVER_DB", section="settings", cfg_parser=cfg, default=""),
@@ -67,11 +60,11 @@ silver_db = cast(
 
 # Compute dialect-specific schema qualifier used for SQLAlchemy Table reflection
 dialect_name = engine.dialect.name.lower()
-target_schema_for_sa = qualify_schema(
-    dialect_name, silver_db, silver_schema, default_schema="dbo"
+staging_schema_for_sa = qualify_schema(
+    dialect_name, staging_database, staging_schema, default_schema="dbo"
 )
-source_schema_for_sa = qualify_schema(
-    dialect_name, source_db, source_schema, default_schema="dbo"
+silver_schema_for_sa = qualify_schema(
+    dialect_name, silver_db, silver_schema, default_schema="dbo"
 )
 
 # Warnings for unsupported cross-DB config on non-MSSQL
@@ -82,197 +75,47 @@ if silver_db and dialect_name != "mssql":
     )
 
 # ─── Optional: pre-init silver schema via SQL scripts / cleanup ───────────────
-init_sql_folder = cast(
-    str,
-    get_config_value("INIT_SQL_FOLDER", section="settings", cfg_parser=cfg, default=""),
-)
-init_sql_suffix_filter = get_config_value(
-    "INIT_SQL_SUFFIX_FILTER",
-    section="settings",
-    cfg_parser=cfg,
-    default=True,
-    cast_type=bool,
-)
-# Support new key DELETE_EXISTING_SCHEMA with a fallback to legacy DROP_EXISTING_GGM (deprecated)
-delete_existing = get_config_value(
-    "DELETE_EXISTING_SCHEMA",
-    section="settings",
-    cfg_parser=cfg,
-    default=False,
-    cast_type=bool,
-)
-if not delete_existing:
-    legacy_drop = get_config_value(
-        "DROP_EXISTING_GGM",
-        section="settings",
-        cfg_parser=cfg,
-        default=False,
-        cast_type=bool,
-    )
-    if legacy_drop:
-        # Support legacy key silently
-        delete_existing = True
-
-if delete_existing and (silver_schema or ""):  # avoid for SQLite/no schema
-    # On cross-database targets (e.g., SQL Server SILVER_DB != DST_DB), we cannot safely drop
-    # objects in another database via this connection. Warn and skip the destructive step.
-    if (
-        silver_db
-        and (dialect_name == "mssql")
-        and (silver_db.lower() != (database or "").lower())
-    ):
-        logging.getLogger(__name__).warning(
-            "DELETE_EXISTING_SCHEMA is not supported when SILVER_DB (%s) != DST_DB (%s); skipping drop.",
-            silver_db,
-            database,
-        )
-    else:
-        logging.getLogger(__name__).info(
-            "Dropping existing objects in schema %r before initialization",
-            silver_schema,
-        )
-        drop_schema_objects(engine, silver_schema or None)
-
-if init_sql_folder:
-    logging.getLogger(__name__).info("Executing SQL scripts from %s", init_sql_folder)
-    # If MSSQL and a separate SILVER_DB is specified, run INIT SQL against that DB
-    engine_for_init = engine
-    try:
-        if (
-            dialect_name == "mssql"
-            and silver_db
-            and silver_db.lower() != (database or "").lower()
-        ):
-            # Re-read connection details for creating an engine targeting SILVER_DB
-            driver = cast(
-                str,
-                get_config_value(
-                    "DST_DRIVER", section="database-destination", cfg_parser=cfg
-                ),
-            )
-            username = cast(
-                str,
-                get_config_value(
-                    "DST_USERNAME", section="database-destination", cfg_parser=cfg
-                ),
-            )
-            password = cast(
-                str,
-                get_config_value(
-                    "DST_PASSWORD",
-                    section="database-destination",
-                    cfg_parser=cfg,
-                    print_value=False,
-                    ask_in_command_line=bool(
-                        get_config_value(
-                            "ASK_PASSWORD_IN_CLI",
-                            section="settings",
-                            cfg_parser=cfg,
-                            default=False,
-                        )
-                    ),
-                ),
-            )
-            host = cast(
-                str,
-                get_config_value(
-                    "DST_HOST", section="database-destination", cfg_parser=cfg
-                ),
-            )
-            port = get_config_value(
-                "DST_PORT",
-                section="database-destination",
-                cfg_parser=cfg,
-                cast_type=int,
-                allow_none_if_cast_fails=True,
-            )
-            database = cast(
-                str,
-                get_config_value(
-                    "DST_DB", section="database-destination", cfg_parser=cfg
-                ),
-            )
-
-            engine_for_init = create_sqlalchemy_engine(
-                driver=driver,
-                username=username,
-                password=password,
-                host=host,
-                port=port,
-                database=silver_db,
-                mssql_odbc_driver=(
-                    cast(
-                        str,
-                        get_config_value(
-                            "DST_MSSQL_ODBC_DRIVER",
-                            section="database-destination",
-                            cfg_parser=cfg,
-                            default="ODBC Driver 18 for SQL Server",
-                        ),
-                    )
-                    if ("mssql" in driver.lower() or "sqlserver" in driver.lower())
-                    else None
-                ),
-            )
-            log.info(
-                "INIT_SQL_FOLDER will run against MSSQL target database %s (separate from DST_DB=%s)",
-                silver_db,
-                database,
-            )
-    except Exception:
-        # Fallback to the main engine if creating a second engine fails
-        engine_for_init = engine
-
-    # If explicitly requested, drop existing objects in the INIT target schema
-    # when initializing against a separate MSSQL SILVER_DB to avoid re-run DDL collisions.
-    if (
-        delete_existing
-        and silver_schema
-        and dialect_name == "mssql"
-        and silver_db
-        and silver_db.lower() != (database or "").lower()
-    ):
-        logging.getLogger(__name__).info(
-            "Dropping existing objects in schema %r on target DB %s before initialization",
-            silver_schema,
-            silver_db,
-        )
-        drop_schema_objects(engine_for_init, silver_schema)
-
-    execute_sql_folder(
-        engine_for_init,
-        init_sql_folder,
-        suffix_filter=init_sql_suffix_filter,
-        schema=(silver_schema or None),
-    )
-
-# ─── Read case-normalization settings ─────────────────────────────────────────
-table_name_case = get_config_value(
-    "TABLE_NAME_CASE", section="settings", cfg_parser=cfg, default=None
-)
-column_name_case = get_config_value(
-    "COLUMN_NAME_CASE", section="settings", cfg_parser=cfg, default=None
+run_init_sql(
+    engine,
+    cfg,
+    dialect_name=dialect_name,
+    database=staging_database,
+    silver_db=silver_db,
+    silver_schema=silver_schema,
 )
 
-# ─── Source (staging) name matching behavior for reflection/column lookup ────
+# ─── Staging name matching behavior for reflection/column lookup ──────────────
 # Controls how staging table & column names are matched inside the query builders.
-# SOURCE_NAME_MATCHING: "auto" (default, case-insensitive) | "strict" (exact names only)
-source_name_matching = str(
+# STAGING_NAME_MATCHING: "auto" (default, case-insensitive) | "strict" (exact names only)
+staging_name_matching = str(
     get_config_value(
-        "SOURCE_NAME_MATCHING", section="settings", cfg_parser=cfg, default="auto"
+        "STAGING_NAME_MATCHING", section="settings", cfg_parser=cfg, default="auto"
     )
 ).strip()
-os.environ["SOURCE_NAME_MATCHING"] = source_name_matching
+os.environ["STAGING_NAME_MATCHING"] = staging_name_matching
 
-# SOURCE_TABLE_NAME_CASE: optional preference when matching source table names.
+# STAGING_TABLE_NAME_CASE: optional preference when matching staging table names.
 # Values: "upper" | "lower" | empty (no preference)
-source_table_name_case = str(
+staging_table_name_case = str(
     get_config_value(
-        "SOURCE_TABLE_NAME_CASE", section="settings", cfg_parser=cfg, default=""
+        "STAGING_TABLE_NAME_CASE", section="settings", cfg_parser=cfg, default=""
     )
 ).strip()
-if source_table_name_case:
-    os.environ["SOURCE_TABLE_NAME_CASE"] = source_table_name_case
+if staging_table_name_case:
+    os.environ["STAGING_TABLE_NAME_CASE"] = staging_table_name_case
+
+# SILVER_NAME_MATCHING: how to match destination (GGM) column names
+# Values: "auto" (default, case-insensitive) | "strict" (exact names only)
+silver_name_matching = (
+    str(
+        get_config_value(
+            "SILVER_NAME_MATCHING", section="settings", cfg_parser=cfg, default="auto"
+        )
+    )
+    .strip()
+    .lower()
+    or "auto"
+)
 
 # ─── Reflect destination metadata lazily ──────────────────────────────────────
 metadata_dest = MetaData()
@@ -291,38 +134,10 @@ write_modes_ci = {k.lower(): v for k, v in write_modes.items()}
 # Upsert means that existing rows are updated, and new rows are inserted
 # Truncate means that the table is emptied before loading new data, but does not fire triggers
 
-# ─── Execute queries to go from staging (dump) to silver (GGM) ─────────────────────
+## ─── Execute queries to go from staging (dump) to silver (GGM) ───────────────
 
-# Queries laden zoals gedefinieerd in staging_to_silver/queries/*.py
-queries = load_queries(
-    package="staging_to_silver.queries",
-    table_name_case=table_name_case or "upper",  # default historical behavior
-    column_name_case=column_name_case,
-)
-
-# Optional: filter queries by allow/deny list from configuration
-allow_cfg = cast(
-    str,
-    get_config_value("QUERY_ALLOWLIST", section="settings", cfg_parser=cfg, default=""),
-)
-deny_cfg = cast(
-    str,
-    get_config_value("QUERY_DENYLIST", section="settings", cfg_parser=cfg, default=""),
-)
-
-# Normalize allow/deny to the same case as the keys in `queries`
-allow = parse_name_list(allow_cfg)
-deny = parse_name_list(deny_cfg)
-if allow:
-    # If table_name_case coerces to UPPER by default, recommend users list UPPER too;
-    # we still match case-insensitively in filter_queries.
-    pass
-
-selected = filter_queries(queries, allowlist=allow or None, denylist=deny or None)
-skipped = set(queries.keys()) - set(selected.keys())
-if skipped:
-    log.info("Skipping queries (filtered): %s", ", ".join(sorted(skipped)))
-queries = selected
+# Load and filter queries based on configuration
+queries = prepare_queries(cfg)
 
 # Optional developer row limit: limit rows produced by each mapping (0/blank disables)
 dev_row_limit = get_config_value(
@@ -343,8 +158,8 @@ with engine.begin() as conn:  # single, atomic transaction
         conn.execute(text("SET CONSTRAINTS ALL DEFERRED"))
 
     for name, query_fn in queries.items():
-        # 1) build the SELECT statement that extracts from the source schema
-        select_stmt = query_fn(engine, source_schema=source_schema_for_sa)
+        # 1) build the SELECT statement that extracts from the staging schema
+        select_stmt = query_fn(engine, source_schema=staging_schema_for_sa)
         if dev_row_limit and dev_row_limit > 0:
             try:
                 select_stmt = select_stmt.limit(dev_row_limit)
@@ -359,26 +174,35 @@ with engine.begin() as conn:  # single, atomic transaction
         dest_table = Table(
             name,
             metadata_dest,
-            schema=(target_schema_for_sa or None),
+            schema=(silver_schema_for_sa or None),
             autoload_with=engine,
             extend_existing=True,
         )
 
         # Get the actual Column objects from the destination table
-        # Use case-insensitive matching to be resilient to different DB identifier casing
+        # Matching behavior is controlled by SILVER_NAME_MATCHING
         dest_cols_map_ci = {c.name.lower(): c for c in dest_table.columns}
         dest_cols = []
         for col_name in select_col_order:
+            # Try exact first
             try:
                 dest_cols.append(dest_table.columns[col_name])
+                continue
             except KeyError:
+                pass
+
+            # Fallback to case-insensitive only if auto-mode
+            if silver_name_matching != "strict":
                 ci = dest_cols_map_ci.get(col_name.lower())
-                if ci is None:
-                    raise KeyError(
-                        f"Destination column '{col_name}' not found in table {dest_table.fullname}. "
-                        f"Available: {[c.name for c in dest_table.columns]}"
-                    )
-                dest_cols.append(ci)
+                if ci is not None:
+                    dest_cols.append(ci)
+                    continue
+
+            # Not found under current policy
+            raise KeyError(
+                f"Destination column '{col_name}' not found in table {dest_table.fullname}. "
+                f"Available: {[c.name for c in dest_table.columns]}"
+            )
         log.debug("Reordered destination columns: %s", [col.name for col in dest_cols])
 
         # 3) determine how we load into the destination

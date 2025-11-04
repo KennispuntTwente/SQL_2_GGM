@@ -19,7 +19,7 @@ Een voorbeeld staat in `staging_to_silver/config.ini.example`.
 - `[database-destination]` keys: `DST_DRIVER`, `DST_HOST`, `DST_PORT`, `DST_USERNAME`, `DST_PASSWORD`, `DST_DB`, `DST_SCHEMA`.
 	- Opmerking: `DST_DB/DST_SCHEMA` bepalen de staging (brons) locatie
 	- Het silver (GGM) schema wordt NIET hier ingesteld; gebruik daarvoor `SILVER_DB` en/of `SILVER_SCHEMA` in `[settings]`.
-- `[settings]` bevat o.a. `SILVER_SCHEMA`, optioneel `SILVER_DB` (MSSQL), `ASK_PASSWORD_IN_CLI`, en optioneel `TABLE_NAME_CASE` en `COLUMN_NAME_CASE`.
+- `[settings]` bevat o.a. `SILVER_SCHEMA`, optioneel `SILVER_DB` (MSSQL), `ASK_PASSWORD_IN_CLI`, en optioneel `SILVER_TABLE_NAME_CASE`/`SILVER_COLUMN_NAME_CASE` en `STAGING_NAME_MATCHING`/`STAGING_TABLE_NAME_CASE`.
 	- Dialect-filtering van queries: `QUERY_ALLOWLIST` en/of `QUERY_DENYLIST` (komma/; gescheiden lijst van doeltabellen) om enkel de gewenste mappings uit te voeren. Namen matchen case-insensitief na normalisatie.
 
 ### Oracle (optioneel thick‑mode)
@@ -48,21 +48,25 @@ Destructieve init‑stap (`DELETE_EXISTING_SCHEMA`) wordt overgeslagen met een w
 
 Er zijn vier instellingen die met “case” of naam-matching te maken hebben. Ze hebben elk een eigen rol:
 
-- Doel (GGM) normalisatie tijdens laden:
-	- `TABLE_NAME_CASE` – normaliseert de sleutels van de geladen mappings (de namen van de GGM-doeltabellen) wanneer we de query-builders laden. Veelal `upper` zodat de mapping‑sleutels overeenkomen met de GGM‑DDL (BESCHIKKING, CLIENT, …).
-	- `COLUMN_NAME_CASE` – (optioneel) past de labels van de geselecteerde kolommen aan (upper/lower). Dit beïnvloedt alléén de aliasnamen in de SELECT‑projectie, niet de brontabelkolommen.
-
 - Bron (staging) matching tijdens reflectie:
-	- `SOURCE_NAME_MATCHING` – hoe we staging tabel‑/kolomnamen opzoeken:
+	- `STAGING_NAME_MATCHING` – hoe we staging tabel‑/kolomnamen opzoeken:
 		- `auto` (standaard): case‑insensitief zoeken met veilige fallbacks. Werkt robuust op Postgres/MSSQL waar casing kan verschillen (bijv. `wvbesl` en `WVBESL`).
-		- `strict`: vereist exacte namen; nuttig als je broncasing strak wil afdwingen of wanorde wil opsporen.
-	- `SOURCE_TABLE_NAME_CASE` – (optioneel) voorkeurscase bij het kiezen tussen meerdere kandidaten voor een brontabelnaam. Waarden: `upper` | `lower` | leeg (geen voorkeur). Dit is alléén een tiebreaker; in `auto` blijft matching case‑insensitief.
+		- `strict`: vereist exacte namen.
+	- `STAGING_TABLE_NAME_CASE` – (optioneel) voorkeurscase bij het kiezen tussen meerdere kandidaten voor een brontabelnaam. Waarden: `upper` | `lower` | leeg (geen voorkeur). Dit is alléén een tiebreaker; in `auto` blijft matching case‑insensitief.
+	- `STAGING_COLUMN_NAME_CASE` – (optioneel) voorkeurscase bij het opzoeken van bronkolommen. Waarden: `upper` | `lower` | leeg. In `auto` blijft matching case‑insensitief, maar exacte hits volgens de voorkeur krijgen voorrang.
+
+- Doel (GGM) normalisatie tijdens laden:
+	- `SILVER_TABLE_NAME_CASE` – normaliseert de sleutels van de geladen mappings (de namen van de GGM-doeltabellen) wanneer we de query-builders laden. Veelal `upper` zodat de mapping‑sleutels overeenkomen met de GGM‑DDL (BESCHIKKING, CLIENT, …).
+	- `SILVER_COLUMN_NAME_CASE` – (optioneel) past de labels van de geselecteerde kolommen aan (upper/lower). Dit beïnvloedt alléén de aliasnamen in de SELECT‑projectie, niet de brontabelkolommen.
+	- `SILVER_NAME_MATCHING` – bepaalt hoe kolommen van de doeltabel worden gematcht bij het bouwen van de INSERT ... SELECT:
+		- `auto` (standaard): case‑insensitief matchen van doeltabel‑kolomnamen.
+		- `strict`: vereis exacte namen.
 
 Samengevat:
-- `TABLE_NAME_CASE`/`COLUMN_NAME_CASE` beïnvloeden hoe wij de DOEL‑kant (GGM) aanspreken en presenteren.
-- `SOURCE_NAME_MATCHING`/`SOURCE_TABLE_NAME_CASE` bepalen hoe wij de BRON (staging) tabellen/kolommen terugvinden tijdens reflectie en joins.
+- `STAGING_NAME_MATCHING`/`STAGING_TABLE_NAME_CASE` en `STAGING_COLUMN_NAME_CASE` bepalen hoe wij de BRON (staging) tabellen/kolommen terugvinden tijdens reflectie en joins.
+- `SILVER_TABLE_NAME_CASE`/`SILVER_COLUMN_NAME_CASE` en `SILVER_NAME_MATCHING` beïnvloeden hoe wij de DOEL‑kant (GGM) aanspreken en presenteren.
 
-Alle vier staan onder `[settings]` in de `.ini` of `.env`. Prioriteit: INI > ENV > defaults.
+Alle vier staan onder `[settings]` in de `.ini` of in `.env`.
 
 ### Queries selecteren
 

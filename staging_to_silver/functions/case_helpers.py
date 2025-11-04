@@ -23,7 +23,7 @@ def _get_source_name_matching_mode() -> str:
     v = (
         str(
             get_config_value(
-                "SOURCE_NAME_MATCHING",
+                "STAGING_NAME_MATCHING",
                 section="settings",
                 cfg_parser=None,
                 default="auto",
@@ -41,7 +41,7 @@ def _get_source_table_name_case() -> str | None:
     v = (
         str(
             get_config_value(
-                "SOURCE_TABLE_NAME_CASE",
+                "STAGING_TABLE_NAME_CASE",
                 section="settings",
                 cfg_parser=None,
                 default="",
@@ -67,6 +67,30 @@ def _apply_case_preference(name: str) -> List[str]:
         ordered = [name, name.upper()]
     # de-dup while preserving order
     return _unique_preserve_order(ordered)
+
+
+def _get_source_column_name_case() -> str | None:
+    """
+    Optional preference for staging column name case when resolving columns.
+    Values: "upper" | "lower" | None (no preference)
+    """
+    v = (
+        str(
+            get_config_value(
+                "STAGING_COLUMN_NAME_CASE",
+                section="settings",
+                cfg_parser=None,
+                default="",
+                print_value=False,
+            )
+            or ""
+        )
+        .strip()
+        .lower()
+    )
+    if v in {"upper", "lower"}:
+        return v
+    return None
 
 
 def reflect_tables(engine, schema: str | None, base_names: Iterable[str]) -> MetaData:
@@ -113,7 +137,7 @@ def get_table(
     candidates: List[Table] = []
     mode = _get_source_name_matching_mode()
 
-    # Try preferred order decided by SOURCE_TABLE_NAME_CASE
+    # Try preferred order decided by STAGING_TABLE_NAME_CASE
     for name in _apply_case_preference(base_name):
         key = f"{schema + '.' if schema else ''}{name}"
         tbl = metadata.tables.get(key)
@@ -152,6 +176,23 @@ def col(table: Table, name: str):
     Prefers an exact case-insensitive match; falls back to dict-style access if present.
     """
     mode = _get_source_name_matching_mode()
+    col_case_pref = _get_source_column_name_case()
+
+    # Build an ordered list of candidate names to try
+    candidates: List[str] = [name]
+    if col_case_pref == "upper":
+        candidates.append(name.upper())
+    elif col_case_pref == "lower":
+        candidates.append(name.lower())
+
+    # Try direct lookups first (exact key matches) honoring preferences
+    for candidate in _unique_preserve_order(candidates):
+        try:
+            return table.c[candidate]
+        except Exception:
+            pass
+
+    # Fallback: case-insensitive scan unless in strict mode
     if mode != "strict":
         lname = name.lower()
         for c in table.c:
