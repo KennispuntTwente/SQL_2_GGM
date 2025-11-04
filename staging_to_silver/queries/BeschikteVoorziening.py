@@ -1,4 +1,5 @@
-from sqlalchemy import MetaData, select, and_, or_, func, cast, Date, literal
+from sqlalchemy import select, and_, or_, func, cast, Date, literal
+from staging_to_silver.functions.case_helpers import reflect_tables, get_table, col
 
 
 def _local_date_amsterdam(col, engine):
@@ -23,34 +24,31 @@ def _local_date_amsterdam(col, engine):
 
 
 def build_beschikte_voorziening(engine, source_schema=None):
-    table_names = ["wvind_b", "szregel", "wvbesl", "wvdos", "abc_refcod"]
+    base_tables = ["wvind_b", "szregel", "wvbesl", "wvdos", "abc_refcod"]
 
-    metadata = MetaData()
-    metadata.reflect(bind=engine, schema=source_schema, only=table_names)
-
-    fq_names = [
-        f"{source_schema + '.' if source_schema else ''}{n}" for n in table_names
-    ]
-    wvind_b, szregel, wvbesl, wvdos, abc_refcod = (
-        metadata.tables[name] for name in fq_names
-    )
+    metadata = reflect_tables(engine, source_schema, base_tables)
+    wvind_b = get_table(metadata, source_schema, "wvind_b")
+    szregel = get_table(metadata, source_schema, "szregel")
+    wvbesl = get_table(metadata, source_schema, "wvbesl")
+    wvdos = get_table(metadata, source_schema, "wvdos")
+    abc_refcod = get_table(metadata, source_schema, "abc_refcod")
 
     return (
         select(
             # Timestamp zonder timezone (aanname is UTC-timezone; TODO: check of dit klopt) ->
             # UTC-timezone op zetten; dan omzetten naar Amsterdam-tijdzone ->
             # dan casten naar Date
-            _local_date_amsterdam(wvind_b.c.dd_eind, engine).label("datumeinde"),
-            _local_date_amsterdam(wvind_b.c.dd_begin, engine).label("datumstart"),
+            _local_date_amsterdam(col(wvind_b, "dd_eind"), engine).label("datumeinde"),
+            _local_date_amsterdam(col(wvind_b, "dd_begin"), engine).label("datumstart"),
             # Alternatief:
             # cast(wvind_b.c.dd_eind.op("AT TIME ZONE")("UTC").op("AT TIME ZONE")("Europe/Amsterdam"), Date).label("datumeinde"),
             # cast(wvind_b.c.dd_begin.op("AT TIME ZONE")("UTC").op("AT TIME ZONE")("Europe/Amsterdam"), Date).label("datumstart"),
             # Of misschien:
             # cast(func.to_timestamp(wvind_b.c.dd_eind ).op("AT TIME ZONE")("Europe/Amsterdam"), Date).label("datumeinde"),
             # cast(func.to_timestamp(wvind_b.c.dd_begin).op("AT TIME ZONE")("Europe/Amsterdam"), Date).label("datumstart"),
-            wvind_b.c.volume.label("omvang"),
-            wvind_b.c.status_indicatie.label("status"),
-            func.concat(wvind_b.c.besluitnr, wvind_b.c.volgnr_ind).label(
+            col(wvind_b, "volume").label("omvang"),
+            col(wvind_b, "status_indicatie").label("status"),
+            func.concat(col(wvind_b, "besluitnr"), col(wvind_b, "volgnr_ind")).label(
                 "beschikte_voorziening_id"
             ),
             # 'redeneinde' lijkt date te zijn in target? (Is tekst in bron, wat logisch lijkt)
@@ -68,27 +66,29 @@ def build_beschikte_voorziening(engine, source_schema=None):
             literal(None).label("wet_enum_id"),
         )
         .select_from(wvind_b)
-        .outerjoin(szregel, wvind_b.c.kode_regeling == szregel.c.kode_regeling)
-        .outerjoin(wvbesl, wvind_b.c.besluitnr == wvbesl.c.besluitnr)
+        .outerjoin(
+            szregel, col(wvind_b, "kode_regeling") == col(szregel, "kode_regeling")
+        )
+        .outerjoin(wvbesl, col(wvind_b, "besluitnr") == col(wvbesl, "besluitnr"))
         .outerjoin(
             wvdos,
             and_(
-                wvind_b.c.besluitnr == wvdos.c.besluitnr,
-                wvind_b.c.volgnr_ind == wvdos.c.volgnr_ind,
+                col(wvind_b, "besluitnr") == col(wvdos, "besluitnr"),
+                col(wvind_b, "volgnr_ind") == col(wvdos, "volgnr_ind"),
             ),
         )
         .outerjoin(
             abc_refcod,
             and_(
-                wvdos.c.kode_reden_einde_voorz == abc_refcod.c.code,
+                col(wvdos, "kode_reden_einde_voorz") == col(abc_refcod, "code"),
                 or_(
                     and_(
-                        szregel.c.omschryving == "JEUGDWET",
-                        abc_refcod.c.domein == "JZG_REDEN_EINDE_PRODUCT",
+                        col(szregel, "omschryving") == "JEUGDWET",
+                        col(abc_refcod, "domein") == "JZG_REDEN_EINDE_PRODUCT",
                     ),
                     and_(
-                        szregel.c.omschryving != "JEUGDWET",
-                        abc_refcod.c.domein == "WVRTEIND",
+                        col(szregel, "omschryving") != "JEUGDWET",
+                        col(abc_refcod, "domein") == "WVRTEIND",
                     ),
                 ),
             ),

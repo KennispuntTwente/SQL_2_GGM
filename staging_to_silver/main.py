@@ -55,16 +55,10 @@ source_db = database
 # New preferred keys for destination (silver) location
 silver_schema = cast(
     str,
-    get_config_value("SILVER_SCHEMA", section="settings", cfg_parser=cfg, default=""),
+    get_config_value(
+        "SILVER_SCHEMA", section="settings", cfg_parser=cfg, default="silver"
+    ),
 )
-if not silver_schema:
-    # Legacy fallback to TARGET_SCHEMA
-    silver_schema = cast(
-        str,
-        get_config_value(
-            "TARGET_SCHEMA", section="settings", cfg_parser=cfg, default="silver"
-        ),
-    )
 
 silver_db = cast(
     str,
@@ -263,6 +257,26 @@ table_name_case = get_config_value(
 column_name_case = get_config_value(
     "COLUMN_NAME_CASE", section="settings", cfg_parser=cfg, default=None
 )
+
+# ─── Source (staging) name matching behavior for reflection/column lookup ────
+# Controls how staging table & column names are matched inside the query builders.
+# SOURCE_NAME_MATCHING: "auto" (default, case-insensitive) | "strict" (exact names only)
+source_name_matching = str(
+    get_config_value(
+        "SOURCE_NAME_MATCHING", section="settings", cfg_parser=cfg, default="auto"
+    )
+).strip()
+os.environ["SOURCE_NAME_MATCHING"] = source_name_matching
+
+# SOURCE_TABLE_NAME_CASE: optional preference when matching source table names.
+# Values: "upper" | "lower" | empty (no preference)
+source_table_name_case = str(
+    get_config_value(
+        "SOURCE_TABLE_NAME_CASE", section="settings", cfg_parser=cfg, default=""
+    )
+).strip()
+if source_table_name_case:
+    os.environ["SOURCE_TABLE_NAME_CASE"] = source_table_name_case
 
 # ─── Reflect destination metadata lazily ──────────────────────────────────────
 metadata_dest = MetaData()

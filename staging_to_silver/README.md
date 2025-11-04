@@ -44,6 +44,26 @@ Een voorbeeld staat in `staging_to_silver/config.ini.example`.
 
 Destructieve init‑stap (`DELETE_EXISTING_SCHEMA`) wordt overgeslagen met een waarschuwing wanneer `SILVER_DB` verschilt van de verbonden database (`DST_DB`).
 
+### Naam- en case-instellingen (bron vs. doel)
+
+Er zijn vier instellingen die met “case” of naam-matching te maken hebben. Ze hebben elk een eigen rol:
+
+- Doel (GGM) normalisatie tijdens laden:
+	- `TABLE_NAME_CASE` – normaliseert de sleutels van de geladen mappings (de namen van de GGM-doeltabellen) wanneer we de query-builders laden. Veelal `upper` zodat de mapping‑sleutels overeenkomen met de GGM‑DDL (BESCHIKKING, CLIENT, …).
+	- `COLUMN_NAME_CASE` – (optioneel) past de labels van de geselecteerde kolommen aan (upper/lower). Dit beïnvloedt alléén de aliasnamen in de SELECT‑projectie, niet de brontabelkolommen.
+
+- Bron (staging) matching tijdens reflectie:
+	- `SOURCE_NAME_MATCHING` – hoe we staging tabel‑/kolomnamen opzoeken:
+		- `auto` (standaard): case‑insensitief zoeken met veilige fallbacks. Werkt robuust op Postgres/MSSQL waar casing kan verschillen (bijv. `wvbesl` en `WVBESL`).
+		- `strict`: vereist exacte namen; nuttig als je broncasing strak wil afdwingen of wanorde wil opsporen.
+	- `SOURCE_TABLE_NAME_CASE` – (optioneel) voorkeurscase bij het kiezen tussen meerdere kandidaten voor een brontabelnaam. Waarden: `upper` | `lower` | leeg (geen voorkeur). Dit is alléén een tiebreaker; in `auto` blijft matching case‑insensitief.
+
+Samengevat:
+- `TABLE_NAME_CASE`/`COLUMN_NAME_CASE` beïnvloeden hoe wij de DOEL‑kant (GGM) aanspreken en presenteren.
+- `SOURCE_NAME_MATCHING`/`SOURCE_TABLE_NAME_CASE` bepalen hoe wij de BRON (staging) tabellen/kolommen terugvinden tijdens reflectie en joins.
+
+Alle vier staan onder `[settings]` in de `.ini` of `.env`. Prioriteit: INI > ENV > defaults.
+
 ### Queries selecteren
 
 Als je bepaalde queries wel/niet wil draaien, kan je gebruik maken van `QUERY_ALLOWLIST`/`QUERY_DENYLIST` om alleen

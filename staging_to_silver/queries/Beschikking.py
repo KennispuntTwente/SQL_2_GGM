@@ -1,25 +1,22 @@
-from sqlalchemy import MetaData, select, cast, literal, String, Date, Integer
+from sqlalchemy import select, cast, literal, String, Date, Integer
+from staging_to_silver.functions.case_helpers import reflect_tables, get_table, col
 
 
 def build_beschikking(engine, source_schema=None):
     """
     Returns a SELECT that matches the BESCHIKKING destination schema.
     """
-    table_names = ["wvbesl"]
+    base_tables = ["wvbesl"]
 
-    metadata = MetaData()
-    metadata.reflect(bind=engine, schema=source_schema, only=table_names)
-
-    fq_names = [
-        f"{source_schema + '.' if source_schema else ''}{n}" for n in table_names
-    ]
-    # Only one table expected, unpack it
-    (wvbesl,) = (metadata.tables[name] for name in fq_names)
+    metadata = reflect_tables(engine, source_schema, base_tables)
+    wvbesl = get_table(
+        metadata, source_schema, "wvbesl", required_cols=["besluitnr", "clientnr"]
+    )
 
     return select(
-        wvbesl.c.besluitnr.label("BESCHIKKING_ID"),
-        wvbesl.c.clientnr.label("CLIENT_ID"),
-        wvbesl.c.besluitnr.label("HEEFT_VOORZIENINGEN_BESCHIKTE_VOORZIENING_ID"),
+        col(wvbesl, "besluitnr").label("BESCHIKKING_ID"),
+        col(wvbesl, "clientnr").label("CLIENT_ID"),
+        col(wvbesl, "besluitnr").label("HEEFT_VOORZIENINGEN_BESCHIKTE_VOORZIENING_ID"),
         cast(literal(None), String(20)).label("CODE"),
         cast(literal(None), String(200)).label("COMMENTAAR"),
         cast(literal(None), Date).label("DATUMAFGIFTE"),

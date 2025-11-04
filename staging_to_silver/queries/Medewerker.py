@@ -1,25 +1,34 @@
-from sqlalchemy import MetaData, select, cast, literal, Date, String
+from sqlalchemy import select, cast, literal, Date, String
+from staging_to_silver.functions.case_helpers import reflect_tables, get_table, col
 
 
 def build_medewerker(engine, source_schema=None):
-    table_names = ["szwerker"]
+    base_tables = ["szwerker"]
 
-    metadata = MetaData()
-    metadata.reflect(bind=engine, schema=source_schema, only=table_names)
-
-    fq_names = [
-        f"{source_schema + '.' if source_schema else ''}{n}" for n in table_names
-    ]
-    (szwerker,) = (metadata.tables[name] for name in fq_names)
+    metadata = reflect_tables(engine, source_schema, base_tables)
+    szwerker = get_table(
+        metadata,
+        source_schema,
+        "szwerker",
+        required_cols=[
+            "kode_werker",
+            "naam",
+            "kode_instan",
+            "e_mail",
+            "ind_geslacht",
+            "toelichting",
+            "telefoon",
+        ],
+    )
 
     return select(
-        szwerker.c.kode_werker.label("MEDEWERKER_ID"),
-        szwerker.c.naam.label("ACHTERNAAM"),
-        szwerker.c.kode_instan.label("FUNCTIE"),
-        szwerker.c.e_mail.label("EMAILADRES"),
-        szwerker.c.ind_geslacht.label("GESLACHTSAANDUIDING"),
-        szwerker.c.toelichting.label("MEDEWERKERTOELICHTING"),
-        szwerker.c.telefoon.label("TELEFOONNUMMER"),
+        col(szwerker, "kode_werker").label("MEDEWERKER_ID"),
+        col(szwerker, "naam").label("ACHTERNAAM"),
+        col(szwerker, "kode_instan").label("FUNCTIE"),
+        col(szwerker, "e_mail").label("EMAILADRES"),
+        col(szwerker, "ind_geslacht").label("GESLACHTSAANDUIDING"),
+        col(szwerker, "toelichting").label("MEDEWERKERTOELICHTING"),
+        col(szwerker, "telefoon").label("TELEFOONNUMMER"),
         cast(literal(None), Date).label("DATUMINDIENST"),
         cast(literal(None), Date).label("DATUMUITDIENST"),
         cast(literal(None), String(80)).label("EXTERN"),

@@ -44,6 +44,13 @@ ASK_PASSWORD_IN_CLI = False
 TABLE_NAME_CASE = upper
 COLUMN_NAME_CASE =
 
+# Matching van staging (bron) tabel- en kolomnamen tijdens reflectie
+# SOURCE_NAME_MATCHING: auto (case-insensitive, standaard) of strict (exacte namen vereisen)
+SOURCE_NAME_MATCHING = auto
+# (Optioneel) Voorkeurscase voor staging tabelnamen (helpt bij ambiguïteit): upper | lower
+# Laat leeg voor geen voorkeur
+SOURCE_TABLE_NAME_CASE =
+
 # (Optioneel) Alleen specifieke queries uitvoeren of bepaalde queries uitsluiten.
 # Lijsten zijn komma/semicolon/whitespace-gescheiden, matching is case-insensitief.
 # Voorbeeld: QUERY_ALLOWLIST=BESCHIKKING, CLIENT
