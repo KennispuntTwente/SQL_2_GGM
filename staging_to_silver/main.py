@@ -8,7 +8,7 @@ from utils.config.cli_ini_config import load_single_ini_config
 from utils.config.get_config_value import get_config_value
 
 from utils.database.create_sqlalchemy_engine import create_sqlalchemy_engine
-from utils.database.initialize_oracle_client import initialize_oracle_client
+from staging_to_silver.functions.engine_loaders import load_destination_engine
 from utils.database.execute_sql_folder import (
     execute_sql_folder,
     drop_schema_objects,
@@ -35,91 +35,15 @@ setup_logging(app_name="staging_to_silver", cfg_parsers=[cfg])
 log = logging.getLogger("staging_to_silver")
 
 # ─── Build connection to database ──────────────────────────────────────────────
-# Initialize Oracle Instant Client if a destination path is configured in INI/ENV
-dst_oracle_client_path = get_config_value(
-    "DST_ORACLE_CLIENT_PATH",
-    section="database-destination",
-    cfg_parser=cfg,
-    default=None,
-)
-if dst_oracle_client_path:
-    try:
-        initialize_oracle_client("DST_ORACLE_CLIENT_PATH", cfg_parser=cfg)
-        logging.getLogger(__name__).info("Oracle client initialized (destination)")
-    except Exception as e:
-        logging.getLogger(__name__).warning(
-            "Oracle client init failed for destination: %s", e
-        )
-
-ask_password_in_cli = bool(
-    get_config_value(
-        "ASK_PASSWORD_IN_CLI", section="settings", cfg_parser=cfg, default=False
-    )
-)
-driver = cast(
-    str, get_config_value("DST_DRIVER", section="database-destination", cfg_parser=cfg)
-)
-username = cast(
-    str,
-    get_config_value("DST_USERNAME", section="database-destination", cfg_parser=cfg),
-)
-host = cast(
-    str, get_config_value("DST_HOST", section="database-destination", cfg_parser=cfg)
-)
-port = int(
-    cast(
-        str,
-        get_config_value("DST_PORT", section="database-destination", cfg_parser=cfg),
-    )
-)
-database = cast(
-    str, get_config_value("DST_DB", section="database-destination", cfg_parser=cfg)
-)
-password = cast(
-    str,
-    get_config_value(
-        "DST_PASSWORD",
-        section="database-destination",
-        cfg_parser=cfg,
-        print_value=False,
-        ask_in_command_line=ask_password_in_cli,
-    ),
-)
-
-engine = create_sqlalchemy_engine(
-    driver=driver,
-    username=username,
-    password=password,
-    host=host,
-    port=port,
-    database=database,
-    oracle_tns_alias=bool(
-        get_config_value(
-            "DST_ORACLE_TNS_ALIAS",
-            section="database-destination",
-            cfg_parser=cfg,
-            default=False,
-        )
-    ),
-    mssql_odbc_driver=(
-        cast(
-            str,
-            get_config_value(
-                "DST_MSSQL_ODBC_DRIVER",
-                section="database-destination",
-                cfg_parser=cfg,
-                default="ODBC Driver 18 for SQL Server",
-            ),
-        )
-        if ("mssql" in driver.lower() or "sqlserver" in driver.lower())
-        else None
-    ),
-)
+engine = load_destination_engine(cfg)
 
 # Note: staging (source) location comes from [database-destination] → DST_DB/DST_SCHEMA.
 
 # ─── Read source/target schema from config ─────────────────────────────────────
 # Source (staging) lives in the connected destination DB unless overridden per‑backend.
+database = cast(
+    str, get_config_value("DST_DB", section="database-destination", cfg_parser=cfg)
+)
 dst_schema = cast(
     str,
     get_config_value(
@@ -228,6 +152,57 @@ if init_sql_folder:
             and silver_db
             and silver_db.lower() != (database or "").lower()
         ):
+            # Re-read connection details for creating an engine targeting SILVER_DB
+            driver = cast(
+                str,
+                get_config_value(
+                    "DST_DRIVER", section="database-destination", cfg_parser=cfg
+                ),
+            )
+            username = cast(
+                str,
+                get_config_value(
+                    "DST_USERNAME", section="database-destination", cfg_parser=cfg
+                ),
+            )
+            password = cast(
+                str,
+                get_config_value(
+                    "DST_PASSWORD",
+                    section="database-destination",
+                    cfg_parser=cfg,
+                    print_value=False,
+                    ask_in_command_line=bool(
+                        get_config_value(
+                            "ASK_PASSWORD_IN_CLI",
+                            section="settings",
+                            cfg_parser=cfg,
+                            default=False,
+                        )
+                    ),
+                ),
+            )
+            host = cast(
+                str,
+                get_config_value(
+                    "DST_HOST", section="database-destination", cfg_parser=cfg
+                ),
+            )
+            port = int(
+                cast(
+                    str,
+                    get_config_value(
+                        "DST_PORT", section="database-destination", cfg_parser=cfg
+                    ),
+                )
+            )
+            database = cast(
+                str,
+                get_config_value(
+                    "DST_DB", section="database-destination", cfg_parser=cfg
+                ),
+            )
+
             engine_for_init = create_sqlalchemy_engine(
                 driver=driver,
                 username=username,
