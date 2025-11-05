@@ -12,6 +12,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy import types as satypes
 from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.schema import CreateSchema
+from utils.database.identifiers import quote_ident, mssql_bracket_escape
 
 logger = logging.getLogger("source_to_staging.upload_parquet")
 
@@ -202,15 +203,19 @@ def upload_parquet(
     if schema:
         with engine.begin() as conn:
             if dialect == "postgresql":
-                conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema}"))
+                qschema = quote_ident(engine, schema)
+                conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {qschema}"))
             elif dialect in ("mssql", "sql server"):
+                esc = mssql_bracket_escape(schema)
                 conn.execute(
-                    text(f"""
+                    text(
+                        f"""
                     IF SCHEMA_ID(N'{schema}') IS NULL
                     BEGIN
-                        EXEC(N'CREATE SCHEMA {schema}');
+                        EXEC(N'CREATE SCHEMA [{esc}]');
                     END
-                """)
+                """
+                    )
                 )
             elif dialect == "oracle":
                 pass

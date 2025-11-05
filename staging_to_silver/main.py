@@ -3,6 +3,7 @@ import logging
 from typing import cast
 from dotenv import load_dotenv
 from sqlalchemy import MetaData, Table, text
+from utils.database.identifiers import quote_truncate_target
 
 from utils.config.cli_ini_config import load_single_ini_config
 from utils.config.get_config_value import get_config_value
@@ -217,12 +218,20 @@ with engine.begin() as conn:  # single, atomic transaction
 
         # 4a) pre‑action for destructive modes
         if mode == "overwrite":
-            conn.execute(text(f"DELETE FROM {full_name}"))
+            # Prefer SQLAlchemy DELETE for safe identifier handling
+            conn.execute(dest_table.delete())
         elif mode == "truncate":
             if engine.dialect.name.lower() == "sqlite":
-                conn.execute(text(f"DELETE FROM {full_name}"))
+                conn.execute(dest_table.delete())
             else:
-                conn.execute(text(f"TRUNCATE TABLE {full_name}"))
+                # Build a safely quoted FQN for TRUNCATE (not provided by SA)
+                qname = quote_truncate_target(
+                    engine,
+                    db=(silver_db if dialect_name == "mssql" else None),
+                    schema=silver_schema,
+                    table=name,
+                )
+                conn.execute(text(f"TRUNCATE TABLE {qname}"))
 
         # 4b) build INSERT … from SELECT
         insert_from_select = dest_table.insert().from_select(dest_cols, select_stmt)

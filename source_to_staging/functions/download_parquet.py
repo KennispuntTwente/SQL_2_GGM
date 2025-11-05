@@ -10,6 +10,7 @@ import pyarrow as pa
 import connectorx as cx
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
+from utils.database.identifiers import quote_fqn
 
 logger = logging.getLogger("source_to_staging.download_parquet")
 
@@ -64,7 +65,10 @@ def download_parquet(
     # Helper: qualify table names by schema
     def qualify(tbl: str) -> str:
         if not schema:
+            # Without a schema, rely on the base identifier quoting only if/when needed
             return tbl
+        # We don't have an Engine for the URI path, but later we determine scheme
+        # and will rebuild the SELECT accordingly; here, just join parts plainly.
         return f"{schema}.{tbl}"
 
     # ──────────────────────────────────────────────────────────────────────
@@ -79,7 +83,9 @@ def download_parquet(
             logger.info("📥 Dumping table via ConnectorX (arrow_stream): %s", qualified)
             # Apply optional row limit by dialect when using URI
             if row_limit and row_limit > 0:
+                # Determine base scheme; handle driver suffix like postgresql+psycopg2
                 scheme = uri.split("://", 1)[0].lower()
+                scheme = scheme.split("+", 1)[0]
                 if scheme in ("postgres", "postgresql", "mysql", "sqlite", "redshift"):
                     base_select = f"{base_select} LIMIT {row_limit}"
                 elif scheme in ("mssql", "sqlserver", "sql server"):
@@ -88,6 +94,15 @@ def download_parquet(
                     base_select = f"{base_select} FETCH FIRST {row_limit} ROWS ONLY"
                 else:
                     logger.warning("Unknown URI scheme %r – skipping ROW_LIMIT for %s", scheme, qualified)
+            # Rebuild the FROM target using dialect-aware quoting for the scheme
+            scheme = uri.split("://", 1)[0].lower()
+            scheme = scheme.split("+", 1)[0]
+            try:
+                quoted_target = quote_fqn(scheme, [schema, table]) if schema else quote_fqn(scheme, [table])
+            except Exception:
+                # Fallback: leave unquoted
+                quoted_target = qualified
+            base_select = f"SELECT * FROM {quoted_target}" if base_select.startswith("SELECT * FROM ") else base_select.replace(qualified, quoted_target)
             # Stream arrow record batches directly from the source using ConnectorX
             reader_or_iter: Iterable
             reader_or_iter = cx.read_sql(
@@ -157,9 +172,8 @@ def download_parquet(
             logger.info("📥 Dumping table via SQLAlchemy: %s", qualified)
             with engine.connect() as conn:
                 try:
-                    row_count = conn.execute(
-                        text(f"SELECT COUNT(*) FROM {qualified}")
-                    ).scalar()
+                    qname = quote_fqn(engine, [schema, table]) if schema else quote_fqn(engine, [table])
+                    row_count = conn.execute(text(f"SELECT COUNT(*) FROM {qname}")).scalar()
                 except Exception as err:
                     raise RuntimeError(
                         f"Failed to count rows for {qualified}: {err}"
@@ -168,15 +182,17 @@ def download_parquet(
                 logger.info("   (total rows: %s)", f"{row_count:,}")
 
                 # Apply optional row limit based on SQLAlchemy engine dialect
-                limited_select = base_select
+                # Ensure base_select uses quoted target
+                q_target = quote_fqn(engine, [schema, table]) if schema else quote_fqn(engine, [table])
+                limited_select = f"SELECT * FROM {q_target}"
                 if row_limit and row_limit > 0:
                     dname = engine.dialect.name.lower()
                     if dname in ("postgresql", "mysql", "sqlite"):
-                        limited_select = f"{base_select} LIMIT {row_limit}"
+                        limited_select = f"{limited_select} LIMIT {row_limit}"
                     elif dname in ("mssql", "sql server"):
-                        limited_select = f"SELECT TOP ({row_limit}) * FROM {qualified}"
+                        limited_select = f"SELECT TOP ({row_limit}) * FROM {q_target}"
                     elif dname == "oracle":
-                        limited_select = f"{base_select} FETCH FIRST {row_limit} ROWS ONLY"
+                        limited_select = f"{limited_select} FETCH FIRST {row_limit} ROWS ONLY"
                     else:
                         logger.warning("Unknown dialect %r – skipping ROW_LIMIT for %s", dname, qualified)
 

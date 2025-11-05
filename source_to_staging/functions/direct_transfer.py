@@ -8,6 +8,11 @@ from sqlalchemy import types as satypes
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import ProgrammingError, DBAPIError
 from sqlalchemy.schema import CreateSchema
+from utils.database.identifiers import (
+    quote_ident,
+    quote_truncate_target,
+    mssql_bracket_escape,
+)
 
 logger = logging.getLogger("source_to_staging.direct_transfer")
 
@@ -62,14 +67,16 @@ def _ensure_database_and_schema(engine: Engine, schema: str | None) -> None:
     if schema:
         with engine.begin() as conn:
             if dialect == "postgresql":
-                conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema}"))
+                qschema = quote_ident(engine, schema)
+                conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {qschema}"))
             elif dialect in ("mssql", "sql server"):
+                esc = mssql_bracket_escape(schema)
                 conn.execute(
                     text(
                         f"""
                     IF SCHEMA_ID(N'{schema}') IS NULL
                     BEGIN
-                        EXEC(N'CREATE SCHEMA {schema}');
+                        EXEC(N'CREATE SCHEMA [{esc}]');
                     END
                     """
                     )
@@ -363,9 +370,17 @@ def direct_transfer(
                 dest_table.create(bind=dconn, checkfirst=True)
                 # SQLite does not support TRUNCATE; fall back to DELETE
                 if dest_engine.dialect.name.lower() == "sqlite":
-                    dconn.execute(text(f"DELETE FROM {qualified_dst}"))
+                    # Prefer SQLAlchemy DELETE for safe quoting
+                    dconn.execute(dest_table.delete())
                 else:
-                    dconn.execute(text(f"TRUNCATE TABLE {qualified_dst}"))
+                    # Use dialect-aware quoted identifier for TRUNCATE
+                    qname = quote_truncate_target(
+                        dest_engine,
+                        db=None,
+                        schema=dest_schema,
+                        table=table_name,
+                    )
+                    dconn.execute(text(f"TRUNCATE TABLE {qname}"))
             else:  # append
                 dest_table.create(bind=dconn, checkfirst=True)
 
