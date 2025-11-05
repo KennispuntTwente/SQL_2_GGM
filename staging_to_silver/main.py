@@ -246,8 +246,12 @@ with engine.begin() as conn:  # single, atomic transaction
             # a database-agnostic upsert or handle upserts differently.
             # On PostgreSQL – adjust index_elements to your PK/UK definition
             validate_upsert_supported(engine)
+            # Guard: upsert requires a primary key on the destination table
+            pk_cols = list(dest_table.primary_key.columns.keys())
+            if not pk_cols:
+                raise ValueError(f"Upsert requires a primary key on {full_name}")
             upsert_stmt = insert_from_select.on_conflict_do_update(  # type: ignore[attr-defined]
-                index_elements=list(dest_table.primary_key.columns.keys()),
+                index_elements=pk_cols,
                 set_={
                     c.name: insert_from_select.excluded[c.name]  # type: ignore[attr-defined]
                     for c in dest_table.columns

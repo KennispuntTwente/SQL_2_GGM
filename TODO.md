@@ -9,10 +9,5 @@ Remove unused deps or clearly justify them.
 Metadata gaps: description, readme, authors, license (although LICENSE.md exists), and classifiers.
 Fill metadata for better distribution/consumption.
 
-* Upsert mode guard on missing PK
-Where: main.py (upsert clause)
-Issue: Upsert mode derives index_elements from dest_table.primary_key.columns.keys(). If there’s no PK, this becomes an empty list and will error non-obviously.
-Recommendation: Detect and raise a concise error: “Upsert requires a primary key on {table}”.
-
 * Analyze current set of queries and based on that generate a synthetic dataset
 which can be used for development/testing purposes
