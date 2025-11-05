@@ -3,6 +3,7 @@ import logging
 from typing import cast
 from dotenv import load_dotenv
 from sqlalchemy import MetaData, Table, text
+from sqlalchemy.exc import NoSuchTableError
 from utils.database.identifiers import quote_truncate_target
 
 from utils.config.cli_ini_config import load_single_ini_config
@@ -160,7 +161,13 @@ with engine.begin() as conn:  # single, atomic transaction
 
     for name, query_fn in queries.items():
         # 1) build the SELECT statement that extracts from the staging schema
-        select_stmt = query_fn(engine, source_schema=staging_schema_for_sa)
+        try:
+            select_stmt = query_fn(engine, source_schema=staging_schema_for_sa)
+        except Exception as e:
+            # If a mapping cannot be constructed due to missing staging tables/columns,
+            # skip it and proceed with others. This enables partial loads in minimal setups.
+            log.warning("Skipping mapping %s: %s", name, e)
+            continue
         if dev_row_limit and dev_row_limit > 0:
             try:
                 select_stmt = select_stmt.limit(dev_row_limit)
@@ -172,13 +179,42 @@ with engine.begin() as conn:  # single, atomic transaction
         select_col_order = [col.name for col in select_stmt.selected_columns]
 
         # 2) reflect (or cache‑lookup) the destination table definition
-        dest_table = Table(
-            name,
-            metadata_dest,
-            schema=(silver_schema_for_sa or None),
-            autoload_with=engine,
-            extend_existing=True,
-        )
+        # Reflect destination table; be resilient to case differences across dialects
+        try:
+            dest_table = Table(
+                name,
+                metadata_dest,
+                schema=(silver_schema_for_sa or None),
+                autoload_with=engine,
+                extend_existing=True,
+            )
+        except NoSuchTableError:
+            # Fallbacks for case normalization (notably PostgreSQL lower-cases unquoted identifiers)
+            tried = {name}
+            candidates = []
+            if name.lower() not in tried:
+                candidates.append(name.lower())
+                tried.add(name.lower())
+            if name.upper() not in tried:
+                candidates.append(name.upper())
+                tried.add(name.upper())
+            last_exc: Exception | None = None
+            dest_table = None  # type: ignore[assignment]
+            for alt in candidates:
+                try:
+                    dest_table = Table(
+                        alt,
+                        metadata_dest,
+                        schema=(silver_schema_for_sa or None),
+                        autoload_with=engine,
+                        extend_existing=True,
+                    )
+                    log.debug("Reflected destination table using fallback name %s", alt)
+                    break
+                except NoSuchTableError as e:
+                    last_exc = e
+            if dest_table is None:
+                raise last_exc or NoSuchTableError(name)
 
         # Get the actual Column objects from the destination table
         # Matching behavior is controlled by SILVER_NAME_MATCHING
