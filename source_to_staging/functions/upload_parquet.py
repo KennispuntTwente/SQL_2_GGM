@@ -425,12 +425,14 @@ def upload_parquet(
                     else:
                         mode = "append"
 
+                    engine_options = {"dtype": dtype_map} if dtype_map else None
+
                     write_kwargs = dict(
                         table_name=table_name,
                         connection=engine,
                         if_table_exists=mode,
                         engine="sqlalchemy",
-                        dtype=dtype_map if dtype_map else None,
+                        engine_options=engine_options,
                     )
                     if schema is not None:
                         write_kwargs["schema"] = schema
