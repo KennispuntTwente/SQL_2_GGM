@@ -12,15 +12,12 @@ De SQL-queries zijn in feite de GGM-mappings, direct ook in de vorm van uitvoerb
 
 ## Configuratie
 
-
 `staging_to_silver` gebruikt één INI-bestand (`--config`) met secties `[database-destination]`, `[settings]` en optioneel `[logging]`.
 Een voorbeeld staat in `staging_to_silver/config.ini.example`.
+Je kan ook via environment-variables configureren; zie voorbeeld
+`staging_to_silver/.env.example`. 
 
-- `[database-destination]` keys: `DST_DRIVER`, `DST_HOST`, `DST_PORT`, `DST_USERNAME`, `DST_PASSWORD`, `DST_DB`, `DST_SCHEMA`.
-	- Opmerking: `DST_DB/DST_SCHEMA` bepalen de staging (brons) locatie
-	- Het silver (GGM) schema wordt NIET hier ingesteld; gebruik daarvoor `SILVER_DB` en/of `SILVER_SCHEMA` in `[settings]`.
-- `[settings]` bevat o.a. `SILVER_SCHEMA`, optioneel `SILVER_DB` (MSSQL), `ASK_PASSWORD_IN_CLI`, en optioneel `SILVER_TABLE_NAME_CASE`/`SILVER_COLUMN_NAME_CASE` en `STAGING_NAME_MATCHING`/`STAGING_TABLE_NAME_CASE`.
-	- Dialect-filtering van queries: `QUERY_ALLOWLIST` en/of `QUERY_DENYLIST` (komma/; gescheiden lijst van doeltabellen) om enkel de gewenste mappings uit te voeren. Namen matchen case-insensitief na normalisatie.
+Prioriteit bij configuratie is INI > ENV > defaults, net als in `source_to_staging`.
 
 ### Oracle (optioneel thick‑mode)
 
@@ -34,7 +31,7 @@ Een voorbeeld staat in `staging_to_silver/config.ini.example`.
 	- `upsert` is PostgreSQL‑only: op niet‑PostgreSQL backends geeft de pipeline een duidelijke foutmelding. Gebruik daar `append/overwrite/truncate`.
 	- Per‑tabel write modes staan in `staging_to_silver/main.py` (dict `write_modes`).
 
-#### Cross‑database (MSSQL)
+### Cross‑database (MSSQL)
 
 - Staging staat in `DST_DB.DST_SCHEMA`. Je kunt de doeldatabase specificeren via `SILVER_DB`. Dit resulteert in drie‑delige kwalificatie: `[DB].[SCHEMA].[TABLE]`.
 - Voor andere backends:
@@ -73,16 +70,12 @@ Alle vier staan onder `[settings]` in de `.ini` of in `.env`.
 Als je bepaalde queries wel/niet wil draaien, kan je gebruik maken van `QUERY_ALLOWLIST`/`QUERY_DENYLIST` om alleen
 bepaalde queries te draaien.
 
-### Configuratie-prioriteit
-
-Prioriteit: INI > ENV > defaults, net als in `source_to_staging`.
-
-### Sneller ontwikkelen met een rij‑limiet
+### Sneller testen/ontwikkelen met een rij‑limiet
 
 Voor lokale ontwikkeling kun je een subset van de data verwerken door in `[settings]` `ROW_LIMIT` te zetten.
 Dit limiet wordt toegepast op elke mapping (`SELECT … LIMIT n` of equivalent per dialect). Laat leeg of zet `0` om te uitschakelen.
 
-## Optioneel: GGM‑tabellen aanmaken via SQL‑scripts
+### Optioneel: GGM‑tabellen automatisch aanmaken
 
 Je kunt vóór het uitvoeren van de mappings de GGM‑doeltabellen aanmaken door een map met `.sql`‑bestanden uit te voeren (bijv. de bestanden in `ggm_selectie/`). Dit is handig voor een snelle start of lokale demo.
 
@@ -95,3 +88,104 @@ Instellingen (sectie `[settings]`):
 
 Opmerking:
 - Oracle: schema's komen overeen met gebruikers; connect daarom als de gewenste gebruiker, of kwalificeer objectnamen expliciet. Bij MySQL/MariaDB is "schema" gelijk aan de database; zorg dat je met de juiste database verbonden bent.
+
+## Queries schrijven (GGM-mappings)
+
+Dit is de minimale en robuuste manier om een mapping‑query te definiëren. Het doel is dat je query bestandloos, case‑bestendig en dialect‑neutraal blijft, terwijl de loader alles netjes naar de doeltabellen projecteert.
+
+### In het kort
+
+- Plaats je module in `staging_to_silver/queries/YourTable.py`.
+- Exporteer een dict `__query_exports__ = {"DEST_TABLE": builder}`.
+	- `DEST_TABLE` is de doeltabelnaam zoals in GGM. De loader normaliseert de sleutel met `SILVER_TABLE_NAME_CASE` (standaard `upper`).
+- `builder(engine, source_schema=None) -> sqlalchemy.sql.Select`
+	- Bouw een SQLAlchemy `select(...)` en label alle projecties met de doeltabel‑kolomnamen in de gewenste volgorde.
+	- De loader reflecteert de doeltabel en matcht kolommen case‑insensitief (tenzij `SILVER_NAME_MATCHING=strict`). De insert gebruikt de volgorde van jouw labels.
+	- Je mag een subset van kolommen laden (mits de rest defaults/nulls heeft); de kolomlijst aan de INSERT wordt exact afgeleid van de labels in jouw select.
+
+### Helpers bovenop SQLAlchemy
+
+Importeer de case‑bewuste helpers:
+
+- `reflect_tables(engine, source_schema, base_names)`
+	- Reflecteert de genoemde brontabellen naar een `MetaData`, met tolerantie voor case‑verschillen. Respecteert:
+		- `STAGING_NAME_MATCHING` = `auto` (case‑insensitief) | `strict` (exact).
+		- `STAGING_TABLE_NAME_CASE` als voorkeur bij meerdere varianten (`upper`/`lower`).
+- `get_table(metadata, source_schema, base_name, required_cols=[...])`
+	- Zoekt één `Table` met case‑insensitieve fallback en optionele voorkeur op kolom‑set (handig als er meerdere gelijkende tabellen bestaan). Respecteert dezelfde opties als hierboven en `STAGING_COLUMN_NAME_CASE` bij kolomresolutie.
+- `col(table, "kolomnaam")`
+	- Haalt een kolom op met case‑insensitieve matching en voorkeur (`STAGING_COLUMN_NAME_CASE=upper|lower`). In `strict` modus is een exacte hit vereist.
+
+Deze helpers zorgen ervoor dat je query’s op PostgreSQL, SQL Server, SQLite (voor shapetests) en andere backends blijven werken zonder te vechten met naamgeving/casing in de staging.
+
+### Voorbeeld: eenvoudige mapping
+
+```
+from sqlalchemy import select, cast, literal, String
+from staging_to_silver.functions.case_helpers import reflect_tables, get_table, col
+
+def build_client(engine, source_schema=None):
+		# 1) Reflecteer alleen wat je nodig hebt
+		metadata = reflect_tables(engine, source_schema, ["szclient"])
+		szclient = get_table(metadata, source_schema, "szclient", required_cols=["clientnr", "ind_gezag"]) 
+
+		# 2) Projecteer naar doelnamen; labels bepalen de insert‑kolommen en volgorde
+		return select(
+				col(szclient, "clientnr").label("RECHTSPERSOON_ID"),
+				col(szclient, "ind_gezag").label("GEZAGSDRAGERGEKEND_ENUM_ID"),
+				cast(literal(None), String(80)).label("CODE"),
+		).select_from(szclient)
+
+__query_exports__ = {"CLIENT": build_client}
+```
+
+### Voorbeeld: joins en dialect‑specifiek gedrag
+
+Gebruik waar nodig `engine.dialect.name` om kleine verschillen af te handelen en `Column.op("...")` voor vendor‑operators:
+
+```
+from sqlalchemy import select, and_, or_, func, cast, Date, literal
+from staging_to_silver.functions.case_helpers import reflect_tables, get_table, col
+
+def _local_date_amsterdam(ts_col, engine):
+		d = (engine.dialect.name or "").lower()
+		if d == "mssql":
+				return cast(ts_col.op("AT TIME ZONE")("UTC").op("AT TIME ZONE")("W. Europe Standard Time"), Date)
+		elif d.startswith("postgres"):
+				return cast(func.timezone("Europe/Amsterdam", func.timezone("UTC", ts_col)), Date)
+		else:
+				return cast(ts_col, Date)
+
+def build_beschikte_voorziening(engine, source_schema=None):
+		md = reflect_tables(engine, source_schema, ["wvind_b", "szregel"]) 
+		wvind_b = get_table(md, source_schema, "wvind_b")
+		szregel = get_table(md, source_schema, "szregel")
+
+		return (
+				select(
+						_local_date_amsterdam(col(wvind_b, "dd_begin"), engine).label("datumstart"),
+						col(wvind_b, "volume").label("omvang"),
+						func.concat(col(wvind_b, "besluitnr"), col(wvind_b, "volgnr_ind")).label("beschikte_voorziening_id"),
+						literal(None).label("code"),
+				)
+				.select_from(wvind_b)
+				.outerjoin(szregel, col(wvind_b, "kode_regeling") == col(szregel, "kode_regeling"))
+		)
+
+__query_exports__ = {"BESCHIKTE_VOORZIENING": build_beschikte_voorziening}
+```
+
+### Kolomnamen en case
+
+- Label je kolommen altijd met de doeltabel‑namen. De pipeline kan labels optioneel normaliseren via `SILVER_COLUMN_NAME_CASE` (`upper|lower`).
+- Het matchen naar de doeltabel gebeurt in `main.py`:
+	- De loader leest jouw labelvolgorde, zoekt de corresponderende doelkolommen (case‑insensitief tenzij `SILVER_NAME_MATCHING=strict`) en bouwt `INSERT ... SELECT`.
+	- Ontbreekt een kolom in de doeltabel, dan volgt een duidelijke foutmelding met de beschikbare kolommen.
+
+### Tips & valkuilen
+
+- Selecteer alleen de kolommen die je wilt laden; ontbrekende doorkolommen moeten op de doeltabel defaults of `NULL` toelaten.
+- Gebruik `cast(literal(None), Type).label("DOELKOL")` om verplichte doorkolommen tijdelijk te vullen wanneer bronwaarden ontbreken.
+- Houd joins klein en reflecteer alleen benodigde tabellen: `reflect_tables` accepteert een smalle lijst met basisnamen.
+- In `STAGING_NAME_MATCHING=strict` moeten tabel‑ en kolomnamen exact kloppen; handig om inconsistenties in staging te detecteren.
+- `upsert` als write‑mode is alleen voor PostgreSQL en vereist een primaire sleutel op de doeltabel.
