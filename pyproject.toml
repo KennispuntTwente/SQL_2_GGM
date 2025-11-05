@@ -7,7 +7,6 @@ dependencies = [
     "connectorx>=0.4.4",
     "docker>=7.1.0",
     "python-dotenv>=1.0.1",
-    "mssql>=1.0.1",
     "oracledb>=3.2.0",
     "pandas>=2.3.1",
     "polars>=1.31.0",

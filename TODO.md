@@ -1,6 +1,5 @@
 * Packages/dependencies
 Potentially unnecessary or suspect deps:
-mssql>=1.0.1 seems questionable (commonly pyodbc or pymssql are used; you already have pyodbc).
 pandas is declared but not used; consider removing to reduce image size and dependency footprint.
 Verify if sqlparse is used; remove if not needed.
 Add [build-system] (e.g., requires=["setuptools>=...","wheel"], build-backend="setuptools.build_meta").

@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = ">=3.12.10"
 
 [[package]]
@@ -171,7 +171,6 @@ dependencies = [
     { name = "configparser" },
     { name = "connectorx" },
     { name = "docker" },
-    { name = "mssql" },
     { name = "oracledb" },
     { name = "pandas" },
     { name = "polars" },
@@ -191,7 +190,6 @@ requires-dist = [
     { name = "configparser", specifier = ">=7.2.0" },
     { name = "connectorx", specifier = ">=0.4.4" },
     { name = "docker", specifier = ">=7.1.0" },
-    { name = "mssql", specifier = ">=1.0.1" },
     { name = "oracledb", specifier = ">=3.2.0" },
     { name = "pandas", specifier = ">=2.3.1" },
     { name = "polars", specifier = ">=1.31.0" },
@@ -255,18 +253,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f2/97/ebf4da567aa6827c909642694d71c9fcf53e5b504f2d96afea02718862f3/iniconfig-2.1.0.tar.gz", hash = "sha256:3abbd2e30b36733fee78f9c7f7308f2d0050e88f0087fd25c2645f63c773e1c7", size = 4793, upload-time = "2025-03-19T20:09:59.721Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2c/e1/e6716421ea10d38022b952c159d5161ca1193197fb744506875fbb87ea7b/iniconfig-2.1.0-py3-none-any.whl", hash = "sha256:9deba5723312380e77435581c6bf4935c94cbfab9b1ed33ef8d238ea168eb760", size = 6050, upload-time = "2025-03-19T20:10:01.071Z" },
-]
-
-[[package]]
-name = "mssql"
-version = "1.0.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pyodbc" },
-    { name = "sqlalchemy" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/2d/dd/9cf874fa8ea704614c1f7a583a3de02b4e43477652fa4ba1328f287b4cdc/mssql-1.0.1-py3-none-any.whl", hash = "sha256:bd9e42b63ef1582bd133825538529f31bfccb6b13e7874b222af92697c1adbde", size = 3703, upload-time = "2020-01-07T02:23:54.471Z" },
 ]
 
 [[package]]
