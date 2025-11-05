@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Iterable, List
 
-from sqlalchemy import MetaData
+from sqlalchemy import MetaData, inspect
 from sqlalchemy.sql.schema import Table
 from utils.config.get_config_value import get_config_value
 
@@ -110,8 +110,36 @@ def reflect_tables(engine, schema: str | None, base_names: Iterable[str]) -> Met
     only_list = _unique_preserve_order(candidates)
 
     if mode == "strict":
-        # Reflect only exact candidate names; if missing, SQLAlchemy will raise
-        metadata.reflect(bind=engine, schema=schema, only=only_list)
+        # In strict mode, reflect only the exact names that actually exist.
+        # This avoids errors when a preferred case-variant isn't present.
+        insp = inspect(engine)
+        try:
+            present = set(insp.get_table_names(schema=schema))
+        except Exception:
+            # Fallback: try without schema (some dialects treat default schema)
+            present = set(insp.get_table_names())
+
+        selected: List[str] = []
+        missing: List[str] = []
+        for base in base_names:
+            picked = None
+            for candidate in _apply_case_preference(base):
+                if candidate in present:
+                    picked = candidate
+                    break
+            if picked is not None:
+                selected.append(picked)
+            else:
+                missing.append(base)
+
+        if missing:
+            # Mirror SQLAlchemy's error style but clarify base names not found
+            raise KeyError(
+                f"Table not found for base name(s) {tuple(missing)} in schema '{schema}'"
+            )
+
+        if selected:
+            metadata.reflect(bind=engine, schema=schema, only=selected)
     else:
         targets = {n.lower() for n in only_list}
 
