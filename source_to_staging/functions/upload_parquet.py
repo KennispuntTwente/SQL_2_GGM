@@ -200,6 +200,9 @@ def upload_parquet(
             admin_eng = create_engine(admin_url)
             try:
                 with admin_eng.connect() as conn:
+                    # Ensure CREATE DATABASE runs outside an explicit transaction
+                    # to avoid pyodbc error: "CREATE DATABASE not allowed within a transaction".
+                    conn = conn.execution_options(isolation_level="AUTOCOMMIT")
                     # Parameterize DB_ID input and safely quote database identifier in CREATE DATABASE
                     qdb = quote_ident(engine, db_name)
                     conn.execute(

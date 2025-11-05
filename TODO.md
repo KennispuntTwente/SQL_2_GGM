@@ -11,14 +11,6 @@ Fill metadata for better distribution/consumption.
 * Analyze current set of queries and based on that generate a synthetic dataset
 which can be used for development/testing purposes
 
-* MSSQL CREATE DATABASE needs autocommit (will error inside a transaction)
-Both upload_parquet and direct_transfer try to create databases on PostgreSQL and MSSQL. Postgres block correctly uses AUTOCOMMIT; MSSQL block does not.
-Impact: Error “CREATE DATABASE not allowed within a transaction” with pyodbc.
-Evidence:
-source_to_staging/functions/upload_parquet.py: for MSSQL block, uses admin_eng.connect() then conn.execute(...) without isolation_level="AUTOCOMMIT".
-source_to_staging/functions/direct_transfer.py: in _ensure_database_and_schema for MSSQL, same pattern.
-Fix: For MSSQL admin connection, use with admin_eng.connect().execution_options(isolation_level="AUTOCOMMIT") as conn: before executing CREATE DATABASE.
-
 * Avoid heavy COUNT(*) before export unless desired
 download_parquet does COUNT(*) upfront for SQLAlchemy path purely for logging.
 Evidence: source_to_staging/functions/download_parquet.py tail block where COUNT(*) is issued, then iter_batches is used.
