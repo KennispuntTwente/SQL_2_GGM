@@ -366,14 +366,17 @@ def upload_parquet(
                                 # Best-effort mapping; fallback to default for problematic columns
                                 pass
 
-                    engine_options = {"dtype": dtype_map} if dtype_map else None
-
+                    # Write using bare table name and pass schema separately; avoid schema-qualified table_name,
+                    # which SQLAlchemy treats as a literal identifier. Also pass explicit dtype mapping via the
+                    # top-level dtype= parameter (not within engine_options) so Polars applies the intended
+                    # SQLAlchemy column types.
                     df.write_database(
-                        table_name=full_table,
+                        table_name=table_name,
                         connection=engine,
+                        schema=schema,
                         if_table_exists="replace" if idx == 0 else "append",
                         engine="sqlalchemy",
-                        engine_options=engine_options,
+                        dtype=dtype_map if dtype_map else None,
                     )
 
                 logger.info("✅ Loaded: %s", table_name)

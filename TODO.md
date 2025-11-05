@@ -13,10 +13,6 @@ Fill metadata for better distribution/consumption.
 Clarify dialect support per query module (or a matrix).
 Explain write_modes and how to configure/override them
 
-* High – source_to_staging/functions/upload_parquet.py (line 240) passes schema-qualified names (e.g. silver.table) into DataFrame.write_database as the table_name. SQLAlchemy treats that as a literal identifier ("silver.table") instead of splitting schema/table, so data lands in or creates an incorrectly quoted table. Please send the bare table name and rely on the schema/db_schema parameter instead.
-
-* High – source_to_staging/functions/upload_parquet.py (line 364) builds engine_options={"dtype": dtype_map}; Polars’ SQLAlchemy writer expects the mapping via the top-level dtype= argument. As written, the explicit column types are ignored, so decimals/booleans fall back to default inference (risking precision loss or wrong column affinity).
-
 * Configurability of write_mode for direct transfer
 Where: main.py
 Issue: write_mode is hardcoded to "replace" for direct transfer, which can surprise users or be destructive unintentionally.
