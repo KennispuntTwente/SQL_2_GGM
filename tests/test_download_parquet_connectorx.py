@@ -144,3 +144,50 @@ def test_download_parquet_connectorx_schema_qualification(tmp_path, monkeypatch)
     assert files == ["tbl_part0000.parquet"]
     df = pl.read_parquet(out_dir / files[0])
     assert df.height == 2 and set(df.columns) == {"id", "name"}
+
+
+@pytest.mark.cx_dump
+def test_download_parquet_connectorx_row_limit_with_driver_suffix_postgres(tmp_path, monkeypatch):
+    # Ensure URI with driver suffix (postgresql+psycopg2) applies LIMIT correctly
+    captured = {}
+
+    def fake_read_sql(conn, query, *, return_type, batch_size, **kwargs):
+        captured["query"] = query
+        # Return one small batch
+        return [_make_batch(1, 2)]
+
+    monkeypatch.setattr(
+        "source_to_staging.functions.download_parquet.cx.read_sql", fake_read_sql
+    )
+
+    uri = "postgresql+psycopg2://user:pass@host/db"
+    out_dir = tmp_path / "out"
+    download_parquet(uri, ["clients"], output_dir=str(out_dir), chunk_size=10, schema="myschema", row_limit=5)
+
+    q = captured["query"].strip().lower()
+    # Expect LIMIT clause and proper FROM target retained
+    assert q.endswith("limit 5")
+    assert "from" in q and "myschema" in q and "clients" in q
+
+
+@pytest.mark.cx_dump
+def test_download_parquet_connectorx_row_limit_with_driver_suffix_mssql(tmp_path, monkeypatch):
+    # Ensure URI with driver suffix (mssql+pyodbc) applies TOP correctly
+    captured = {}
+
+    def fake_read_sql(conn, query, *, return_type, batch_size, **kwargs):
+        captured["query"] = query
+        return [_make_batch(1, 1)]
+
+    monkeypatch.setattr(
+        "source_to_staging.functions.download_parquet.cx.read_sql", fake_read_sql
+    )
+
+    uri = "mssql+pyodbc://user:pass@host/db"
+    out_dir = tmp_path / "out"
+    download_parquet(uri, ["orders"], output_dir=str(out_dir), chunk_size=10, schema="dbo", row_limit=5)
+
+    q = captured["query"].strip().lower()
+    # Expect TOP syntax at the start and proper target
+    assert q.startswith("select top (5) * from")
+    assert "dbo" in q and "orders" in q

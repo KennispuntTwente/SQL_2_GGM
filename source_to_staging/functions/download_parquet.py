@@ -10,6 +10,7 @@ import pyarrow as pa
 import connectorx as cx
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
+from sqlalchemy.engine.url import make_url
 from utils.database.identifiers import quote_fqn
 
 logger = logging.getLogger("source_to_staging.download_parquet")
@@ -81,28 +82,35 @@ def download_parquet(
         # ── ConnectorX path ───────────────────────────────────
         if is_uri:
             logger.info("📥 Dumping table via ConnectorX (arrow_stream): %s", qualified)
-            # Apply optional row limit by dialect when using URI
-            if row_limit and row_limit > 0:
-                # Determine base scheme; handle driver suffix like postgresql+psycopg2
+            # Parse the URI robustly and normalize driver suffixes (e.g. postgresql+psycopg2 -> postgresql)
+            try:
+                parsed = make_url(uri)
+                scheme = (parsed.drivername or "").lower()
+            except Exception:
+                # Fallback to string parsing if URL parsing fails
                 scheme = uri.split("://", 1)[0].lower()
-                scheme = scheme.split("+", 1)[0]
-                if scheme in ("postgres", "postgresql", "mysql", "sqlite", "redshift"):
-                    base_select = f"{base_select} LIMIT {row_limit}"
-                elif scheme in ("mssql", "sqlserver", "sql server"):
-                    base_select = f"SELECT TOP ({row_limit}) * FROM {qualified}"
-                elif scheme == "oracle":
-                    base_select = f"{base_select} FETCH FIRST {row_limit} ROWS ONLY"
-                else:
-                    logger.warning("Unknown URI scheme %r – skipping ROW_LIMIT for %s", scheme, qualified)
-            # Rebuild the FROM target using dialect-aware quoting for the scheme
-            scheme = uri.split("://", 1)[0].lower()
             scheme = scheme.split("+", 1)[0]
+
+            # Build a quoted target and a dialect-correct SELECT, preserving any row limits
             try:
                 quoted_target = quote_fqn(scheme, [schema, table]) if schema else quote_fqn(scheme, [table])
             except Exception:
-                # Fallback: leave unquoted
+                # Fallback: leave unquoted if quoting fails
                 quoted_target = qualified
-            base_select = f"SELECT * FROM {quoted_target}" if base_select.startswith("SELECT * FROM ") else base_select.replace(qualified, quoted_target)
+
+            # Compose the SELECT with optional row limit per dialect
+            if row_limit and row_limit > 0:
+                if scheme in ("postgres", "postgresql", "mysql", "sqlite", "redshift"):
+                    base_select = f"SELECT * FROM {quoted_target} LIMIT {row_limit}"
+                elif scheme in ("mssql", "sqlserver", "sql server"):
+                    base_select = f"SELECT TOP ({row_limit}) * FROM {quoted_target}"
+                elif scheme == "oracle":
+                    base_select = f"SELECT * FROM {quoted_target} FETCH FIRST {row_limit} ROWS ONLY"
+                else:
+                    logger.warning("Unknown URI scheme %r – skipping ROW_LIMIT for %s", scheme, qualified)
+                    base_select = f"SELECT * FROM {quoted_target}"
+            else:
+                base_select = f"SELECT * FROM {quoted_target}"
             # Stream arrow record batches directly from the source using ConnectorX
             reader_or_iter: Iterable
             reader_or_iter = cx.read_sql(
