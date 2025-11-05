@@ -24,10 +24,3 @@ proper etc. with regards to table names & column names
 
 * Analyze current set of queries and based on that generate a synthetic dataset
 which can be used for development/testing purposes
-
-* Medium – staging_to_silver/functions/case_helpers.py (line 151) falls back to key.split(".", 1)[-1] when matching tables case-insensitively. For SQL Server cross-database schemas (db.schema.table), the fallback sees schema.table and never matches table, so camel-case objects can’t be resolved. Split on the last dot (key.rsplit(".", 1)[-1]) before comparing.
-
-* Medium – staging_to_silver/functions/query_loader.py (line 105) decorates load_queries with @lru_cache, but the documented extra_modules parameter accepts any Sequence. Passing a list (or other unhashable sequence) raises TypeError. Coerce to a tuple before caching or exclude extra_modules from the cache key.
-
-* Integration tests for the case matching modes in staging_to_silver;
-test reflection + targetting with the different db types, ensuring variations in lowercase/uppercase are matched, etc

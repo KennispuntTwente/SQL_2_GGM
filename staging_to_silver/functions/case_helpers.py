@@ -148,7 +148,9 @@ def get_table(
     if mode != "strict":
         target = base_name.lower()
         for key, tbl in metadata.tables.items():
-            unqualified = key.split(".", 1)[-1]
+            # For MSSQL cross-database schemas, keys can look like 'db.schema.table'.
+            # Split on the LAST dot to get the table name rather than 'schema.table'.
+            unqualified = key.rsplit(".", 1)[-1]
             if unqualified.lower() == target:
                 if schema is None or key.startswith(f"{schema}."):
                     candidates.append(tbl)

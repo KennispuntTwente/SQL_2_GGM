@@ -97,20 +97,17 @@ def _wrap_builder_for_column_case(fn: Callable, column_name_case: Optional[str])
     return _wrapped
 
 @lru_cache(maxsize=None)
-def load_queries(
-    package: str = "staging_to_silver.queries",
-    normalize: Optional[str] = None,  # deprecated alias for table_name_case
-    table_name_case: Optional[str] = None,
-    column_name_case: Optional[str] = None,
-    extra_modules: Sequence[str] = (),
-    scan_package: bool = True,
+def _load_queries_cached(
+    package: str,
+    normalize: Optional[str],
+    table_name_case: Optional[str],
+    column_name_case: Optional[str],
+    extra_modules_tuple: tuple[str, ...],
+    scan_package: bool,
 ) -> Dict[str, Callable]:
-    """
-    Scan `package` for modules and merge their __query_exports__ dicts.
-    - `table_name_case`: "upper" | "lower" | None — coerces destination table keys.
-    - `column_name_case`: "upper" | "lower" | None — coerces projected column labels.
-    - `normalize`: deprecated alias for `table_name_case` (kept for compatibility).
-    - `extra_modules`: optional list of fully-qualified module names to merge.
+    """Hashable-args version of load_queries for safe caching.
+
+    Do not call directly; use load_queries which normalizes arguments.
     """
     queries: Dict[str, Callable] = {}
 
@@ -140,7 +137,7 @@ def load_queries(
                 queries[key] = _wrap_builder_for_column_case(fn, column_name_case)
 
     # Optionally merge exports from explicitly named modules
-    for mod_path in extra_modules or ():
+    for mod_path in extra_modules_tuple or ():
         try:
             module = import_module(mod_path)
         except ModuleNotFoundError:
@@ -161,3 +158,35 @@ def load_queries(
             "and its modules define __query_exports__ = {'DEST_TABLE': builder}."
         )
     return queries
+
+
+def load_queries(
+    package: str = "staging_to_silver.queries",
+    normalize: Optional[str] = None,  # deprecated alias for table_name_case
+    table_name_case: Optional[str] = None,
+    column_name_case: Optional[str] = None,
+    extra_modules: Sequence[str] = (),
+    scan_package: bool = True,
+) -> Dict[str, Callable]:
+    """
+    Public entry that normalizes arguments and delegates to cached implementation.
+
+    - `table_name_case`: "upper" | "lower" | None — coerces destination table keys.
+    - `column_name_case`: "upper" | "lower" | None — coerces projected column labels.
+    - `normalize`: deprecated alias for `table_name_case` (kept for compatibility).
+    - `extra_modules`: optional list/sequence of fully-qualified module names to merge.
+    """
+    # Coerce unhashable extra_modules (e.g. lists) into a tuple to satisfy caching
+    extra_tuple = tuple(extra_modules or ())
+    return _load_queries_cached(
+        package,
+        normalize,
+        table_name_case,
+        column_name_case,
+        extra_tuple,
+        scan_package,
+    )
+
+# Expose cache control helpers on the public function for tests/back-compat
+load_queries.cache_clear = _load_queries_cached.cache_clear  # type: ignore[attr-defined]
+load_queries.cache_info = _load_queries_cached.cache_info  # type: ignore[attr-defined]
