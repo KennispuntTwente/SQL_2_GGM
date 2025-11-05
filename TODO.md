@@ -48,10 +48,6 @@ New signature without schema.
 Legacy signature (if_table_exists=..., possibly without dtype).
 If still failing, re-raise with a helpful hint about polars version.
 
-* Postgres/MSSQL schema creation parity
-You create schema for Postgres and MSSQL and skip for others—this is ok. Consider logging clearer hints when Oracle/MySQL/SQLite skip schema, for UX consistency.
-Evidence: source_to_staging/functions/upload_parquet.py: schema creation block; direct_transfer has matching logic.
-
 * High – source_to_staging/functions/direct_transfer.py:43 & source_to_staging/functions/upload_parquet.py:192/206 The CREATE DATABASE helpers embed raw names ("{db_name}", [{db_name}]) without escaping. A single quote, bracket, or semicolon in the configured database name will either explode or enable SQL injection on connection bootstrap. Quote via quote_ident(...)/mssql_bracket_escape(...) (and parameterize where possible) before executing those statements.
 
 * Medium – utils/database/execute_sql_folder.py:57 _split_sql_statements ignores PostgreSQL dollar-quoted blocks ($$...$$). Any INIT SQL that defines functions/procedures will be torn apart at the first semicolon, causing syntax errors. Either hand the work to sqlparse.split (already in deps) or extend the tokenizer to honor dollar-quoting.

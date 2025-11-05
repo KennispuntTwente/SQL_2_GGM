@@ -83,13 +83,23 @@ def _ensure_database_and_schema(engine: Engine, schema: str | None) -> None:
                 )
             elif dialect == "oracle":
                 # Oracle uses users as schemas; assume exists / has perms
-                pass
+                logger.info(
+                    "Skipping schema creation on Oracle (schema=%s). Schemas map to users; ensure the target user/schema exists and has privileges.",
+                    schema,
+                )
             elif dialect in ("mysql", "mariadb"):
                 # MySQL doesn't support schemas outside of databases
-                pass
+                logger.info(
+                    "Skipping schema creation on %s (schema=%s). MySQL/MariaDB do not have separate schemas; use the database name instead.",
+                    dialect,
+                    schema,
+                )
             elif dialect == "sqlite":
                 # SQLite has no schema namespace; skip
-                pass
+                logger.info(
+                    "Skipping schema creation on SQLite (schema=%s). SQLite has no schema namespaces; using the main database.",
+                    schema,
+                )
             else:
                 try:
                     conn.execute(CreateSchema(schema))

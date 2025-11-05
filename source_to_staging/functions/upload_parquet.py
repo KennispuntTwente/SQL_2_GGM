@@ -229,13 +229,24 @@ def upload_parquet(
                     )
                 )
             elif dialect == "oracle":
-                pass
+                # Oracle maps schemas to users; creation typically requires user management
+                logger.info(
+                    "Skipping schema creation on Oracle (schema=%s). Schemas map to users; ensure the target user/schema exists and has privileges.",
+                    schema,
+                )
             elif dialect in ("mysql", "mariadb"):
                 # MySQL doesn't support schemas other than databases
-                pass
+                logger.info(
+                    "Skipping schema creation on %s (schema=%s). MySQL/MariaDB do not have separate schemas; use the database name instead.",
+                    dialect,
+                    schema,
+                )
             elif dialect == "sqlite":
                 # SQLite has no schema namespace; skip
-                pass
+                logger.info(
+                    "Skipping schema creation on SQLite (schema=%s). SQLite has no schema namespaces; using the main database.",
+                    schema,
+                )
             else:
                 try:
                     conn.execute(CreateSchema(schema))
