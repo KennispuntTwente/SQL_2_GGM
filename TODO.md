@@ -18,11 +18,6 @@ Where: main.py (upsert clause)
 Issue: Upsert mode derives index_elements from dest_table.primary_key.columns.keys(). If there’s no PK, this becomes an empty list and will error non-obviously.
 Recommendation: Detect and raise a concise error: “Upsert requires a primary key on {table}”.
 
-* Handling empty SRC_TABLES
-Where: main.py
-Issue: SRC_TABLES is split by comma and stripped, but an empty string will yield [""]. That leads to runtime reflection attempts against an empty name.
-Recommendation: Validate after splitting; raise a clear error if the resulting list is empty or contains blanks.
-
 * Document how to build queries in staging_to_silver;
 what structure, what functions we use on top of sqlalchemy to ensure 
 proper etc. with regards to table names & column names

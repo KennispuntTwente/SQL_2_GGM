@@ -52,9 +52,19 @@ dest_engine = load_destination_engine(cfg)
 
 # Read which tables to dump from source database
 tables_str = cast(
-    str, get_config_value("SRC_TABLES", section="settings", cfg_parser=cfg)
+    str | None,
+    get_config_value("SRC_TABLES", section="settings", cfg_parser=cfg),
 )
-tables = [t.strip() for t in tables_str.split(",")]
+if tables_str is None:
+    tables_str = ""
+raw_tables = [t.strip() for t in tables_str.split(",")]
+# Validate SRC_TABLES after splitting: must not be empty and must not contain blanks
+tables = [t for t in raw_tables if t]
+if not tables or len(tables) != len(raw_tables):
+    raise ValueError(
+        "SRC_TABLES must be a comma-separated list of non-empty table names; got: "
+        f"{tables_str!r}"
+    )
 
 # Optional developer row limit: limit rows read per source table (0/blank disables)
 row_limit = get_config_value(
