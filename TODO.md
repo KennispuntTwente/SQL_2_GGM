@@ -13,39 +13,9 @@ Fill metadata for better distribution/consumption.
 Clarify dialect support per query module (or a matrix).
 Explain write_modes and how to configure/override them
 
-* Identifier quoting for DDL/DML text statements
-Where:
-source_to_staging/functions/direct_transfer.py: _ensure_database_and_schema, truncate/delete strings
-source_to_staging/functions/upload_parquet.py: schema creation text blocks
-staging_to_silver/main.py: DELETE FROM {full_name}, TRUNCATE TABLE {full_name}
-Issue: Raw f-strings assemble identifiers without quoting. This can break for:
-Mixed/mismatched case schema/table names
-Special characters
-Reserved words
-Recommendation:
-Postgres: quote with "schema" and "table" (double-quotes).
-MSSQL: quote with [schema] and [table].
-For SQLAlchemy-safe quoting, prefer using Table objects and the compiler to render fully qualified, quoted names when possible for non-TRUNCATE paths (e.g., DELETE).
-For TRUNCATE (no SQLAlchemy portable helper), build quoted identifier strings per dialect.
-Notes: You already parameterize some parts (Postgres db existence check), and quote CREATE DATABASE in postgres and name in MSSQL, so this change just closes the remaining gaps.
-* MSSQL CREATE SCHEMA dynamic SQL escaping
-Where:
-direct_transfer.py _ensure_database_and_schema
-upload_parquet.py (schema creation for MSSQL)
-Issue: EXEC(N'CREATE SCHEMA {schema}') risks failure for unusual names; should bracket the schema name in the dynamic command.
-Recommendation: EXEC(N'CREATE SCHEMA [{schema}]')
-* Better quoting for schema qualifiers built into strings
-Where: main.py builds full_name for MSSQL cross-db "db.schema.table"
-Issue: Not quoted—same concerns as above. Could be replaced with a utility that quotes per dialect.
-Recommendation: Add a small helper quote_ident(dialect, parts) to render [db].[schema].[table] for MSSQL and "schema"."table" for Postgres/others when you must use raw SQL.
-* Optionally add a tiny helper to produce quoted full names per dialect to remove scattered string formatting.
-* High – Multiple places inject schema/table names directly into SQL text without quoting (source_to_staging/functions/direct_transfer.py (line 65), source_to_staging/functions/direct_transfer.py (line 368), source_to_staging/functions/upload_parquet.py (line 205), source_to_staging/functions/download_parquet.py (line 75), source_to_staging/functions/download_parquet.py (line 161)). Names containing uppercase letters, spaces, or reserved words will break, and a misconfigured name could lead to SQL injection. Use SQLAlchemy identifiers/parameters (e.g., CreateSchema, sa.text with bindparams, or identifier_preparer.quote) instead of f-strings.
-
 * High – source_to_staging/functions/upload_parquet.py (line 240) passes schema-qualified names (e.g. silver.table) into DataFrame.write_database as the table_name. SQLAlchemy treats that as a literal identifier ("silver.table") instead of splitting schema/table, so data lands in or creates an incorrectly quoted table. Please send the bare table name and rely on the schema/db_schema parameter instead.
 
 * High – source_to_staging/functions/upload_parquet.py (line 364) builds engine_options={"dtype": dtype_map}; Polars’ SQLAlchemy writer expects the mapping via the top-level dtype= argument. As written, the explicit column types are ignored, so decimals/booleans fall back to default inference (risking precision loss or wrong column affinity).
-
-
 
 * Configurability of write_mode for direct transfer
 Where: main.py
