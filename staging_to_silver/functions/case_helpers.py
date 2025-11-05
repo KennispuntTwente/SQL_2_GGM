@@ -110,8 +110,10 @@ def reflect_tables(engine, schema: str | None, base_names: Iterable[str]) -> Met
     only_list = _unique_preserve_order(candidates)
 
     if mode == "strict":
-        # In strict mode, reflect only the exact names that actually exist.
-        # This avoids errors when a preferred case-variant isn't present.
+        # In strict mode, reflect only table names that actually exist.
+        # However, when both case-variants exist (e.g., 'wvbesl' and 'WVBESL'),
+        # reflect ALL present variants in preferred order so that downstream
+        # selection (e.g., required_cols matching) can pick the correct one.
         insp = inspect(engine)
         try:
             present = set(insp.get_table_names(schema=schema))
@@ -122,14 +124,12 @@ def reflect_tables(engine, schema: str | None, base_names: Iterable[str]) -> Met
         selected: List[str] = []
         missing: List[str] = []
         for base in base_names:
-            picked = None
+            found_any = False
             for candidate in _apply_case_preference(base):
                 if candidate in present:
-                    picked = candidate
-                    break
-            if picked is not None:
-                selected.append(picked)
-            else:
+                    selected.append(candidate)
+                    found_any = True
+            if not found_any:
                 missing.append(base)
 
         if missing:
@@ -193,6 +193,11 @@ def get_table(
             }
             if req.issubset(cols):
                 return tbl
+        # No candidate satisfies the required columns; be explicit rather than
+        # returning a mismatched table which would fail later at column lookup.
+        raise KeyError(
+            f"Table '{base_name}' found but missing required columns {sorted(req)} in schema '{schema}'"
+        )
 
     if candidates:
         return candidates[0]
