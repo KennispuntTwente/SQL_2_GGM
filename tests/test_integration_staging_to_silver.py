@@ -80,6 +80,7 @@ def _insert_from_select(engine, target_schema: str, select_name: str, select_stm
 
 
 @pytest.mark.slow
+@pytest.mark.postgres
 @pytest.mark.skipif(
     not _slow_tests_enabled(),
     reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.",
@@ -205,6 +206,7 @@ def test_staging_to_silver_postgres(tmp_path):
 
 
 @pytest.mark.slow
+@pytest.mark.mssql
 @pytest.mark.skipif(
     not _slow_tests_enabled(),
     reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.",

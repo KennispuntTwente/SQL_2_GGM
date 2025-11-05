@@ -37,6 +37,7 @@ def _mssql_driver_available() -> bool:
 
 
 @pytest.mark.slow
+@pytest.mark.mssql
 @pytest.mark.skipif(
     not _slow_tests_enabled(),
     reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.",

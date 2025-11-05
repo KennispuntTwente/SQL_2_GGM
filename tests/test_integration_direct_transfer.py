@@ -27,6 +27,8 @@ initialized_oracle = try_init_oracle_client()
 
 @pytest.mark.slow
 @pytest.mark.sa_direct
+@pytest.mark.postgres
+@pytest.mark.mssql
 @pytest.mark.skipif(
     not slow_tests_enabled(),
     reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.",
@@ -94,6 +96,8 @@ def test_direct_transfer_oracle_to_all(oracle_source_engine, db_type):
 
 @pytest.mark.slow
 @pytest.mark.sa_direct
+@pytest.mark.postgres
+@pytest.mark.mssql
 @pytest.mark.skipif(
     not slow_tests_enabled(),
     reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.",

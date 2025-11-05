@@ -59,6 +59,9 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     selected = _selected_dbs(config)
     if not selected:
+        # Even if no DB filtering is requested, still enforce that slow tests
+        # are tagged for at least one known DB marker so CI can route them.
+        _enforce_slow_tests_have_db_marker(items)
         return  # No filtering requested
 
     for item in list(items):
@@ -87,6 +90,37 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 
         if not matches:
             item.add_marker(pytest.mark.skip(reason=f"Skipped by --db/TEST_DB filter (wanted {','.join(sorted(selected))})"))
+
+    # After applying the DB filter logic, enforce slow-test tagging discipline
+    _enforce_slow_tests_have_db_marker(items)
+
+
+def _enforce_slow_tests_have_db_marker(items: list[pytest.Item]) -> None:
+    """Fail early if a test marked 'slow' lacks any known DB marker.
+
+    This guarantees every slow test is discoverable by CI matrix jobs that
+    run with expressions like -m "slow and <db>".
+    """
+    violations: list[str] = []
+    for item in items:
+        if item.get_closest_marker("slow") is None:
+            continue
+        # Accept parametrized tests that inject a db_type parameter as an implicit DB marker
+        has_db_marker = any(m.name in KNOWN_DB_MARKERS for m in item.iter_markers())
+        if not has_db_marker:
+            callspec = getattr(item, "callspec", None)
+            if callspec is not None and "db_type" in getattr(callspec, "params", {}):
+                # Consider it covered; param marks will carry DB selection
+                continue
+            violations.append(item.nodeid)
+
+    if violations:
+        joined = "\n  - ".join(violations)
+        raise pytest.UsageError(
+            "Slow tests must be tagged with at least one DB marker (postgres, mssql, mysql, mariadb, oracle, sqlite).\n"
+            "The following tests are missing a DB marker and will not be exercised by CI matrix jobs:\n  - "
+            + joined
+        )
 
 
 # ----------------------------------------------------------------------------
