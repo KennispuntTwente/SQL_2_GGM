@@ -55,6 +55,13 @@ SRC_CHUNK_SIZE = 100000
 #  - CONNECTORX_DUMP: lees via ConnectorX en dump naar Parquet, upload daarna Parquet
 TRANSFER_MODE = SQLALCHEMY_DIRECT
 
+# (Optioneel) Schrijfmodus voor de staging-tabellen in de doeldatabase:
+#  - replace: (default) maak de tabel opnieuw aan op de eerste write, daarna append
+#  - truncate: behoud de tabelstructuur en wis eerst alle rijen, daarna append
+#  - append: maak de tabel aan als die nog niet bestaat, voeg anders toe
+# Geldt voor zowel de directe transfer als de Parquet upload.
+WRITE_MODE = replace
+
 # Of wachtwoord gevraagd wordt in de console i.p.v. uit te lezen uit je environment variables
 # of uit je .ini-config. Als je hiervan gebruikt maakt betekent het ook dat het script
 # alleen interactief gerund kan worden

@@ -69,6 +69,21 @@ if transfer_mode == "SQLALCHEMY_DIRECT":
     # Direct SQLAlchemy-to-SQLAlchemy chunked copy
     from source_to_staging.functions.direct_transfer import direct_transfer
 
+    # Configure destination write mode (replace | truncate | append)
+    write_mode = cast(
+        str,
+        get_config_value(
+            "WRITE_MODE",
+            section="settings",
+            cfg_parser=cfg,
+            default="replace",
+        ),
+    ).lower()
+    if write_mode not in {"replace", "truncate", "append"}:
+        raise ValueError(
+            f"WRITE_MODE must be one of ['replace','truncate','append']; got {write_mode!r}"
+        )
+
     direct_transfer(
         source_engine=source_connection,  # type: ignore[arg-type]
         dest_engine=dest_engine,
@@ -91,7 +106,7 @@ if transfer_mode == "SQLALCHEMY_DIRECT":
             cast_type=int,
         ),
         lowercase_columns=True,
-        write_mode="replace",
+        write_mode=write_mode,
         row_limit=row_limit,
         # Optional retry/backoff tuning for direct transfer inserts
         max_retries=get_config_value(
@@ -141,6 +156,21 @@ else:
     # Step 2/2: Upload parquet files into destination database
     from source_to_staging.functions.upload_parquet import upload_parquet
 
+    # Configure destination write mode for parquet upload as well
+    write_mode = cast(
+        str,
+        get_config_value(
+            "WRITE_MODE",
+            section="settings",
+            cfg_parser=cfg,
+            default="replace",
+        ),
+    ).lower()
+    if write_mode not in {"replace", "truncate", "append"}:
+        raise ValueError(
+            f"WRITE_MODE must be one of ['replace','truncate','append']; got {write_mode!r}"
+        )
+
     upload_parquet(
         dest_engine,
         schema=get_config_value(
@@ -155,4 +185,5 @@ else:
             cast_type=bool,
         ),
         manifest_path=manifest_path,
+        write_mode=write_mode,
     )

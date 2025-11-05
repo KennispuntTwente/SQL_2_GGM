@@ -74,3 +74,9 @@ Relevante instellingen in `[settings]`:
 - `SRC_CHUNK_SIZE`: aantal rijen per chunk tijdens dump/streaming.
 - `CLEANUP_PARQUET_FILES`: of parquet-bestanden (en manifest) na upload verwijderd moeten worden (default: `True`).
 - `ROW_LIMIT` (optioneel): beperkt het aantal rijen per bron‑tabel voor snelle lokale ontwikkeling (0/leeg = geen limiet).
+- `WRITE_MODE` (optioneel): manier van schrijven naar de staging-tabellen. Toegestaan: `replace` (default), `truncate`, `append`.
+	- `replace`: de tabel wordt op de eerste write vervangen; volgende chunks worden appended.
+	- `truncate`: bestaande tabel wordt eerst geleegd (of aangemaakt indien nog niet aanwezig), daarna append.
+	- `append`: maak aan als niet bestaat, anders voeg rijen toe.
+
+Deze schrijfmodus geldt consistent voor zowel `SQLALCHEMY_DIRECT` als de Parquet-upload (`SQLALCHEMY_DUMP`/`CONNECTORX_DUMP`).

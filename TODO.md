@@ -13,13 +13,6 @@ Fill metadata for better distribution/consumption.
 Clarify dialect support per query module (or a matrix).
 Explain write_modes and how to configure/override them
 
-* Configurability of write_mode for direct transfer
-Where: main.py
-Issue: write_mode is hardcoded to "replace" for direct transfer, which can surprise users or be destructive unintentionally.
-Recommendation: Read a WRITE_MODE (replace|truncate|append) from [settings] with a default of "replace" to preserve current behavior.
-Also check if we need to be able to configure such behavoiur for the parquet dump modes please,
-if so, implement consistently
-
 * Upsert mode guard on missing PK
 Where: main.py (upsert clause)
 Issue: Upsert mode derives index_elements from dest_table.primary_key.columns.keys(). If there’s no PK, this becomes an empty list and will error non-obviously.

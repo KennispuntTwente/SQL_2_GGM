@@ -12,7 +12,11 @@ from sqlalchemy import create_engine, text
 from sqlalchemy import types as satypes
 from sqlalchemy.exc import ProgrammingError
 from sqlalchemy.schema import CreateSchema
-from utils.database.identifiers import quote_ident, mssql_bracket_escape
+from utils.database.identifiers import (
+    quote_ident,
+    mssql_bracket_escape,
+    quote_truncate_target,
+)
 
 logger = logging.getLogger("source_to_staging.upload_parquet")
 
@@ -132,11 +136,18 @@ def upload_parquet(
     input_dir="data",
     cleanup=True,
     manifest_path: str | None = None,
+    *,
+    write_mode: str = "replace",  # replace | truncate | append
 ):
     """
     Uploads (possibly chunked) Parquet files into destination DB.
     Ensures the target database and schema exist before loading.
     """
+    if write_mode.lower() not in {"replace", "truncate", "append"}:
+        raise ValueError(
+            "write_mode must be one of: replace|truncate|append"
+        )
+    write_mode = write_mode.lower()
     dialect = engine.dialect.name.lower()
     manifest_files: list[str] | None = None
     if manifest_path:
@@ -246,6 +257,37 @@ def upload_parquet(
             logger.info("📦 Uploading %s part(s) to table %s", len(files), full_table)
             # Ensure per-table cleanup executes even if an error occurs during processing
             try:
+                # Determine table existence and perform TRUNCATE if requested
+                from sqlalchemy import inspect
+
+                inspector = inspect(engine)
+                table_exists = False
+                try:
+                    table_exists = inspector.has_table(table_name, schema=schema)
+                except Exception:
+                    # If inspector fails for some dialect edge-case, assume False and proceed
+                    table_exists = False
+
+                # Handle truncate mode: truncate existing table; if it doesn't exist, we'll create on first write
+                if write_mode == "truncate" and table_exists:
+                    with engine.begin() as conn:
+                        dname = engine.dialect.name.lower()
+                        if dname == "sqlite":
+                            # SQLite has no TRUNCATE
+                            try:
+                                from sqlalchemy import Table, MetaData
+
+                                meta = MetaData()
+                                tgt = Table(table_name, meta, schema=schema, autoload_with=engine)
+                                conn.execute(tgt.delete())
+                            except Exception:
+                                # last resort
+                                qname = quote_truncate_target(engine, None, schema, table_name)
+                                conn.execute(text(f"DELETE FROM {qname}"))
+                        else:
+                            qname = quote_truncate_target(engine, engine.url.database, schema, table_name)
+                            conn.execute(text(f"TRUNCATE TABLE {qname}"))
+
                 decimal_meta = _collect_decimal_metadata(
                     [os.path.join(input_dir, fname) for fname in files]
                 )
@@ -370,14 +412,43 @@ def upload_parquet(
                     # which SQLAlchemy treats as a literal identifier. Also pass explicit dtype mapping via the
                     # top-level dtype= parameter (not within engine_options) so Polars applies the intended
                     # SQLAlchemy column types.
-                    df.write_database(
+                    # Decide behavior for first vs subsequent chunks
+                    if idx == 0:
+                        if write_mode == "replace":
+                            mode = "replace"
+                        elif write_mode == "append":
+                            # If table does not exist, create with replace for the first chunk; else append
+                            mode = "append" if table_exists else "replace"
+                        else:  # truncate
+                            # After truncate, append is safe. If table did not exist, create with replace
+                            mode = "append" if table_exists else "replace"
+                    else:
+                        mode = "append"
+
+                    write_kwargs = dict(
                         table_name=table_name,
                         connection=engine,
-                        schema=schema,
-                        if_table_exists="replace" if idx == 0 else "append",
+                        if_table_exists=mode,
                         engine="sqlalchemy",
                         dtype=dtype_map if dtype_map else None,
                     )
+                    if schema is not None:
+                        write_kwargs["schema"] = schema
+                    try:
+                        df.write_database(**write_kwargs)
+                    except TypeError as e:
+                        # Some polars versions do not support certain kwargs; progressively drop them.
+                        for drop_key in ("schema", "dtype"):
+                            if drop_key in write_kwargs:
+                                write_kwargs.pop(drop_key, None)
+                                try:
+                                    df.write_database(**write_kwargs)
+                                    break
+                                except TypeError:
+                                    continue
+                        else:
+                            # If none of the fallbacks worked, re-raise original error
+                            raise e
 
                 logger.info("✅ Loaded: %s", table_name)
             finally:
