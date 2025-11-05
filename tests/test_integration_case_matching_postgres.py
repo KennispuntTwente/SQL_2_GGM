@@ -82,8 +82,14 @@ def test_postgres_case_matching_auto_vs_strict(tmp_path):
                 if ci is None:
                     raise KeyError(f"Destination column '{c}' not found in {dest.fullname}")
                 ordered.append(ci)
+        # Use PostgreSQL upsert semantics to avoid duplicate key errors when re-inserting
+        from sqlalchemy.dialects.postgresql import insert as pg_insert  # type: ignore
+        pk_cols = [c.name for c in dest.primary_key.columns] or None
+        insert_stmt = pg_insert(dest).from_select(ordered, select_stmt)
+        if pk_cols:
+            insert_stmt = insert_stmt.on_conflict_do_nothing(index_elements=pk_cols)
         with engine.begin() as conn:
-            conn.execute(dest.insert().from_select(ordered, select_stmt))
+            conn.execute(insert_stmt)
 
     # Case A: auto mode (case-insensitive) should match uppercase columns without STAGING_COLUMN_NAME_CASE
     os.environ["STAGING_NAME_MATCHING"] = "auto"

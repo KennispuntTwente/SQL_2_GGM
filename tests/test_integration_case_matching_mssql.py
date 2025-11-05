@@ -73,9 +73,9 @@ def test_mssql_case_matching_with_crossdb_source(tmp_path: Path):
         conn.execute(text(
             """
             CREATE TABLE dbo.BESCHIKKING (
-                BESCHIKKING_ID INT,
-                CLIENT_ID INT,
-                HEEFT_VOORZIENINGEN_BESCHIKTE_VOORZIENING_ID INT,
+                BESCHIKKING_ID NVARCHAR(50),
+                CLIENT_ID NVARCHAR(50),
+                HEEFT_VOORZIENINGEN_BESCHIKTE_VOORZIENING_ID NVARCHAR(50),
                 CODE NVARCHAR(20),
                 COMMENTAAR NVARCHAR(200),
                 DATUMAFGIFTE DATE,
