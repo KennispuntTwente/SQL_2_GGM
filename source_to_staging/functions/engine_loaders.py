@@ -19,7 +19,12 @@ def load_source_connection(cfg: Any, transfer_mode: str):
     )
     src_username = cast(
         Optional[str],
-        get_config_value("SRC_USERNAME", section="database-source", cfg_parser=cfg),
+        get_config_value(
+            "SRC_USERNAME",
+            section="database-source",
+            cfg_parser=cfg,
+            cast_type=str,
+        ),
     )
     src_password = cast(
         Optional[str],
@@ -35,6 +40,7 @@ def load_source_connection(cfg: Any, transfer_mode: str):
                 default=False,
                 cast_type=bool,
             ),
+            cast_type=str,
         ),
     )
     src_host = get_config_value(
@@ -195,7 +201,10 @@ def load_destination_engine(cfg: Any):
         username=cast(
             str,
             get_config_value(
-                "DST_USERNAME", section="database-destination", cfg_parser=cfg
+                "DST_USERNAME",
+                section="database-destination",
+                cfg_parser=cfg,
+                cast_type=str,
             ),
         ),
         password=cast(
@@ -212,6 +221,7 @@ def load_destination_engine(cfg: Any):
                     default=False,
                     cast_type=bool,
                 ),
+                cast_type=str,
             ),
         ),
         host=cast(

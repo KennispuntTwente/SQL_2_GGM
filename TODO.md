@@ -19,13 +19,6 @@ source_to_staging/functions/upload_parquet.py: for MSSQL block, uses admin_eng.c
 source_to_staging/functions/direct_transfer.py: in _ensure_database_and_schema for MSSQL, same pattern.
 Fix: For MSSQL admin connection, use with admin_eng.connect().execution_options(isolation_level="AUTOCOMMIT") as conn: before executing CREATE DATABASE.
 
-* CLI password prompt may coerce to boolean accidentally
-When ask_in_command_line=True, get_config_value interprets strings like "true"/"1" as booleans by default. For password keys, this can return a bool instead of str and be passed to engine creation.
-Evidence:
-source_to_staging/functions/engine_loaders.py:24–35 for "SRC_PASSWORD"
-source_to_staging/functions/engine_loaders.py:204–212 for "DST_PASSWORD"
-Fix: Pass cast_type=str in get_config_value for any credential fields (password, username). Keep print_value=False.
-
 * Avoid heavy COUNT(*) before export unless desired
 download_parquet does COUNT(*) upfront for SQLAlchemy path purely for logging.
 Evidence: source_to_staging/functions/download_parquet.py tail block where COUNT(*) is issued, then iter_batches is used.

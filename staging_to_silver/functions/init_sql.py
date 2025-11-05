@@ -106,7 +106,10 @@ def run_init_sql(
             username = cast(
                 str,
                 get_config_value(
-                    "DST_USERNAME", section="database-destination", cfg_parser=cfg
+                    "DST_USERNAME",
+                    section="database-destination",
+                    cfg_parser=cfg,
+                    cast_type=str,
                 ),
             )
             password = cast(
@@ -116,14 +119,14 @@ def run_init_sql(
                     section="database-destination",
                     cfg_parser=cfg,
                     print_value=False,
-                    ask_in_command_line=bool(
-                        get_config_value(
-                            "ASK_PASSWORD_IN_CLI",
-                            section="settings",
-                            cfg_parser=cfg,
-                            default=False,
-                        )
+                    ask_in_command_line=get_config_value(
+                        "ASK_PASSWORD_IN_CLI",
+                        section="settings",
+                        cfg_parser=cfg,
+                        default=False,
+                        cast_type=bool,
                     ),
+                    cast_type=str,
                 ),
             )
             host = cast(

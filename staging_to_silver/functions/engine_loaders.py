@@ -39,7 +39,10 @@ def load_destination_engine(cfg: Any):
         username=cast(
             str,
             get_config_value(
-                "DST_USERNAME", section="database-destination", cfg_parser=cfg
+                "DST_USERNAME",
+                section="database-destination",
+                cfg_parser=cfg,
+                cast_type=str,
             ),
         ),
         password=cast(
@@ -56,6 +59,7 @@ def load_destination_engine(cfg: Any):
                     default=False,
                     cast_type=bool,
                 ),
+                cast_type=str,
             ),
         ),
         host=cast(
