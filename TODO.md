@@ -41,8 +41,6 @@ New signature without schema.
 Legacy signature (if_table_exists=..., possibly without dtype).
 If still failing, re-raise with a helpful hint about polars version.
 
-* High – source_to_staging/functions/direct_transfer.py:43 & source_to_staging/functions/upload_parquet.py:192/206 The CREATE DATABASE helpers embed raw names ("{db_name}", [{db_name}]) without escaping. A single quote, bracket, or semicolon in the configured database name will either explode or enable SQL injection on connection bootstrap. Quote via quote_ident(...)/mssql_bracket_escape(...) (and parameterize where possible) before executing those statements.
-
 * Medium – utils/database/execute_sql_folder.py:57 _split_sql_statements ignores PostgreSQL dollar-quoted blocks ($$...$$). Any INIT SQL that defines functions/procedures will be torn apart at the first semicolon, causing syntax errors. Either hand the work to sqlparse.split (already in deps) or extend the tokenizer to honor dollar-quoting.
 
 * Medium – source_to_staging/functions/direct_transfer.py:33 & source_to_staging/functions/upload_parquet.py:182 Autocreation assumes you can hop to an admin DB called "postgres" (and "master" for MSSQL). Managed services (Azure, RDS, AlloyDB) often revoke access to those databases, so the staging run dies before copying anything. Make the admin database configurable (falling back to the current catalog) or skip the step when the hop fails.

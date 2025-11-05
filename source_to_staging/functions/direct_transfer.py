@@ -40,7 +40,8 @@ def _ensure_database_and_schema(engine: Engine, schema: str | None) -> None:
                         {"db": db_name},
                     ).scalar()
                     if not exists:
-                        conn.execute(text(f'CREATE DATABASE "{db_name}"'))
+                        qdb = quote_ident(engine, db_name)
+                        conn.execute(text(f"CREATE DATABASE {qdb}"))
             finally:
                 admin_eng.dispose()
         elif dialect in ("mssql", "sql server"):
@@ -50,15 +51,18 @@ def _ensure_database_and_schema(engine: Engine, schema: str | None) -> None:
             admin_eng = create_engine(admin_url)
             try:
                 with admin_eng.connect() as conn:
+                    # Prefer parameter for DB_ID input and safely quoted identifier for CREATE DATABASE
+                    qdb = quote_ident(engine, db_name)
                     conn.execute(
                         text(
                             f"""
-                        IF DB_ID(N'{db_name}') IS NULL
+                        IF DB_ID(:db) IS NULL
                         BEGIN
-                            CREATE DATABASE [{db_name}];
+                            CREATE DATABASE {qdb};
                         END
                         """
-                        )
+                        ),
+                        {"db": db_name},
                     )
             finally:
                 admin_eng.dispose()

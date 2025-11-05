@@ -189,7 +189,8 @@ def upload_parquet(
                         {"db": db_name},
                     ).scalar()
                     if not exists:
-                        conn.execute(text(f'CREATE DATABASE "{db_name}"'))
+                        qdb = quote_ident(engine, db_name)
+                        conn.execute(text(f"CREATE DATABASE {qdb}"))
             finally:
                 admin_eng.dispose()
 
@@ -199,13 +200,18 @@ def upload_parquet(
             admin_eng = create_engine(admin_url)
             try:
                 with admin_eng.connect() as conn:
+                    # Parameterize DB_ID input and safely quote database identifier in CREATE DATABASE
+                    qdb = quote_ident(engine, db_name)
                     conn.execute(
-                        text(f"""
-                        IF DB_ID(N'{db_name}') IS NULL
+                        text(
+                            f"""
+                        IF DB_ID(:db) IS NULL
                         BEGIN
-                            CREATE DATABASE [{db_name}];
+                            CREATE DATABASE {qdb};
                         END
-                    """)
+                    """
+                        ),
+                        {"db": db_name},
                     )
             finally:
                 admin_eng.dispose()
