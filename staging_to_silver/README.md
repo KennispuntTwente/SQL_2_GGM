@@ -27,9 +27,14 @@ Prioriteit bij configuratie is INI > ENV > defaults, net als in `source_to_stagi
 ### Dialectondersteuning en write modes
 
 - Alle queries draaien binnen één transactie. Het statement `SET CONSTRAINTS ALL DEFERRED` wordt alleen uitgevoerd op PostgreSQL; andere backends slaan dit over.
-- Write modes per doel‑tabel: `append` (standaard), `overwrite`, `truncate`, `upsert`.
+- Write modes per doel‑tabel: `append`, `overwrite` (standaard), `truncate`, `upsert`.
+	- Standaard is de schrijfmodus per tabel `overwrite` wanneer je niets opgeeft.
 	- `upsert` is PostgreSQL‑only: op niet‑PostgreSQL backends geeft de pipeline een duidelijke foutmelding. Gebruik daar `append/overwrite/truncate`.
-	- Per‑tabel write modes staan in `staging_to_silver/main.py` (dict `write_modes`).
+	- Per‑tabel write modes configureer je via:
+		1) Sectie `[write-modes]` in je `.ini`, met regels als `TABEL = append|overwrite|truncate|upsert`
+		2) Of via de sleutel `WRITE_MODES` onder `[settings]` of als env var, met lijstnotatie: `WRITE_MODES = TABEL1=append, TABEL2=truncate; TABEL3=overwrite`
+	- Matching is case‑insensitief; ongeldige waarden worden genegeerd met een waarschuwing.
+	- Zie `staging_to_silver/config.ini.example` en `.env.example` voor voorbeelden.
 
 ### Cross‑database (MSSQL)
 

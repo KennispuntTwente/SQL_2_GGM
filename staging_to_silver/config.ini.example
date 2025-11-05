@@ -39,6 +39,15 @@ ASK_PASSWORD_IN_CLI = False
 # Voorbeeld: alleen eerste 1000 rijen laden tijdens lokale ontwikkeling
 # ROW_LIMIT = 1000
 
+# Schrijfmodus per GGM-doeltabel (append|overwrite|truncate|upsert)
+# Je kunt dit op twee manieren configureren:
+# 1) Via de sectie [write-modes] (zie onderaan dit bestand) met regels als:
+#    TABELNAAM = append
+# 2) Of via een enkele sleutel in [settings] met lijstnotatie (komma/semicolon/whitespace gescheiden):
+#    WRITE_MODES = TABEL1=append, TABEL2=truncate; TABEL3=overwrite
+# Indien niet opgegeven, is de standaard 'overwrite' per tabel.
+# WRITE_MODES = BESCHIKTE_VOORZIENING=append, ANOTHER_TABLE=overwrite, YET_ANOTHER=upsert
+
 # Matching van staging ('brons') tabel- en kolomnamen tijdens reflectie
 # STAGING_NAME_MATCHING: auto (case-insensitive, standaard) of strict (exacte namen vereisen)
 STAGING_NAME_MATCHING = auto
@@ -74,6 +83,14 @@ SILVER_COLUMN_NAME_CASE =
 # INIT_SQL_FOLDER = ggm_selectie
 # INIT_SQL_SUFFIX_FILTER = True
 # DELETE_EXISTING_SCHEMA = False
+
+[write-modes]
+# Optioneel alternatief voor WRITE_MODES om per regel de schrijfmodus te definiëren
+# (Case-insensitive matching op tabelnamen)
+# Voorbeelden:
+# BESCHIKTE_VOORZIENING = overwrite
+# ANOTHER_TABLE = truncate
+# YET_ANOTHER = append
 
 [logging]
 # Globale logging-niveau; vanaf welk type message moet gelogd worden?

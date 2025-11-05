@@ -18,6 +18,7 @@ from staging_to_silver.functions.guards import (
     validate_upsert_supported,
 )
 from utils.logging.setup_logging import setup_logging
+from staging_to_silver.functions.write_modes import load_write_modes
 
 # ─── Load .env & .ini from command line ────────────────────────────────────────
 if os.path.exists("staging_to_silver/.env"):
@@ -125,13 +126,9 @@ silver_name_matching = (
 metadata_dest = MetaData()
 
 # ─── Define write‑modes per destination (GGM) table ─────────────────────────────
-write_modes = {
-    "BESCHIKTE_VOORZIENING": "append",
-    "ANOTHER_TABLE": "overwrite",
-    "YET_ANOTHER": "upsert",
-    # … add / override as required
-}
-write_modes_ci = {k.lower(): v for k, v in write_modes.items()}
+# Configurable via [write-modes] INI section and/or settings WRITE_MODES
+# Default (when unspecified) is 'overwrite'.
+write_modes_ci = load_write_modes(cfg, default_mode="overwrite")
 
 # Append means that the table is loaded with new data, without deleting existing rows
 # Overwrite means that the table is emptied before loading new data
@@ -210,7 +207,7 @@ with engine.begin() as conn:  # single, atomic transaction
         log.debug("Reordered destination columns: %s", [col.name for col in dest_cols])
 
         # 3) determine how we load into the destination
-        mode = write_modes_ci.get(name.lower(), "append").lower()
+        mode = write_modes_ci.get(name.lower(), "overwrite").lower()
         if silver_db and dialect_name == "mssql":
             full_name = f"{silver_db}.{silver_schema or 'dbo'}.{name}"
         else:

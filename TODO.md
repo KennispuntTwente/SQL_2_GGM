@@ -11,11 +11,6 @@ Fill metadata for better distribution/consumption.
 * Analyze current set of queries and based on that generate a synthetic dataset
 which can be used for development/testing purposes
 
-* Make write mode mapping configurable in staging_to_silver
-write_modes is currently hard-coded with examples ("ANOTHER_TABLE", "YET_ANOTHER") and not sourced from config.
-Evidence: staging_to_silver/main.py around 140–170.
-Fix: Add a config key (e.g., WRITE_MODES) or a [write-modes] section in the INI (table=append|truncate|overwrite|upsert), then parse and merge. Keep defaults (“append”).
-
 * MSSQL CREATE DATABASE needs autocommit (will error inside a transaction)
 Both upload_parquet and direct_transfer try to create databases on PostgreSQL and MSSQL. Postgres block correctly uses AUTOCOMMIT; MSSQL block does not.
 Impact: Error “CREATE DATABASE not allowed within a transaction” with pyodbc.
