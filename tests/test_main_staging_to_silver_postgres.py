@@ -1,6 +1,9 @@
 import os
 import subprocess
-from pathlib import Path
+import sys
+import runpy
+import io
+import contextlib
 
 import pytest
 from sqlalchemy import text
@@ -138,17 +141,24 @@ ROW_LIMIT=
 """.strip()
     )
 
-    # Execute staging_to_silver.main as a subprocess
-    proc = subprocess.run(
-        ["python", "-m", "staging_to_silver.main", "--config", str(cfg_path)],
-        cwd=str(Path.cwd()),
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if proc.returncode != 0:
+    # Execute staging_to_silver.main in-process via runpy to ensure current env/interpreter is used
+    old_argv = sys.argv[:]
+    sys.argv = ["staging_to_silver.main", "--config", str(cfg_path)]
+    buf_out, buf_err = io.StringIO(), io.StringIO()
+    return_code = 0
+    try:
+        with contextlib.redirect_stdout(buf_out), contextlib.redirect_stderr(buf_err):
+            runpy.run_module("staging_to_silver.main", run_name="__main__")
+    except SystemExit as e:
+        # argparse/sys.exit might be used; capture exit code
+        return_code = e.code if isinstance(e.code, int) else 1
+    finally:
+        stdout, stderr = buf_out.getvalue(), buf_err.getvalue()
+        sys.argv = old_argv
+
+    if return_code != 0:
         raise AssertionError(
-            f"staging_to_silver.main failed: {proc.returncode}\nSTDOUT:\n{proc.stdout}\nSTDERR:\n{proc.stderr}"
+            f"staging_to_silver.main failed: {return_code}\nSTDOUT:\n{stdout}\nSTDERR:\n{stderr}"
         )
 
     # Validate a couple of target tables have rows
