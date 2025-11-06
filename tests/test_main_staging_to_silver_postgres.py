@@ -136,6 +136,7 @@ DST_SCHEMA=staging
 [settings]
 SILVER_SCHEMA=silver
 SILVER_TABLE_NAME_CASE=upper
+SILVER_NAME_MATCHING=auto
 ASK_PASSWORD_IN_CLI=False
 ROW_LIMIT=
 """.strip()
