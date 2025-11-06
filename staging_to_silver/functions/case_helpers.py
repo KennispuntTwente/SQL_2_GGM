@@ -93,6 +93,24 @@ def _get_source_column_name_case() -> str | None:
     return None
 
 
+def _apply_column_case_preference(name: str) -> List[str]:
+    """
+    Build an ordered list of column-name candidates honoring STAGING_COLUMN_NAME_CASE.
+    Preference rules mirror table-name handling:
+    - upper: [NAME.upper(), NAME]
+    - lower: [NAME.lower(), NAME.upper()]
+    - None:  [NAME, NAME.upper()] (keeps historical behavior where UPPER often exists)
+    """
+    pref = _get_source_column_name_case()
+    if pref == "upper":
+        ordered = [name.upper(), name]
+    elif pref == "lower":
+        ordered = [name.lower(), name.upper()]
+    else:
+        ordered = [name, name.upper()]
+    return _unique_preserve_order(ordered)
+
+
 def reflect_tables(engine, schema: str | None, base_names: Iterable[str]) -> MetaData:
     """
     Reflect tables from a schema using a list of base names, adding UPPER variants
@@ -211,14 +229,12 @@ def col(table: Table, name: str):
     Prefers an exact case-insensitive match; falls back to dict-style access if present.
     """
     mode = _get_source_name_matching_mode()
-    col_case_pref = _get_source_column_name_case()
+    # Note: STAGING_COLUMN_NAME_CASE influences candidate ordering via
+    # _apply_column_case_preference; we don't need the raw value here.
 
-    # Build an ordered list of candidate names to try
-    candidates: List[str] = [name]
-    if col_case_pref == "upper":
-        candidates.append(name.upper())
-    elif col_case_pref == "lower":
-        candidates.append(name.lower())
+    # Build an ordered list of candidate names to try, honoring preference but
+    # still considering the typical UPPER variant used in many staging sources.
+    candidates: List[str] = _apply_column_case_preference(name)
 
     # Try direct lookups first (exact key matches) honoring preferences
     for candidate in _unique_preserve_order(candidates):
