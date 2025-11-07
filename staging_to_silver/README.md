@@ -1,14 +1,21 @@
 # staging_to_silver
 
 Deze module verbindt met de SQL-server waarop data uit de applicatie is gedumpt in de eerdere module (source_to_staging),
-en vormt deze via SQL-queries om naar de structuur van het gemeentelijk gegevensmodel (GGM)
-
-Van belang is dat dus source_to_staging reeds is uitgevoerd, en ook dat er een database is waar de (lege) tabellen
-van het gemeentelijk gegevensmodel op staan (zie map: ggm_selectie).
+en vormt deze via SQL-queries om naar de structuur van het gemeentelijk gegevensmodel (GGM). 
 
 De module verbindt met de SQL-server en voert queries uit die de 'source'-data ('brons') omvornen naar het GGM ('zilver').
 Deze queries zijn gedefinieerd in SQLAlchemy zodat ze op verschillende typen SQL-servers kunnen werken.
 De SQL-queries zijn in feite de GGM-mappings, direct ook in de vorm van uitvoerbare code.
+
+Van belang is dat dus source_to_staging reeds is uitgevoerd, en ook dat er een database is waar de (lege) tabellen
+van het gemeentelijk gegevensmodel op staan (zie map: ggm_selectie). Deze module kan eventueel ook de SQL-code uitvoeren
+om GGM-tabellen aan te maken (zie sectie: "GGM-tabellen automatisch aanmaken").
+
+In sectie "Configuratie" wordt uitgelegd hoe deze module te configureren. In sectie "Queries schrijven" wordt uitgelegd
+hoe je zelf queries kan schrijven om data uit de applicatie te ontsluiten naar het GGM.
+
+(Voor uitleg van commands om deze module te runnen met configuratie, zie de `README.md` in de
+ root van de repository; sectie "Uitvoeren").
 
 ## Configuratie
 
@@ -16,76 +23,76 @@ De SQL-queries zijn in feite de GGM-mappings, direct ook in de vorm van uitvoerb
 Een voorbeeld staat in `staging_to_silver/config.ini.example`.
 Je kan ook via environment-variables configureren; zie voorbeeld
 `staging_to_silver/.env.example`. 
+Prioriteit bij configuratie is INI > environment variables > standaard-waardes.
 
-Prioriteit bij configuratie is INI > ENV > defaults, net als in `source_to_staging`.
+Hieronder staat verder toegelicht wat de verschillende opties doen. 
+Er staat ook beknopte toelichting in de voorbeeld-configuratiebestanden 
+(`staging_to_silver/config.ini.example` en `staging_to_silver/.env.example`).
 
-### Oracle (optioneel thick‑mode)
+### Wegschrijfmodus ('write mode')
 
-- Standaard gebruikt de driver `oracle+oracledb` thin‑mode. Voor thick‑mode (Instant Client) stel je een pad in via `DST_ORACLE_CLIENT_PATH` (in `[settings]` of als env var). Dit wordt vóór het opbouwen van de database‑verbinding geïnitialiseerd.
-- Gebruik je een TNS‑alias, zet dan `DST_ORACLE_TNS_ALIAS=True` en vul de alias in bij `DST_HOST` (of `DST_DB`).
+Je kan op verschillende manieren de uit 'staging' geselecteerde
+data toevoegen aan de tabellen in 'silver': 
 
-### Dialectondersteuning en write modes
+- `overwrite` (standaard): wist eerst alle bestaande rijen uit de doeltabel (DELETE) en laadt daarna de nieuwe set; volledig transactieel en triggert eventuele delete/insert‑triggers.
+- `append`: voegt nieuwe rijen toe zonder bestaande rijen te wijzigen; kan duplicaten geven als je mapping niet incrementeel is.
+- `truncate`: leegt de doeltabel met TRUNCATE TABLE (of DELETE op SQLite) en laadt daarna opnieuw; meestal sneller, reset vaak identity/tellingen en activeert doorgaans geen rij‑triggers.
+- `upsert` (alleen voor Postgres): insert‑of‑update op basis van de primaire sleutel (ON CONFLICT DO UPDATE); vereist een primaire sleutel op de doeltabel.
 
-- Alle queries draaien binnen één transactie. Het statement `SET CONSTRAINTS ALL DEFERRED` wordt alleen uitgevoerd op PostgreSQL; andere backends slaan dit over.
-- Write modes per doel‑tabel: `append`, `overwrite` (standaard), `truncate`, `upsert`.
-	- Standaard is de schrijfmodus per tabel `overwrite` wanneer je niets opgeeft.
-	- `upsert` is PostgreSQL‑only: op niet‑PostgreSQL backends geeft de pipeline een duidelijke foutmelding. Gebruik daar `append/overwrite/truncate`.
-	- Per‑tabel write modes configureer je via:
-		1) Sectie `[write-modes]` in je `.ini`, met regels als `TABEL = append|overwrite|truncate|upsert`
-		2) Of via de sleutel `WRITE_MODES` onder `[settings]` of als env var, met lijstnotatie: `WRITE_MODES = TABEL1=append, TABEL2=truncate; TABEL3=overwrite`
-	- Matching is case‑insensitief; ongeldige waarden worden genegeerd met een waarschuwing.
-	- Zie `staging_to_silver/config.ini.example` en `.env.example` voor voorbeelden.
+### Databases & schema's
 
-### Cross‑database (MSSQL)
+Verschillende SQL-server-types gaan verschillend om met wat “database” en “schema” betekenen.
+Per type wordt het hier uitgelegd alsmede hoe zich dit verhoudt tot de opties voor deze module:
 
-- Staging staat in `DST_DB.DST_SCHEMA`. Je kunt de doeldatabase specificeren via `SILVER_DB`. Dit resulteert in drie‑delige kwalificatie: `[DB].[SCHEMA].[TABLE]`.
-- Voor andere backends:
-	- PostgreSQL ondersteunt geen cross‑database queries/tabel‑referenties; `SILVER_DB` wordt genegeerd met een waarschuwing.
-	- MySQL/MariaDB zien “database” als “schema”; laat `SILVER_DB` leeg en gebruik `SILVER_SCHEMA` (of laat leeg) passend bij je setup.
-	- Oracle gebruikt gebruikers als schema; connect als de juiste gebruiker en laat `SILVER_DB` leeg.
+- SQL Server (MSSQL)
+	- Database = logische database (`DST_DB`); schema = namespace binnen die database (`DST_SCHEMA`).
+	- Staging en silver worden aangesproken als `[DB].[SCHEMA].[TABLE]`.
+	- Je kunt de doeldatabase voor silver apart zetten met `SILVER_DB`; de kwalificatie wordt dan `[SILVER_DB].[SILVER_SCHEMA].[TABLE]`. Als `SILVER_DB` leeg is, gebruiken we `DST_DB`.
+	- Bij initialisatie (met `INIT_SQL_FOLDER`) maken/gebruiken we `SILVER_SCHEMA` (in `SILVER_DB` indien gezet).
+
+- PostgreSQL
+	- Database = cluster‑database; schema = namespace binnen die database.
+	- Cross‑database is niet mogelijk; `SILVER_DB` wordt genegeerd (we gebruiken altijd de verbonden database `DST_DB`) en er wordt een waarschuwing gelogd.
+	- Gebruik `SILVER_SCHEMA` voor het schema; dit wordt indien nodig aangemaakt en als `search_path` ingesteld tijdens initialisatie.
+
+- MySQL/MariaDB
+	- “Database” en “schema” zijn synoniemen; objecten worden als `database.table` aangesproken.
+	- Verbind met de juiste database via `DST_DB`. Laat `SILVER_DB` leeg.
+	- Gebruik `SILVER_SCHEMA` om (effectief) de doeldatabase te benoemen (gelijk aan de database‑naam), of laat leeg om de standaard database te gebruiken.
+
+- Oracle
+	- Schema = gebruiker; objecten staan onder de ingelogde gebruiker.
+	- Verbind als de juiste gebruiker en laat `SILVER_DB` leeg.
+	- `SILVER_SCHEMA` kun je gebruiken om expliciet een ander schema te kwalificeren (mits je rechten hebt); standaard gebruiken we de huidige gebruiker.
 
 Destructieve init‑stap (`DELETE_EXISTING_SCHEMA`) wordt overgeslagen met een waarschuwing wanneer `SILVER_DB` verschilt van de verbonden database (`DST_DB`).
 
-### Naam- en case-instellingen (bron vs. doel)
+### Naam- en case-instellingen
 
-Er zijn vier instellingen die met “case” of naam-matching te maken hebben. Ze hebben elk een eigen rol:
-
-- Bron (staging) matching tijdens reflectie:
-	- `STAGING_NAME_MATCHING` – hoe we staging tabel‑/kolomnamen opzoeken:
-		- `auto` (standaard): case‑insensitief zoeken met veilige fallbacks. Werkt robuust op Postgres/MSSQL waar casing kan verschillen (bijv. `wvbesl` en `WVBESL`).
-		- `strict`: vereist exacte namen.
-	- `STAGING_TABLE_NAME_CASE` – (optioneel) voorkeurscase bij het kiezen tussen meerdere kandidaten voor een brontabelnaam. Waarden: `upper` | `lower` | leeg (geen voorkeur). Dit is alléén een tiebreaker; in `auto` blijft matching case‑insensitief.
-	- `STAGING_COLUMN_NAME_CASE` – (optioneel) voorkeurscase bij het opzoeken van bronkolommen. Waarden: `upper` | `lower` | leeg. In `auto` blijft matching case‑insensitief, maar exacte hits volgens de voorkeur krijgen voorrang.
-
-- Doel (GGM) normalisatie tijdens laden:
-	- `SILVER_TABLE_NAME_CASE` – normaliseert de sleutels van de geladen mappings (de namen van de GGM-doeltabellen) wanneer we de query-builders laden. Veelal `upper` zodat de mapping‑sleutels overeenkomen met de GGM‑DDL (BESCHIKKING, CLIENT, …).
-	- `SILVER_COLUMN_NAME_CASE` – (optioneel) past de labels van de geselecteerde kolommen aan (upper/lower). Dit beïnvloedt alléén de aliasnamen in de SELECT‑projectie, niet de brontabelkolommen.
-	- `SILVER_NAME_MATCHING` – bepaalt hoe kolommen van de doeltabel worden gematcht bij het bouwen van de INSERT ... SELECT:
-		- `auto` (standaard): case‑insensitief matchen van doeltabel‑kolomnamen.
-		- `strict`: vereis exacte namen.
+Bij het aanmaken van tabellen kan het op sommige SQL-server-types voorkomen dat deze, mogelijk onverwacht,
+tabel- en kolomnamen in upper-/lowercase zetten. Daarom kan de model soepel omgaan  met tabel- en kolomnamen:
+er kan eerst worden gezocht naar een exacte match, en dan naar een match die niet de exacte case volgt.
 
 Samengevat:
-- `STAGING_NAME_MATCHING`/`STAGING_TABLE_NAME_CASE` en `STAGING_COLUMN_NAME_CASE` bepalen hoe wij de BRON (staging) tabellen/kolommen terugvinden tijdens reflectie en joins.
-- `SILVER_TABLE_NAME_CASE`/`SILVER_COLUMN_NAME_CASE` en `SILVER_NAME_MATCHING` beïnvloeden hoe wij de DOEL‑kant (GGM) aanspreken en presenteren.
-
-Alle vier staan onder `[settings]` in de `.ini` of in `.env`.
+- `STAGING_NAME_MATCHING`/`STAGING_TABLE_NAME_CASE` en `STAGING_COLUMN_NAME_CASE` bepalen hoe wij de staging ('brons') tabellen/kolommen terugvinden in de queries (d.w.z., selectie van data)
+- `SILVER_TABLE_NAME_CASE`/`SILVER_COLUMN_NAME_CASE` en `SILVER_NAME_MATCHING` beïnvloeden waar wij het doel (GGM-tabellen/'silver') vinden (d.w.z., waar de geselecteerde data wordt geplaatst)
 
 ### Queries selecteren
 
 Als je bepaalde queries wel/niet wil draaien, kan je gebruik maken van `QUERY_ALLOWLIST`/`QUERY_DENYLIST` om alleen
 bepaalde queries te draaien.
 
-### Sneller testen/ontwikkelen met een rij‑limiet
+### Sneller testen/ontwikkelen met een rij‑limiet ('row limit')
 
 Voor lokale ontwikkeling kun je een subset van de data verwerken door in `[settings]` `ROW_LIMIT` te zetten.
-Dit limiet wordt toegepast op elke mapping (`SELECT … LIMIT n` of equivalent per dialect). Laat leeg of zet `0` om te uitschakelen.
+Deze limiet wordt toegepast op elke mapping (`SELECT … LIMIT n` of equivalent per dialect). Laat leeg of zet `0` om te uitschakelen.
 
-### Optioneel: GGM‑tabellen automatisch aanmaken
+### GGM‑tabellen automatisch aanmaken (vooraf SQL-code uitvoeren)
 
-Je kunt vóór het uitvoeren van de mappings de GGM‑doeltabellen aanmaken door een map met `.sql`‑bestanden uit te voeren (bijv. de bestanden in `ggm_selectie/`). Dit is handig voor een snelle start of lokale demo.
+Je kunt vóór het uitvoeren van de mappings de GGM‑doeltabellen aanmaken door een map met `.sql`‑bestanden uit te voeren (bijv. de bestanden in `ggm_selectie/`). 
+Hiermee kan de module ook de GGM-tabellen aanmaken, als ze nog niet bestaan op je server.
 
-Instellingen (sectie `[settings]`):
-
+Instellingen hiervoor (sectie `[settings]`):
 - `INIT_SQL_FOLDER` – pad naar een map met `.sql`‑bestanden. Als ingesteld, worden de scripts uitgevoerd vóór de mappings.
 - `INIT_SQL_SUFFIX_FILTER` – standaard `True`. Als `True`, worden alleen bestanden met suffix `_<dialect>.sql` uitgevoerd, bv. `*_postgres.sql` voor PostgreSQL en `*_mssql.sql` voor SQL Server. Zet op `False` om alle `*.sql` te draaien.
 - Schema voor de init‑scripts: we gebruiken altijd `SILVER_SCHEMA` (en waar van toepassing ook `SILVER_DB` op MSSQL). Voor PostgreSQL wordt het schema aangemaakt (indien nodig) en `search_path` daarop gezet. Voor MSSQL wordt het schema (best‑effort) aangemaakt en de default schema voor de huidige gebruiker gezet.
@@ -96,12 +103,19 @@ Opmerking:
 
 ## Queries schrijven (GGM-mappings)
 
-Dit is de minimale en robuuste manier om een mapping‑query te definiëren. Het doel is dat je query bestandloos, case‑bestendig en dialect‑neutraal blijft, terwijl de loader alles netjes naar de doeltabellen projecteert.
+Als je zelf queries wil schrijven om data vanuit de applicatie te 'mappen' naar het GGM, kan dat met SQLAlchemy.
+We gebruiken enkele custom functies bovenop SQLAlchemy om bijvoorbeeld te zorgen dat tabel- en kolomnamen goed worden
+gematcht tussen verschillende SQL-server-types. Daarnaast moeten de queries in een bepaald format staan zodat
+ze goed kunnen worden ingeladen door deze module.
 
-### In het kort
+Hieronder staat uitgelegd hoe je zelf je queries kan schrijven. Je kan ook naar de voorbeelden in de map `silver_to_staging/queries` kijken.
 
-- Plaats je module in `staging_to_silver/queries/YourTable.py`.
-- Exporteer een dict `__query_exports__ = {"DEST_TABLE": builder}`.
+### Basis
+
+Het doel is dat je query bestandloos, case‑bestendig en dialect‑neutraal blijft, terwijl de loader alles netjes naar de doeltabellen projecteert.
+
+- Plaats je query in een bestand als `staging_to_silver/queries/YourTable.py`.
+- Exporteer hierin een dict `__query_exports__ = {"DEST_TABLE": builder}`.
 	- `DEST_TABLE` is de doeltabelnaam zoals in GGM. De loader normaliseert de sleutel met `SILVER_TABLE_NAME_CASE` (standaard `upper`).
 - `builder(engine, source_schema=None) -> sqlalchemy.sql.Select`
 	- Bouw een SQLAlchemy `select(...)` en label alle projecties met de doeltabel‑kolomnamen in de gewenste volgorde.
@@ -179,18 +193,3 @@ def build_beschikte_voorziening(engine, source_schema=None):
 
 __query_exports__ = {"BESCHIKTE_VOORZIENING": build_beschikte_voorziening}
 ```
-
-### Kolomnamen en case
-
-- Label je kolommen altijd met de doeltabel‑namen. De pipeline kan labels optioneel normaliseren via `SILVER_COLUMN_NAME_CASE` (`upper|lower`).
-- Het matchen naar de doeltabel gebeurt in `main.py`:
-	- De loader leest jouw labelvolgorde, zoekt de corresponderende doelkolommen (case‑insensitief tenzij `SILVER_NAME_MATCHING=strict`) en bouwt `INSERT ... SELECT`.
-	- Ontbreekt een kolom in de doeltabel, dan volgt een duidelijke foutmelding met de beschikbare kolommen.
-
-### Tips & valkuilen
-
-- Selecteer alleen de kolommen die je wilt laden; ontbrekende doorkolommen moeten op de doeltabel defaults of `NULL` toelaten.
-- Gebruik `cast(literal(None), Type).label("DOELKOL")` om verplichte doorkolommen tijdelijk te vullen wanneer bronwaarden ontbreken.
-- Houd joins klein en reflecteer alleen benodigde tabellen: `reflect_tables` accepteert een smalle lijst met basisnamen.
-- In `STAGING_NAME_MATCHING=strict` moeten tabel‑ en kolomnamen exact kloppen; handig om inconsistenties in staging te detecteren.
-- `upsert` als write‑mode is alleen voor PostgreSQL en vereist een primaire sleutel op de doeltabel.

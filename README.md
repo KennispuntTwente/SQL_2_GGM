@@ -137,9 +137,9 @@ python -m staging_to_silver.main --config staging_to_silver/config.ini
 
 ### Vanuit Docker
 
-Installeer [Docker Desktop](https://www.docker.com/products/docker-desktop/). Zorg dat de Docker daemon draait (bijvoorbeeld door Docker Desktop te starten).
-
 Deze repository bevat een Dockerfile die beide modules kan draaien via één image.
+
+Installeer eerst Docker (of alternatief: Podman) en zorg dat de Docker-daemon draait (bijv., door Docker Desktop te starten).
 
 1) Build de image
 
@@ -186,10 +186,10 @@ docker run --rm \
 	-- -c /app/staging_to_silver/config.ini
 ```
 
-Tips en opmerkingen:
-
-- Database op de host benaderen: gebruik in je config host.docker.internal als hostnaam
-- Data-volume: parquet-dumps worden standaard in /app/data geschreven; mount die map lokaal met -v "$(pwd)/data:/app/data" als je de bestanden wil bewaren (en zet optie 'CLEANUP_PARQUET_FILES' uit)
+Tips/opmerkingen:
+- SQL-server op de host benaderen: gebruik in je configuratie `host.docker.internal` als hostnaam 
+(anders wordt geprobeerd om een SQL-server binnen de Docker-image te benaderen, wat dan mislukt)
+- Bestanden bewaren: parquet-dumps worden standaard in /app/data geschreven; mount die map lokaal met -v "$(pwd)/data:/app/data" als je de bestanden wil bewaren (en zet optie 'CLEANUP_PARQUET_FILES' uit)
 - SQL Server (pyodbc): deze image bevat unixODBC maar niet de Microsoft ODBC driver (msodbcsql17/msodbcsql18). Voeg deze zelf toe of maak een afgeleide image wanneer je mssql via ODBC gebruikt.
 - Oracle: de image gebruikt oracledb in thin‑mode. Voor thick‑mode (Instant Client) mount de client en zet de juiste pad‑variabele in je .env of .ini: SRC_ORACLE_CLIENT_PATH (bron, source_to_staging) of DST_ORACLE_CLIENT_PATH (doel, staging_to_silver).
 - Proxy/certificaten: plaats certificaten in een volume en exporteer de juiste env vars (bijv. REQUESTS_CA_BUNDLE) als je die nodig hebt.
