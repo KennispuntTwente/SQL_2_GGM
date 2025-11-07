@@ -22,6 +22,7 @@ from typing import Optional
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 from sqlalchemy.schema import MetaData
+import sqlparse
 
 
 _CREATE_TBL_RE = re.compile(
@@ -59,8 +60,9 @@ def _split_sql_statements(sql_text: str, db_type: str) -> list[str]:
 
     - Honors GO batch separators (MSSQL) on a line by itself
     - Honors Oracle '/' on a line by itself as a block terminator (not executed)
-    - Splits on semicolons not inside quotes (single/double)
-    - Keeps it simple (no custom DELIMITER support)
+    - Uses sqlparse.split for semicolon-based splitting which respects quotes,
+      PostgreSQL dollar-quoted blocks ($$...$$ / $tag$...$tag$), and compound statements
+    - Keeps it simple (no custom DELIMITER support beyond what's handled by sqlparse)
     """
     # Normalize newlines
     lines = sql_text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
@@ -86,45 +88,30 @@ def _split_sql_statements(sql_text: str, db_type: str) -> list[str]:
     if buf:
         chunks.append(("\n".join(buf), False))
 
-    # For each chunk, split by semicolons outside of quotes
+    # For each chunk, split using sqlparse which respects dollar-quoted blocks
     stmts: list[str] = []
     for s, is_oracle_block in chunks:
         if db_type == "oracle" and is_oracle_block:
             # Treat whole PL/SQL block as a single statement (internal semicolons allowed)
             stmt = s.strip()
             if stmt:
+                # IMPORTANT: Do NOT strip the trailing semicolon from PL/SQL blocks.
+                # Anonymous blocks require the final ';' after END; removing it leads to
+                # ORA-06550 / PLS-00103 (EOF when expecting ';'). We only trim whitespace.
                 stmts.append(stmt)
             continue
 
-        i = 0
-        start = 0
-        in_single = False
-        in_double = False
-        n = len(s)
-        while i < n:
-            ch = s[i]
-            if ch == "'":
-                # Toggle single-quote unless escaped by doubled quotes
-                if not in_double:
-                    if in_single and i + 1 < n and s[i + 1] == "'":
-                        i += 2
-                        continue
-                    in_single = not in_single
-            elif ch == '"':
-                if not in_single:
-                    if in_double and i + 1 < n and s[i + 1] == '"':
-                        i += 2
-                        continue
-                    in_double = not in_double
-            elif ch == ";" and not in_single and not in_double:
-                part = s[start:i].strip()
-                if part:
-                    stmts.append(part)
-                start = i + 1
-            i += 1
-        tail = s[start:].strip()
-        if tail:
-            stmts.append(tail)
+        # sqlparse.split retains statement boundaries and handles quoted/dollar-quoted strings
+        parts = sqlparse.split(s)
+        for part in parts:
+            stmt = part.strip()
+            if not stmt:
+                continue
+            # Remove trailing semicolons to avoid driver-specific issues
+            stmt = stmt.rstrip(" \t\r\n;")
+            if stmt:
+                stmts.append(stmt)
+
     return [st for st in stmts if st]
 
 
