@@ -330,6 +330,7 @@ def direct_transfer(
     lowercase_columns: bool = True,
     write_mode: str = "replace",  # replace | truncate | append
     row_limit: int | None = None,
+    log_row_count: bool = True,
     # Retry/backoff for transient insert errors
     max_retries: int = 3,
     backoff_base_seconds: float = 0.5,
@@ -362,6 +363,20 @@ def direct_transfer(
             qualified_dst,
             chunk_size,
         )
+
+        # Optional upfront row count logging (can be expensive on huge tables)
+        if log_row_count:
+            try:
+                with source_engine.connect() as sconn:
+                    qname = quote_ident(source_engine, table_name)
+                    if source_schema:
+                        qname = f"{quote_ident(source_engine, source_schema)}.{qname}"
+                    cnt = sconn.execute(text(f"SELECT COUNT(*) FROM {qname}")).scalar()
+                logger.info("   (source rows: %s)", f"{cnt:,}")
+            except Exception as e:
+                logger.warning("Failed to COUNT(*) for %s: %s", qualified_src, e)
+        else:
+            logger.info("   (row count skipped; LOG_ROW_COUNT disabled)")
 
         # Reflect source table
         src_table = Table(
@@ -462,7 +477,7 @@ def direct_transfer(
                         # Backoff with jitter
                         sleep = min(
                             backoff_max_seconds,
-                            backoff_base_seconds * (2 ** attempt),
+                            backoff_base_seconds * (2**attempt),
                         )
                         # full jitter in [0.5x, 1.5x]
                         sleep *= 0.5 + random.random()

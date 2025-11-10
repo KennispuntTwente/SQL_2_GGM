@@ -11,12 +11,6 @@ Fill metadata for better distribution/consumption.
 * Analyze current set of queries and based on that generate a synthetic dataset
 which can be used for development/testing purposes
 
-* Avoid heavy COUNT(*) before export unless desired
-download_parquet does COUNT(*) upfront for SQLAlchemy path purely for logging.
-Evidence: source_to_staging/functions/download_parquet.py tail block where COUNT(*) is issued, then iter_batches is used.
-Impact: Slows down huge tables; unnecessary pressure on source systems.
-Fix: Make row count optional (e.g., LOG_ROW_COUNT=true|false from settings); default to true
-
 * Unify table name casing for YAML/INI “SRC_TABLES” > file names > staging table names
 Current behavior preserves the case from config to filenames to destination table names, while columns are lowercased. On Postgres/unquoted identifiers, unintended case changes can occur.
 Evidence: upload_parquet keeps table_name from filenames; columns are lowered, tables are not.

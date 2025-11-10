@@ -24,6 +24,7 @@ def download_parquet(
     schema: str | None = None,
     *,
     row_limit: int | None = None,
+    log_row_count: bool = True,
 ):
     """
     Dumps specified *tables* to Parquet files **without ever holding more than
@@ -93,7 +94,11 @@ def download_parquet(
 
             # Build a quoted target and a dialect-correct SELECT, preserving any row limits
             try:
-                quoted_target = quote_fqn(scheme, [schema, table]) if schema else quote_fqn(scheme, [table])
+                quoted_target = (
+                    quote_fqn(scheme, [schema, table])
+                    if schema
+                    else quote_fqn(scheme, [table])
+                )
             except Exception:
                 # Fallback: leave unquoted if quoting fails
                 quoted_target = qualified
@@ -107,7 +112,11 @@ def download_parquet(
                 elif scheme == "oracle":
                     base_select = f"SELECT * FROM {quoted_target} FETCH FIRST {row_limit} ROWS ONLY"
                 else:
-                    logger.warning("Unknown URI scheme %r – skipping ROW_LIMIT for %s", scheme, qualified)
+                    logger.warning(
+                        "Unknown URI scheme %r – skipping ROW_LIMIT for %s",
+                        scheme,
+                        qualified,
+                    )
                     base_select = f"SELECT * FROM {quoted_target}"
             else:
                 base_select = f"SELECT * FROM {quoted_target}"
@@ -145,6 +154,21 @@ def download_parquet(
 
                 iterator = _ReaderIter(reader)
 
+            # Optional row count upfront for connectorx path (may be costly)
+            if log_row_count:
+                try:
+                    cnt_select = f"SELECT COUNT(*) FROM {quoted_target}"
+                    # Use pandas return type for broad compatibility; avoids Polars/PyArrow API differences
+                    cnt_df = cx.read_sql(uri, cnt_select, return_type="pandas")
+                    cnt_value_repr = str(cnt_df.iloc[0, 0])
+                    logger.info("   (total rows: %s)", cnt_value_repr)
+                except Exception as e:
+                    logger.warning(
+                        "Failed to COUNT(*) via ConnectorX for %s: %s", qualified, e
+                    )
+            else:
+                logger.info("   (row count skipped; LOG_ROW_COUNT disabled)")
+
             wrote_any = False
             part_written = 0
             for batch in iterator:
@@ -179,19 +203,31 @@ def download_parquet(
         else:
             logger.info("📥 Dumping table via SQLAlchemy: %s", qualified)
             with engine.connect() as conn:
-                try:
-                    qname = quote_fqn(engine, [schema, table]) if schema else quote_fqn(engine, [table])
-                    row_count = conn.execute(text(f"SELECT COUNT(*) FROM {qname}")).scalar()
-                except Exception as err:
-                    raise RuntimeError(
-                        f"Failed to count rows for {qualified}: {err}"
-                    ) from err
-
-                logger.info("   (total rows: %s)", f"{row_count:,}")
+                if log_row_count:
+                    try:
+                        qname = (
+                            quote_fqn(engine, [schema, table])
+                            if schema
+                            else quote_fqn(engine, [table])
+                        )
+                        row_count = conn.execute(
+                            text(f"SELECT COUNT(*) FROM {qname}")
+                        ).scalar()
+                        logger.info("   (total rows: %s)", f"{row_count:,}")
+                    except Exception as err:
+                        raise RuntimeError(
+                            f"Failed to count rows for {qualified}: {err}"
+                        ) from err
+                else:
+                    logger.info("   (row count skipped; LOG_ROW_COUNT disabled)")
 
                 # Apply optional row limit based on SQLAlchemy engine dialect
                 # Ensure base_select uses quoted target
-                q_target = quote_fqn(engine, [schema, table]) if schema else quote_fqn(engine, [table])
+                q_target = (
+                    quote_fqn(engine, [schema, table])
+                    if schema
+                    else quote_fqn(engine, [table])
+                )
                 limited_select = f"SELECT * FROM {q_target}"
                 if row_limit and row_limit > 0:
                     dname = engine.dialect.name.lower()
@@ -200,9 +236,15 @@ def download_parquet(
                     elif dname in ("mssql", "sql server"):
                         limited_select = f"SELECT TOP ({row_limit}) * FROM {q_target}"
                     elif dname == "oracle":
-                        limited_select = f"{limited_select} FETCH FIRST {row_limit} ROWS ONLY"
+                        limited_select = (
+                            f"{limited_select} FETCH FIRST {row_limit} ROWS ONLY"
+                        )
                     else:
-                        logger.warning("Unknown dialect %r – skipping ROW_LIMIT for %s", dname, qualified)
+                        logger.warning(
+                            "Unknown dialect %r – skipping ROW_LIMIT for %s",
+                            dname,
+                            qualified,
+                        )
 
                 batches = pl.read_database(
                     query=limited_select,

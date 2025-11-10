@@ -118,6 +118,13 @@ if transfer_mode == "SQLALCHEMY_DIRECT":
         lowercase_columns=True,
         write_mode=write_mode,
         row_limit=row_limit,
+        log_row_count=get_config_value(
+            "LOG_ROW_COUNT",
+            section="settings",
+            cfg_parser=cfg,
+            default=True,
+            cast_type=bool,
+        ),
         # Optional retry/backoff tuning for direct transfer inserts
         max_retries=get_config_value(
             "DIRECT_MAX_RETRIES",
@@ -161,6 +168,13 @@ else:
             cast_type=int,
         ),
         row_limit=row_limit,
+        log_row_count=get_config_value(
+            "LOG_ROW_COUNT",
+            section="settings",
+            cfg_parser=cfg,
+            default=True,
+            cast_type=bool,
+        ),
     )
 
     # Step 2/2: Upload parquet files into destination database

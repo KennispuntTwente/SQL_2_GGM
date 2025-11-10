@@ -72,6 +72,10 @@ ASK_PASSWORD_IN_CLI = False
 # Voorbeeld: alleen eerste 1000 rijen kopiëren tijdens lokale ontwikkeling
 # ROW_LIMIT = 1000
 
+# (Optioneel) Tel eerst het totaal aantal rijen per tabel met een COUNT(*). Kan performance-kosten met zich meebrengen.
+# Zet op False om de telling over te slaan en meteen te gaan streamen/dumpen.
+LOG_ROW_COUNT = True
+
 # (Optioneel) Direct transfer transient error retries (alleen SQLALCHEMY_DIRECT)
 # Aantal keer dat een batch-insert opnieuw geprobeerd wordt bij tijdelijke fouten
 # (deadlock, timeout, disconnect). Defaults: 3; 0 om retries uit te schakelen.
