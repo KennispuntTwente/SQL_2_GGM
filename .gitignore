@@ -12,3 +12,5 @@ tests/_artifacts/
 # Occasionally created by local tooling during tests; keep ignored
 available
 use
+src_to_staging.ini
+staging_to_silver.ini

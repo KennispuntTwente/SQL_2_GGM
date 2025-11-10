@@ -67,6 +67,8 @@ je de code runt verbinding kan maken met zowel de SQL-server van de applicatie a
 Dit zou kunnen op een eigen machine, op een eigen server (on-premises), of bijvoorbeeld in een cloud-omgeving (bijv., Azure).
 Je zou bijvoorbeeld een scheduler (oftewel CRON-job) kunnen instellen welke het proces elke nacht draait.
 
+> Tip: wil je de code uitproberen zonder dat je een applicatie-SQL-server hebt met data? Zie dan [synthetic/README.md](synthetic/README.md) voor uitleg over het genereren van synthetische data en het laden daarvan in een ontwikkel-database in Docker.
+
 ### Vanuit eigen Python-omgeving
 
 #### Installatie
@@ -195,6 +197,12 @@ Tips/opmerkingen:
 - Proxy/certificaten: plaats certificaten in een volume en exporteer de juiste env vars (bijv. REQUESTS_CA_BUNDLE) als je die nodig hebt.
 
 ## Informatie voor ontwikkelaars
+
+### Uitvoeren met synthetische data
+
+Wil je de code uitvoeren zonder dat je een applicatie-SQL-server hebt met data?
+Dan kan je synthetische data genereren met de module in de map `synthetic`.
+Zie de README in die map voor uitleg: [synthetic/README.md](synthetic/README.md).
 
 ### Een eigen versie van dit project gebruiken
 
