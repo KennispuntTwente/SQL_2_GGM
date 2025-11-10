@@ -11,11 +11,15 @@ Van belang is dat dus source_to_staging reeds is uitgevoerd, en ook dat er een d
 van het gemeentelijk gegevensmodel op staan (zie map: ggm_selectie). Deze module kan eventueel ook de SQL-code uitvoeren
 om GGM-tabellen aan te maken (zie sectie: "GGM-tabellen automatisch aanmaken").
 
+> Tip: de GGM-DDL (SQL-code om de tabellen aan te maken) is te vinden in de map `ggm_selectie/`. Je kan deze aanpassen naar
+wens, bijv., door bepaalde tabellen of kolommen te verwijderen die je niet nodig hebt. In ons project hebben we er met name
+voor gekozen om constraints te verwijderen, zodat data geladen kan worden zonder dat deze per se aan alle constraints hoeft te voldoen.
+In de stap richting een 'gold' laag kunnen deze constraints eventueel alsnog worden afgedwongen.
+
 In sectie "Configuratie" wordt uitgelegd hoe deze module te configureren. In sectie "Queries schrijven" wordt uitgelegd
 hoe je zelf queries kan schrijven om data uit de applicatie te ontsluiten naar het GGM.
 
-(Voor uitleg van commands om deze module te runnen met configuratie, zie de `README.md` in de
- root van de repository; sectie "Uitvoeren").
+(Voor uitleg van commands om deze module te runnen met configuratie, zie de `README.md` in de root van de repository; sectie "Uitvoeren".)
 
 ## Configuratie
 
@@ -79,7 +83,10 @@ Samengevat:
 
 ### Queries selecteren
 
-Als je bepaalde queries wel/niet wil draaien, kan je gebruik maken van `QUERY_ALLOWLIST`/`QUERY_DENYLIST` om alleen
+Je kan bepalen van waar queries worden geladen met de settings `QUERY_PATHS`. Standaard is dit `staging_to_silver/queries/`.
+Als je een eigen/extra map met queries wil gebruiken, kun je die hier toevoegen (komma-gescheiden lijst van paden).
+
+Als je bepaalde queries wel/niet wil draaien, kan je verder nog gebruik maken van `QUERY_ALLOWLIST`/`QUERY_DENYLIST` om alleen
 bepaalde queries te draaien.
 
 ### Sneller testen/ontwikkelen met een rij‑limiet ('row limit')

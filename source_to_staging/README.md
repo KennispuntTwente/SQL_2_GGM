@@ -4,14 +4,13 @@ Deze module is verantwoordelijk voor het verbinden met de 'applicatie-SQL-server
 van data hieruit naar de SQL-server waarop je het GGM wil hebben staan, de 
 'target-SQL-server' (bijv. Postgres of Microsoft SQL Server).
 
-Hiermee ontstaat op de target-SQL-server een 'brons' (staging) laag met de data uit de applicatie,nog in de vorm zoals deze op de applicatie-SQL-server staat.
+Hiermee ontstaat op de target-SQL-server een 'brons' (staging) laag met de data uit de applicatie, nog in de vorm zoals deze op de applicatie-SQL-server staat.
 
 In de module 'staging_to_silver' wordt deze data vervolgens omgevormd naar het Gemeentelijk Gegevensmodel (GGM), oftewel 'zilver'.
 
 In de sectie "Configuratie" staat uitgelegd hoe deze module te configureren.
 
-(Voor uitleg van commands om deze module te runnen met configuratie, zie de `README.md` in de
- root van de repository; sectie "Uitvoeren").
+(Voor uitleg van commands om deze module te runnen met configuratie, zie de `README.md` in de root van de repository; sectie "Uitvoeren".)
 
 ## Configuratie
 

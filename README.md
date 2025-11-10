@@ -42,6 +42,8 @@ Dit d.m.v. chunking van de data; chunks worden gestreamd in het werkgeheugen van
 tijdelijk worden gedumpt naar parquet-bestanden op de schijfruimte van de client. Zo kunnen grote hoeveelheden
 data worden verwerkt ondanks een beperkt werkgeheugen van de client.
 
+> Zie [source_to_staging/README.md](source_to_staging/README.md) voor meer informatie over deze stap.
+
 ### Van staging naar het GGM ('staging_to_silver')
 
 Op dit punt staat de data in de structuur van de applicatie ('brons') op de SQL-server.
@@ -58,6 +60,8 @@ kunnen we gemakkelijk werken met diverse SQL-server-types)
 (voor de queries, zie map: staging_to_silver/queries).
 
 Nadat de SQL-server de queries heeft verwerkt staat de data in het GGM!
+
+> Zie [staging_to_silver/README.md](staging_to_silver/README.md) voor meer informatie over deze stap.
 
 ## Installatie & gebruik
 
