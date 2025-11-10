@@ -11,13 +11,14 @@ naar het GGM.
 Omdat deze tool geheel open-source is, kan elke gemeente deze toepassen. Voor gemeenten die dezelfde data
 uit SSD willen ontsluiten, is deze tool zo veel als mogelijk 'plug-and-play' gemaakt (d.w.z., niet alleen de mapping wordt
 geleverd; ook de technische uitwerking van de mapping in Python-code).
+Je hoeft de mapping hiermee dus niet zelf uit te werken in jouw ETL-tool; je kunt deze code direct gebruiken.
 
 ---
 
 **Status van dit project (28/10/2025)**: *dit project is nabij afronding maar nog in ontwikkeling.
 Enkele queries in 'staging_to_silver' vereisen bijvoorbeeld mogelijk nog wijzigingen.
 Een GitHub-release zal binnenkort worden uitgegeven wanneer bevestigd is dat alle huidige queries functioneren.
-In mogelijke toekomstige releases wordt de set queries uitgebreid naar meer tabellen die voorkomen in het GGM en ontsloten kunnen worden uit CSDD.*
+In mogelijke toekomstige releases wordt de set queries uitgebreid naar meer tabellen die voorkomen in het GGM en ontsloten kunnen worden uit SSD.*
 
 ## Overzicht
 
@@ -67,7 +68,8 @@ je de code runt verbinding kan maken met zowel de SQL-server van de applicatie a
 Dit zou kunnen op een eigen machine, op een eigen server (on-premises), of bijvoorbeeld in een cloud-omgeving (bijv., Azure).
 Je zou bijvoorbeeld een scheduler (oftewel CRON-job) kunnen instellen welke het proces elke nacht draait.
 
-> Tip: wil je de code uitproberen zonder dat je een applicatie-SQL-server hebt met data? Zie dan [synthetic/README.md](synthetic/README.md) voor uitleg over het genereren van synthetische data en het laden daarvan in een ontwikkel-database in Docker.
+> Tip: wil je de code uitproberen zonder dat je een applicatie-SQL-server hebt met data? Zie dan [synthetic/README.md](synthetic/README.md).
+Hierin staat beschreven hoe je synthetische data kunt genereren en laden in een ontwikkel-database in Docker.
 
 ### Vanuit eigen Python-omgeving
 

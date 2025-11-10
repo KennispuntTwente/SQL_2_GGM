@@ -46,25 +46,17 @@ Dit:
 Onderstaande commando voert het volledige proces uit met synthetische data:
 
 ```bash
-# Let op dat je dit commando uitvoert in een bash-shell waarin de Python virtuele omgeving is geactiveerd
-# Activeer met: source venv/bin/activate  (Linux/Mac) of venv\Scripts\activate (Windows)
 PORT=55432 PASSWORD='SecureP@ss1!24323482349' ROWS=100 \
 	chmod +x synthetic/examples/one_liner_postgres.sh && \
 	./synthetic/examples/one_liner_postgres.sh
 ```
 
-Dit:
-1) genereert synthetische CSV's;
-2) start een Postgres‑container en laadt CSV's als tabellen in database `source` (schema: public);
-```bash
-# Let op dat je dit commando uitvoert in een bash-shell waarin de Python virtuele omgeving is geactiveerd
-# Activeer met: source venv/bin/activate  (Linux/Mac) of venv\Scripts\activate (Windows)
-PORT=55432 PASSWORD=SecureP@ss1!24323482349 ROWS=100 \
-	chmod +x synthetic/examples/one_liner_postgres.sh && \
-	./synthetic/examples/one_liner_postgres.sh
-```
+Let op dat je bovenstaande commando uitvoert in een bash-omgeving, zoals Git Bash. Zorg dat
+hierin de Python-omgeving is geactiveerd (zie README.md in de hoofdmap), bijv., met `source venv/Scripts/activate`;
+je moet ook eerst `uv sync` hebben gerund om de Python-dependencies te installeren. Daarnaast moet je
+Docker dan wel Podman geïnstalleerd en actief hebben op je machine.
 
-Dit:
+Het commando doet het volgende:
 1) genereert synthetische CSV's;
 2) start een Postgres‑container en laadt CSV's als tabellen in database `source` (schema: public);
 3) maakt database `ggm` aan, waarin `staging` en `silver` als schema's worden gebruikt;
@@ -73,5 +65,8 @@ Dit:
 Vooraf worden de doeltabellen naar het GGM-model in schema `silver` aangemaakt op basis van DDL's in `ggm_selectie`.
 
 We gebruiken in dit voorbeeld dus één Postgres‑container (poort 55432) en twee databases (`source`, `ggm`).
-In de praktijk zou `source` op één SQL-server staan (van de applicatie, bijv. Oracle) en `ggm` met `staging`/`silver` samen in een andere (datawarehouse,
+In de praktijk zou `source` op één SQL-server staan (bijv. van de applicatie; Oracle DB) en `ggm` met `staging`/`silver` samen in een andere (datawarehouse,
 bijv. Postgres of MSSQL).
+
+> Tip: als je in VSCode werkt, kan je een extensie installeren zoals [PostgreSQL](https://marketplace.visualstudio.com/items?itemName=ckolkman.vscode-postgres);
+hiermee kan je verbinding maken met de Docker‑container en de tabellen bekijken.
