@@ -3,13 +3,13 @@
 Deze repository bevat code om gegevens uit diverse SQL-servers te ontsluiten en onder te brengen
 in de structuur van het [Gemeentelijk Gegevensmodel (GGM)](https://www.gemeentelijkgegevensmodel.nl/v2.4.0/).
 
-Specifiek bevat deze repository een ontsluiting van data uit de applicatie Centric Suite 4 Sociaal Domein (CSDD),
+Specifiek bevat deze repository een ontsluiting van data uit de applicatie Centric Suite 4 Sociaal Domein (SSD),
 naar tabellen van het GGM over beschikkingen en voorzieningen in het sociaal domein. De modules kunnen echter
 geconfigureerd worden om gegevens uit elke andere applicatie met een SQL-server te onsluiten en te modelleren
 naar het GGM. 
 
 Omdat deze tool geheel open-source is, kan elke gemeente deze toepassen. Voor gemeenten die dezelfde data
-uit CSSD willen ontsluiten, is deze tool zo veel als mogelijk 'plug-and-play' gemaakt (d.w.z., niet alleen de mapping wordt
+uit SSD willen ontsluiten, is deze tool zo veel als mogelijk 'plug-and-play' gemaakt (d.w.z., niet alleen de mapping wordt
 geleverd; ook de technische uitwerking van de mapping in Python-code).
 
 ---
