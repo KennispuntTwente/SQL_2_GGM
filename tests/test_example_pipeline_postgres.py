@@ -62,9 +62,11 @@ def test_readme_one_liner_pipeline_postgres(tmp_path):
     subprocess.run(gen_cmd, check=True, cwd=repo_root)
 
     # 2) Load into source DB (schema public -> pass empty schema to loader)
+    # Invoke loader as a module to ensure package context (avoids ad-hoc sys.path edits).
     load_cmd = [
         "python",
-        str(repo_root / "synthetic" / "load_csvs_to_db.py"),
+        "-m",
+        "synthetic.load_csvs_to_db",
         "--db",
         "postgres",
         "--db-name",

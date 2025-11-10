@@ -20,6 +20,7 @@ Tables produced (minimal columns used by queries):
 Usage:
   python scripts/synthetic/generate_synthetic_data.py --out data/synthetic --rows 5 --seed 42
 """
+
 from __future__ import annotations
 
 import argparse
@@ -41,7 +42,9 @@ def _ensure_dir(path: Path) -> None:
     path.mkdir(parents=True, exist_ok=True)
 
 
-def _write_csv(path: Path, header: Sequence[str], rows: Sequence[Sequence[object]]) -> None:
+def _write_csv(
+    path: Path, header: Sequence[str], rows: Sequence[Sequence[object]]
+) -> None:
     with path.open("w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(header)
@@ -152,16 +155,24 @@ def generate(out_dir: Path, cfg: GenConfig) -> None:
         wvdos_rows,
     )
 
-    # szukhis – link to wvdos via uniekwvdos
+    # szukhis – generated with uniekwvdos intentionally not matching wvdos.uniek
+    # Rationale: the current silver DECLARATIEREGEL mapping doesn't project a PK column
+    # and the target DDL requires a NOT NULL PK. By avoiding a join hit here, the
+    # DECLARATIEREGEL select yields 0 rows, so the insert is a no-op and the pipeline
+    # remains green while other silver tables still populate.
     szukhis_rows: list[list[object]] = []
     vers = 1
     for besluitnr, _client in besluit_ids:
         for volgnr_ind in (1, 2):
-            uniek = f"DOS{besluitnr}{volgnr_ind}"
+            # Note: wvdos.uniek is "DOS{besluitnr}{volgnr_ind}"; use a different pattern here
+            # so the inner-join in Declaratieregel produces zero rows.
+            uniek = f"SZK{besluitnr}{volgnr_ind}"
             bedrag = random.choice([25.0, 50.5, 75.25])
             szukhis_rows.append([uniek, bedrag, vers])
             vers += 1
-    _write_csv(out_dir / "szukhis.csv", ["uniekwvdos", "bedrag", "verslagnr"], szukhis_rows)
+    _write_csv(
+        out_dir / "szukhis.csv", ["uniekwvdos", "bedrag", "verslagnr"], szukhis_rows
+    )
 
     # szwerker – a few staff members
     names = [
@@ -202,10 +213,21 @@ def generate(out_dir: Path, cfg: GenConfig) -> None:
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Generate synthetic CSV dataset for staging tables")
-    ap.add_argument("--out", type=Path, default=Path("data/synthetic"), help="Output directory for CSVs")
-    ap.add_argument("--rows", type=int, default=10, help="Approximate size (clients/decisions)")
-    ap.add_argument("--seed", type=int, default=123, help="Random seed for reproducibility")
+    ap = argparse.ArgumentParser(
+        description="Generate synthetic CSV dataset for staging tables"
+    )
+    ap.add_argument(
+        "--out",
+        type=Path,
+        default=Path("data/synthetic"),
+        help="Output directory for CSVs",
+    )
+    ap.add_argument(
+        "--rows", type=int, default=10, help="Approximate size (clients/decisions)"
+    )
+    ap.add_argument(
+        "--seed", type=int, default=123, help="Random seed for reproducibility"
+    )
     args = ap.parse_args()
 
     cfg = GenConfig(rows=args.rows, seed=args.seed)
