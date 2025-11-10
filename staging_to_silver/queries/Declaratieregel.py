@@ -1,4 +1,4 @@
-from sqlalchemy import select, and_, cast, literal, String
+from sqlalchemy import select, and_, cast, literal, String, Date
 from staging_to_silver.functions.case_helpers import reflect_tables, get_table, col
 
 
@@ -50,8 +50,8 @@ def build_declaratieregel(engine, source_schema=None):
         col(wvindb, "clientnr").label("BETREFT_CLIENT_ID"),
         col(szukhis, "verslagnr").label("VALT_BINNEN_DECLARATIE_ID"),
         cast(literal(None), String(80)).label("CODE"),
-        cast(literal(None), String(80)).label("DATUMEINDE"),
-        cast(literal(None), String(80)).label("DATUMSTART"),
+        cast(literal(None), Date).label("DATUMEINDE"),
+        cast(literal(None), Date).label("DATUMSTART"),
     ).select_from(full_join)
 
     return stmt

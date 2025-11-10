@@ -1,4 +1,5 @@
 from sqlalchemy import select, and_, or_, func, cast, Date, literal
+from sqlalchemy.types import TIMESTAMP
 from staging_to_silver.functions.case_helpers import reflect_tables, get_table, col
 
 
@@ -17,7 +18,9 @@ def _local_date_amsterdam(col, engine):
             Date,
         )
     elif dialect.startswith("postgres"):
-        return cast(func.timezone("Europe/Amsterdam", func.timezone("UTC", col)), Date)
+        # Ensure the column is a timestamp before applying timezone conversions
+        ts = cast(col, TIMESTAMP)
+        return cast(func.timezone("Europe/Amsterdam", func.timezone("UTC", ts)), Date)
     else:
         # For SQLite or other engines used in shape tests, avoid dialect-specific functions
         return cast(col, Date)
