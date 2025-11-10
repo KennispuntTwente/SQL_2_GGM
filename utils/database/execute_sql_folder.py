@@ -23,6 +23,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 from sqlalchemy.schema import MetaData
 import sqlparse
+from sqlparse import tokens as T
 
 
 _CREATE_TBL_RE = re.compile(
@@ -109,10 +110,75 @@ def _split_sql_statements(sql_text: str, db_type: str) -> list[str]:
                 continue
             # Remove trailing semicolons to avoid driver-specific issues
             stmt = stmt.rstrip(" \t\r\n;")
-            if stmt:
-                stmts.append(stmt)
+            if not stmt:
+                continue
+
+            # Skip statements that are purely comments/whitespace.
+            # Psycopg2 raises "can't execute an empty query" if we pass a comment-only string.
+            if _is_comment_only(stmt):
+                continue
+
+            stmts.append(stmt)
 
     return [st for st in stmts if st]
+
+
+def _is_comment_only(stmt: str) -> bool:
+    """Return True if the given SQL statement contains only comments/whitespace.
+
+    Handles both single-line (--) and multi-line (/* */) comments without trying to
+    strip comments inside string literals by leveraging sqlparse tokenization.
+    """
+    try:
+        parsed = sqlparse.parse(stmt)
+    except Exception:
+        # Fall back to a simple line-based heuristic if parsing fails
+        return _is_comment_only_fallback(stmt)
+
+    if not parsed:
+        return True
+
+    # Flatten tokens and check for any non-comment, non-whitespace token
+    for tok in parsed[0].flatten():
+        # Skip whitespace/newlines
+        if tok.ttype in (T.Whitespace, T.Newline):
+            continue
+        # Skip all comment token types
+        if tok.ttype and tok.ttype.parent == T.Comment:
+            continue
+        # Any other token with non-empty text means it's executable
+        if tok.value and tok.value.strip():
+            return False
+    return True
+
+
+def _is_comment_only_fallback(stmt: str) -> bool:
+    """Heuristic fallback: treat as comment-only if all non-empty lines are comments,
+    and honor simple multi-line /* ... */ comment blocks.
+    """
+    s = stmt
+    inside_block = False
+    for raw in s.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+        line = raw.strip()
+        if not line:
+            continue
+        if not inside_block and line.startswith("--"):
+            continue
+        # Enter or exit block comment markers
+        if not inside_block and line.startswith("/*"):
+            inside_block = True
+            # If it also ends on the same line
+            if line.endswith("*/") and len(line) >= 4:
+                inside_block = False
+            continue
+        if inside_block:
+            if line.endswith("*/"):
+                inside_block = False
+            continue
+        # Any other content is not comment-only
+        return False
+    # If we end still in a block, we still consider it comment-only
+    return True
 
 
 def _files_to_run(folder: Path, db_type: str, suffix_filter: bool) -> list[Path]:
