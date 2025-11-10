@@ -29,6 +29,11 @@ DST_USERNAME = sa
 DST_PASSWORD = SecureP@ss1!24323482349
 DST_DB = ggm
 DST_SCHEMA = ggm
+# (Optioneel) Override voor de admin-database die gebruikt wordt om een nieuwe database aan te maken
+# Standaard: 'postgres' voor PostgreSQL, 'master' voor MSSQL. Managed SQL-servers (bijv., Azure, RDS, AlloyDB)
+# blokkeren soms toegang tot deze admin-database. Stel hier een alternatieve admin-database in.
+# Laat leeg om standaard te proberen en bij failure een waarschuwing te loggen.
+DST_ADMIN_DB = 
 # (Optioneel) Wanneer je met een OracleDB schrijft kan thick‑mode nodig zijn.
 # Zet hier het pad naar de Oracle Instant Client (bijv. "C:\\oracle\\instantclient_21_18").
 DST_ORACLE_CLIENT_PATH =

@@ -138,15 +138,15 @@ def upload_parquet(
     manifest_path: str | None = None,
     *,
     write_mode: str = "replace",  # replace | truncate | append
+    # Optional override for admin DB hop when creating databases on Postgres/MSSQL
+    admin_database: str | None = None,
 ):
     """
     Uploads (possibly chunked) Parquet files into destination DB.
     Ensures the target database and schema exist before loading.
     """
     if write_mode.lower() not in {"replace", "truncate", "append"}:
-        raise ValueError(
-            "write_mode must be one of: replace|truncate|append"
-        )
+        raise ValueError("write_mode must be one of: replace|truncate|append")
     write_mode = write_mode.lower()
     dialect = engine.dialect.name.lower()
     manifest_files: list[str] | None = None
@@ -178,46 +178,58 @@ def upload_parquet(
     db_name = engine.url.database
     if db_name:
         if dialect == "postgresql":
-            # connect to 'postgres' admin DB and run CREATE DATABASE in autocommit
-            admin_url = engine.url.set(database="postgres")
-            admin_eng = create_engine(admin_url)
+            admin_db = admin_database or "postgres"
             try:
-                with admin_eng.connect() as conn:
-                    conn = conn.execution_options(isolation_level="AUTOCOMMIT")
-                    exists = conn.execute(
-                        text("SELECT 1 FROM pg_database WHERE datname = :db"),
-                        {"db": db_name},
-                    ).scalar()
-                    if not exists:
-                        qdb = quote_ident(engine, db_name)
-                        conn.execute(text(f"CREATE DATABASE {qdb}"))
-            finally:
-                admin_eng.dispose()
+                admin_url = engine.url.set(database=admin_db)
+                admin_eng = create_engine(admin_url)
+                try:
+                    with admin_eng.connect() as conn:
+                        conn = conn.execution_options(isolation_level="AUTOCOMMIT")
+                        exists = conn.execute(
+                            text("SELECT 1 FROM pg_database WHERE datname = :db"),
+                            {"db": db_name},
+                        ).scalar()
+                        if not exists:
+                            qdb = quote_ident(engine, db_name)
+                            conn.execute(text(f"CREATE DATABASE {qdb}"))
+                finally:
+                    admin_eng.dispose()
+            except Exception as e:
+                logger.warning(
+                    "Skipping database auto-creation; failed to connect to admin database %r: %s",
+                    admin_db,
+                    e,
+                )
 
         elif dialect in ("mssql", "sql server"):
-            # connect to 'master' admin DB and run CREATE DATABASE outside explicit txn
-            admin_url = engine.url.set(database="master")
-            admin_eng = create_engine(admin_url)
+            admin_db = admin_database or "master"
             try:
-                with admin_eng.connect() as conn:
-                    # Ensure CREATE DATABASE runs outside an explicit transaction
-                    # to avoid pyodbc error: "CREATE DATABASE not allowed within a transaction".
-                    conn = conn.execution_options(isolation_level="AUTOCOMMIT")
-                    # Parameterize DB_ID input and safely quote database identifier in CREATE DATABASE
-                    qdb = quote_ident(engine, db_name)
-                    conn.execute(
-                        text(
-                            f"""
+                admin_url = engine.url.set(database=admin_db)
+                admin_eng = create_engine(admin_url)
+                try:
+                    with admin_eng.connect() as conn:
+                        # Ensure CREATE DATABASE runs outside an explicit transaction
+                        conn = conn.execution_options(isolation_level="AUTOCOMMIT")
+                        qdb = quote_ident(engine, db_name)
+                        conn.execute(
+                            text(
+                                f"""
                         IF DB_ID(:db) IS NULL
                         BEGIN
                             CREATE DATABASE {qdb};
                         END
                     """
-                        ),
-                        {"db": db_name},
-                    )
-            finally:
-                admin_eng.dispose()
+                            ),
+                            {"db": db_name},
+                        )
+                finally:
+                    admin_eng.dispose()
+            except Exception as e:
+                logger.warning(
+                    "Skipping database auto-creation; failed to connect to admin database %r: %s",
+                    admin_db,
+                    e,
+                )
 
     # 2) Ensure the schema exists
     if schema:
@@ -298,14 +310,23 @@ def upload_parquet(
                                 from sqlalchemy import Table, MetaData
 
                                 meta = MetaData()
-                                tgt = Table(table_name, meta, schema=schema, autoload_with=engine)
+                                tgt = Table(
+                                    table_name,
+                                    meta,
+                                    schema=schema,
+                                    autoload_with=engine,
+                                )
                                 conn.execute(tgt.delete())
                             except Exception:
                                 # last resort
-                                qname = quote_truncate_target(engine, None, schema, table_name)
+                                qname = quote_truncate_target(
+                                    engine, None, schema, table_name
+                                )
                                 conn.execute(text(f"DELETE FROM {qname}"))
                         else:
-                            qname = quote_truncate_target(engine, engine.url.database, schema, table_name)
+                            qname = quote_truncate_target(
+                                engine, engine.url.database, schema, table_name
+                            )
                             conn.execute(text(f"TRUNCATE TABLE {qname}"))
 
                 decimal_meta = _collect_decimal_metadata(

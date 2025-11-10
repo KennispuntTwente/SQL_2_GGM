@@ -94,6 +94,16 @@ if transfer_mode == "SQLALCHEMY_DIRECT":
             f"WRITE_MODE must be one of ['replace','truncate','append']; got {write_mode!r}"
         )
 
+    # Optional admin database override (for managed Postgres/MSSQL where default admin DB isn't accessible)
+    admin_db_override = cast(
+        str | None,
+        get_config_value(
+            "DST_ADMIN_DB",
+            section="database-destination",
+            cfg_parser=cfg,
+        ),
+    )
+
     direct_transfer(
         source_engine=source_connection,  # type: ignore[arg-type]
         dest_engine=dest_engine,
@@ -147,6 +157,7 @@ if transfer_mode == "SQLALCHEMY_DIRECT":
             default=8.0,
             cast_type=float,
         ),
+        admin_database=admin_db_override,
     )
 else:
     # Step 1/2: Dump tables from source to parquet files
@@ -195,6 +206,16 @@ else:
             f"WRITE_MODE must be one of ['replace','truncate','append']; got {write_mode!r}"
         )
 
+    # Optional admin database override (for managed Postgres/MSSQL where default admin DB isn't accessible)
+    admin_db_override = cast(
+        str | None,
+        get_config_value(
+            "DST_ADMIN_DB",
+            section="database-destination",
+            cfg_parser=cfg,
+        ),
+    )
+
     upload_parquet(
         dest_engine,
         schema=get_config_value(
@@ -210,4 +231,5 @@ else:
         ),
         manifest_path=manifest_path,
         write_mode=write_mode,
+        admin_database=admin_db_override,
     )
