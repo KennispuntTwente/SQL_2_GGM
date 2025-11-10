@@ -26,11 +26,25 @@ def prepare_queries(cfg) -> Dict[str, Callable]:
         "SILVER_COLUMN_NAME_CASE", section="settings", cfg_parser=cfg, default=None
     )
 
+    # Determine additional query sources (folders or individual files) from config
+    raw_paths = cast(
+        str,
+        get_config_value("QUERY_PATHS", section="settings", cfg_parser=cfg, default=""),
+    )
+    extra_paths = []
+    if raw_paths.strip():
+        # Split on commas/semicolons/whitespace similar to allow/deny list parsing
+        tokens = raw_paths.replace(";", " ").replace(",", " ").split()
+        extra_paths = [t.strip() for t in tokens if t.strip()]
+
     queries = load_queries(
         package="staging_to_silver.queries",
         table_name_case=cast(str, table_name_case)
         or "upper",  # default historical behavior
         column_name_case=cast(str | None, column_name_case),
+        extra_files_or_dirs=tuple(extra_paths),
+        # Default behavior: scan built-in package only when no custom paths were provided
+        scan_package=(len(extra_paths) == 0),
     )
 
     allow_cfg = cast(

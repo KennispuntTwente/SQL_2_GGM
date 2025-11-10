@@ -11,12 +11,16 @@ Usage:
 """
 
 from importlib import import_module
+import importlib.util
+import os
+import hashlib
 import pkgutil
 import inspect
 from functools import lru_cache
 from typing import Callable, Dict, Optional, Sequence
 
 from sqlalchemy.sql.elements import ColumnElement  # type: ignore
+
 
 def _load_exports(mod) -> Dict[str, Callable]:
     exports = getattr(mod, "__query_exports__", None)
@@ -38,6 +42,7 @@ def _load_exports(mod) -> Dict[str, Callable]:
         out[k] = v
     return out
 
+
 def _normalize_key(name: str, mode: Optional[str]) -> str:
     if not mode:
         return name
@@ -49,7 +54,9 @@ def _normalize_key(name: str, mode: Optional[str]) -> str:
     return name  # unknown mode -> no-op
 
 
-def _wrap_builder_for_column_case(fn: Callable, column_name_case: Optional[str]) -> Callable:
+def _wrap_builder_for_column_case(
+    fn: Callable, column_name_case: Optional[str]
+) -> Callable:
     """
     Wrap a query builder function so that the returned SELECT statement has
     its projected column labels coerced to the requested case (upper/lower).
@@ -96,6 +103,7 @@ def _wrap_builder_for_column_case(fn: Callable, column_name_case: Optional[str])
     _wrapped.__module__ = getattr(fn, "__module__", __name__)
     return _wrapped
 
+
 @lru_cache(maxsize=None)
 def _load_queries_cached(
     package: str,
@@ -103,6 +111,7 @@ def _load_queries_cached(
     table_name_case: Optional[str],
     column_name_case: Optional[str],
     extra_modules_tuple: tuple[str, ...],
+    extra_paths_tuple: tuple[str, ...],
     scan_package: bool,
 ) -> Dict[str, Callable]:
     """Hashable-args version of load_queries for safe caching.
@@ -119,7 +128,11 @@ def _load_queries_cached(
         # Import the package and list its modules
         pkg = import_module(package)
         module_names = sorted(
-            (m for _, m, ispkg in pkgutil.iter_modules(pkg.__path__) if not ispkg and not m.startswith("_")),
+            (
+                m
+                for _, m, ispkg in pkgutil.iter_modules(pkg.__path__)
+                if not ispkg and not m.startswith("_")
+            ),
             key=str.lower,
         )
 
@@ -152,6 +165,57 @@ def _load_queries_cached(
                 )
             queries[key] = _wrap_builder_for_column_case(fn, column_name_case)
 
+    # Optionally merge exports from filesystem paths (directories or individual files)
+    for path in extra_paths_tuple or ():
+        if not path:
+            continue
+        # Resolve environment variables and user tilde, then absolute
+        resolved = os.path.abspath(os.path.expanduser(os.path.expandvars(path)))
+        if not os.path.exists(resolved):
+            continue
+
+        py_files: list[str] = []
+        if os.path.isdir(resolved):
+            # Collect .py files recursively under the directory, skip dunder and private modules
+            for root, _, files in os.walk(resolved):
+                for fname in files:
+                    if not fname.endswith(".py"):
+                        continue
+                    if fname == "__init__.py" or fname.startswith("_"):
+                        continue
+                    py_files.append(os.path.join(root, fname))
+        elif resolved.endswith(".py"):
+            py_files.append(resolved)
+        else:
+            # Non-.py file, skip
+            continue
+
+        for file_path in sorted(set(py_files), key=str.lower):
+            # Create a stable, unique module name based on file path
+            digest = hashlib.md5(file_path.encode("utf-8")).hexdigest()  # nosec - used for namespacing only
+            mod_name = f"staging_to_silver.dynamic.m_{digest}"
+
+            try:
+                spec = importlib.util.spec_from_file_location(mod_name, file_path)
+                if spec is None or spec.loader is None:
+                    continue
+                module = importlib.util.module_from_spec(spec)
+                # type: ignore[attr-defined]
+                spec.loader.exec_module(module)  # Executes the module code
+            except Exception:
+                # Skip files that cannot be imported
+                continue
+
+            for dest, fn in _load_exports(module).items():
+                key = _normalize_key(dest, table_name_case)
+                if key in queries:
+                    prev = queries[key].__module__
+                    raise ValueError(
+                        f"Duplicate query for destination '{key}': "
+                        f"{module.__name__} conflicts with {prev}"
+                    )
+                queries[key] = _wrap_builder_for_column_case(fn, column_name_case)
+
     if not queries:
         raise RuntimeError(
             f"No queries discovered. Ensure {package} exists, has an __init__.py, "
@@ -166,6 +230,7 @@ def load_queries(
     table_name_case: Optional[str] = None,
     column_name_case: Optional[str] = None,
     extra_modules: Sequence[str] = (),
+    extra_files_or_dirs: Sequence[str] = (),
     scan_package: bool = True,
 ) -> Dict[str, Callable]:
     """
@@ -178,14 +243,17 @@ def load_queries(
     """
     # Coerce unhashable extra_modules (e.g. lists) into a tuple to satisfy caching
     extra_tuple = tuple(extra_modules or ())
+    extra_paths_tuple = tuple(extra_files_or_dirs or ())
     return _load_queries_cached(
         package,
         normalize,
         table_name_case,
         column_name_case,
         extra_tuple,
+        extra_paths_tuple,
         scan_package,
     )
+
 
 # Expose cache control helpers on the public function for tests/back-compat
 load_queries.cache_clear = _load_queries_cached.cache_clear  # type: ignore[attr-defined]
