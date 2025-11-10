@@ -2,6 +2,10 @@ import os
 import logging
 from typing import Any, Callable, Optional, Tuple
 
+# Track which keys we've already warned about this session to avoid log spam
+_warned_env_keys: set[str] = set()
+_warned_ini_missing: set[tuple[str, str]] = set()  # (section, key)
+
 
 def _ensure_console_logging():
     """Ensure there's at least one console handler without causing duplicates.
@@ -108,6 +112,8 @@ def get_config_value(
 
     Priority: INI > ENV > default. Empty strings are treated as missing.
     Interprets boolean-like values as actual booleans.
+    Logging: missing INI option or ENV var warnings are emitted at most once per
+    key per process to avoid repetitive log spam.
     """
     _ensure_console_logging()
 
@@ -131,11 +137,15 @@ def get_config_value(
         )
         ini_value = cfg_parser.get(section, key)
         if ini_value.strip() == "":
-            logging.getLogger(__name__).warning(
-                "Warning: %s in section [%s] is not set or empty in INI file (falling back).",
-                key,
-                section,
-            )
+            # Warn only once per (section, key) per process
+            warn_key = (section, key)
+            if warn_key not in _warned_ini_missing:
+                _warned_ini_missing.add(warn_key)
+                logging.getLogger(__name__).warning(
+                    "Warning: %s in section [%s] is not set or empty in INI file (falling back).",
+                    key,
+                    section,
+                )
         else:
             source = (f"INI[{section}]", ini_value)
 
@@ -150,10 +160,13 @@ def get_config_value(
             )
         env_value = os.environ.get(env_key)
         if env_value is None or env_value.strip() == "":
-            logging.getLogger(__name__).warning(
-                "Warning: %s is not set or is empty in environment variables (falling back).",
-                env_key,
-            )
+            # Warn only once per env variable name per process
+            if env_key not in _warned_env_keys:
+                _warned_env_keys.add(env_key)
+                logging.getLogger(__name__).warning(
+                    "Warning: %s is not set or is empty in environment variables (falling back).",
+                    env_key,
+                )
         else:
             source = (f"ENV[{env_key}]", env_value)
 
