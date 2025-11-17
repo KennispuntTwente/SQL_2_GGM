@@ -3,9 +3,6 @@ Potentially unnecessary or suspect deps; investigate/remove
 Update authors for pyproject.toml; description; license; README wiring
 Enable build system in pyproject.toml
 
-* Schema creation uses raw f-strings without escaping. The SQL folder executor interpolates user-provided schema names directly into CREATE SCHEMA, SET search_path, IF SCHEMA_ID and ALTER USER statements.
-Any schema containing quotes, brackets, or malicious text will either break the script or permit SQL injection. Please route these identifiers through quote_ident() / mssql_bracket_escape() (as you do elsewhere) or parameterize the calls before executing them.
-
 * SQL Server cross-database reflection is broken. qualify_schema() concatenates db and schema into a single string (e.g., "OtherDb.dbo"). That string is then passed directly to SQLAlchemy’s Table(..., schema=<value>) when reflecting or truncating silver tables.
 SQLAlchemy expects schema to contain only the schema name; embedding the database name causes it to look for a literal schema called "OtherDb.dbo", so every reflection or has_table() check fails as soon as SILVER_DB differs from DST_DB. A more reliable approach is to keep the schema argument to just the schema (e.g., "dbo") and add the database name only when emitting raw SQL (as you already do inside quote_truncate_target).
 

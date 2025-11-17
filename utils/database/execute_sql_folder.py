@@ -24,6 +24,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.schema import MetaData
 import sqlparse
 from sqlparse import tokens as T
+from .identifiers import quote_ident, mssql_bracket_escape
 
 
 _CREATE_TBL_RE = re.compile(
@@ -229,14 +230,19 @@ def execute_sql_folder(
         # Prepare schema if requested
         if schema:
             if db_type == "postgres":
-                cur.execute(f'CREATE SCHEMA IF NOT EXISTS "{schema}"')
+                # Safe identifier quoting via dialect preparer
+                qschema = quote_ident(engine, schema)
+                cur.execute(f"CREATE SCHEMA IF NOT EXISTS {qschema}")
                 raw.commit()
-                cur.execute(f'SET search_path TO "{schema}", public')
+                # search_path requires identifiers, not string literals
+                cur.execute(f"SET search_path TO {qschema}, public")
             elif db_type == "mssql":
-                # Create schema explicitly and commit before running any scripts
+                # Safely escape for dynamic SQL: single quotes and bracket quoting
+                esc_literal = schema.replace("'", "''")
+                esc_bracket = mssql_bracket_escape(schema)
                 try:
                     cur.execute(
-                        f"IF SCHEMA_ID(N'{schema}') IS NULL EXEC('CREATE SCHEMA [{schema}]')"
+                        f"IF SCHEMA_ID(N'{esc_literal}') IS NULL EXEC('CREATE SCHEMA [{esc_bracket}]')"
                     )
                     raw.commit()
                 except Exception as exc:
@@ -246,23 +252,22 @@ def execute_sql_folder(
                         schema,
                         exc,
                     )
-                # Setting default schema for the current user is best-effort and not required
-                # for schema-qualified statements; skip noisy errors
+                # Attempt to set default schema for current user (best-effort)
                 try:
                     cur.execute("SELECT CURRENT_USER")
                     row = cur.fetchone()
                     if row and row[0]:
                         username = row[0]
+                        uname_bracket = mssql_bracket_escape(str(username))
                         try:
                             cur.execute(
-                                f"ALTER USER [{username}] WITH DEFAULT_SCHEMA=[{schema}]"
+                                f"ALTER USER [{uname_bracket}] WITH DEFAULT_SCHEMA=[{esc_bracket}]"
                             )
                             raw.commit()
                         except Exception:
                             raw.rollback()
-                            # Keep quiet; schema-qualified DDL/DML will still work
                 except Exception:
-                    # If CURRENT_USER fails for some reason, continue silently
+                    # Continue silently if user lookup fails
                     pass
             elif db_type in {"mysql", "mariadb"}:
                 # Schema == database; warn if provided
@@ -310,9 +315,11 @@ def drop_schema_objects(engine: Engine, schema: Optional[str]) -> None:
         return
 
     if db_type == "postgres":
+        qschema = quote_ident(engine, schema) if schema else None
         with engine.begin() as conn:
-            conn.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
-            conn.execute(text(f'CREATE SCHEMA "{schema}"'))
+            if qschema:
+                conn.execute(text(f"DROP SCHEMA IF EXISTS {qschema} CASCADE"))
+                conn.execute(text(f"CREATE SCHEMA {qschema}"))
         log.info("Recreated schema %s on PostgreSQL", schema)
         return
 
