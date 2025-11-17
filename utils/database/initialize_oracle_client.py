@@ -2,34 +2,19 @@ import logging
 import oracledb
 from utils.config.get_config_value import get_config_value
 
-# Cache lookup results to avoid duplicate config reads & warnings when the
-# client path is absent (very common outside Oracle deployments). Also guard
-# against repeated init_oracle_client calls which oracledb rejects.
-_cached_client_paths: dict[str, str | None] = {}
-_oracle_client_initialized: bool = False
-
 
 def initialize_oracle_client(
     config_key: str = "SRC_ORACLE_CLIENT_PATH",
     cfg_parser=None,
     section: str | None = None,
 ):
-    """Initialize Oracle client using a configured path if present.
-
-    Short-circuits when we've already probed this key and found no path, to
-    avoid duplicate warnings from repeated get_config_value calls. Also skips
-    re-initialization if already initialized successfully.
     """
-    logger = logging.getLogger(__name__)
+    Initialize the Oracle client using a path specified in configuration.
 
-    # If we already attempted this key and found no path, skip re-reading.
-    if config_key in _cached_client_paths and not _cached_client_paths[config_key]:
-        logger.debug(
-            "Oracle client path for %s previously not set; skipping repeat probe.",
-            config_key,
-        )
-        return
-
+    Parameters:
+    - config_key (str): The key to fetch the Oracle client path from config.
+    - cfg_parser: Configuration parser object passed to get_config_value (if needed).
+    """
     # Determine INI section automatically if not provided
     if section is None:
         if config_key.startswith("SRC_"):
@@ -39,27 +24,15 @@ def initialize_oracle_client(
         else:
             section = "database"
 
-    # Fetch (or reuse cached) client path
-    oracle_client_path = _cached_client_paths.get(config_key)
-    if oracle_client_path is None and config_key not in _cached_client_paths:
-        oracle_client_path = get_config_value(
-            config_key, section=section, cfg_parser=cfg_parser
+    # Read the configured client path for the provided key (INI > ENV)
+    oracle_client_path = get_config_value(
+        config_key, section=section, cfg_parser=cfg_parser
+    )
+    if oracle_client_path:
+        logging.getLogger(__name__).info(
+            "Initializing Oracle client with path: %s", oracle_client_path
         )
-        _cached_client_paths[config_key] = oracle_client_path  # cache even if falsy
-
-    # If no path configured, done
-    if not oracle_client_path:
-        return
-
-    # If already initialized once, don't re-initialize (avoid oracledb error)
-    if _oracle_client_initialized:
-        logger.debug("Oracle client already initialized; skipping re-init.")
-        return
-
-    logger.info("Initializing Oracle client with path: %s", oracle_client_path)
-    oracledb.init_oracle_client(lib_dir=oracle_client_path)
-    global _oracle_client_initialized
-    _oracle_client_initialized = True
+        oracledb.init_oracle_client(lib_dir=oracle_client_path)
 
 
 def try_init_oracle_client() -> bool:
