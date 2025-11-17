@@ -1,4 +1,4 @@
-[odata-source]
+[odata-connection]
 # Basis-URL van het OData endpoint (bijv.: https://example.com/odata.svc/)
 ODATA_URL = 
 # Authenticatie-modus (één van: NONE | BASIC | BEARER)
@@ -10,6 +10,7 @@ ODATA_BEARER_TOKEN =
 ODATA_HEADERS =         
 ODATA_VERIFY_SSL = true 
 
+[odata-export]
 # Comma-separated lijst van OData EntitySets om te exporteren, bijv.: Employees,Orders
 # (Dit worden de tabellen die worden geüpload in '[database-destination]')
 ODATA_ENTITY_SETS = 
@@ -18,6 +19,24 @@ ODATA_ENTITY_SETS =
 # ODATA_SELECT_Employees = EmployeeID,LastName
 # ODATA_FILTER_Employees = Active eq true
 # ODATA_EXPAND_Employees = Orders
+
+# Bepaal hoe null-waarden worden behandeld in pyodata (beïnvloedt de export)
+# Bij true: null-waarden worden behouden; bij false: null-waarden worden op default-waarde ingesteld,
+# waarbij verschil tussen missing/niet-missing verloren gaat
+ODATA_RETAIN_NULL = true
+
+[odata-network]
+# Netwerkinstellingen voor OData (robuustheid)
+# Standaard-timeout voor HTTP-aanroepen in seconden
+ODATA_REQUEST_TIMEOUT_SECONDS = 30.0
+# Aantal retries bij tijdelijke fouten (429/5xx)
+ODATA_MAX_RETRIES = 3
+# Backoff-factor tussen retries in seconden
+ODATA_RETRY_BACKOFF_SECONDS = 1.0
+# Welke HTTP-statuscodes tot retry leiden (comma-separated)
+ODATA_RETRY_STATUS_FORCELIST = 429,500,502,503,504
+# Aantal rijen dat in één OData-aanroep wordt opgehaald
+ODATA_PAGE_SIZE = 5000 
 
 [database-destination]
 # De database waarin de OData-gegevens worden geladen
@@ -31,10 +50,14 @@ DST_PASSWORD = YourStrong!Passw0rd
 DST_MSSQL_ODBC_DRIVER = ODBC Driver 18 for SQL Server
 # Optionele admin DB override voor automatisch aanmaken van DB (MSSQL/Postgres)
 # DST_ADMIN_DB = master
+# (Optioneel) Wanneer je met een OracleDB schrijft kan thick‑mode nodig zijn.
+# Zet hier het pad naar de Oracle Instant Client (bijv. "C:\\oracle\\instantclient_21_18").
+DST_ORACLE_CLIENT_PATH =
+# (Optioneel) Als je naar een OracleDB schrijft met een TNS‑alias, zet dit op True en geef de alias
+# op via 'DST_HOST' (of 'DST_DB'). Let op, als je een TNS‑alias gebruikt, worden DST_HOST en DST_PORT genegeerd
+DST_ORACLE_TNS_ALIAS = False
 
 [settings]
-# Aantal rijen dat in één OData-aanroep wordt opgehaald
-ODATA_PAGE_SIZE = 5000 
 # Rij-limiet per entity-set (voor ontwikkelen/testen)
 ROW_LIMIT =   
 # Schrijfmodus (één van: replace | truncate | append)    
@@ -45,7 +68,20 @@ CLEANUP_PARQUET_FILES = true
 LOG_ROW_COUNT = true
 # Of wachtwoord moet worden gevraagd in command line in plaats van config-bestand
 ASK_PASSWORD_IN_CLI = false
+# (Optioneel) Normaliseer tabelnamen in staging naar lower-case (aanbevolen)
+LOWER_TABLE_NAMES = true
 
 [logging]
-# LOG_FILE = logs/odata_to_staging.log 
-# LOG_LEVEL = INFO
+# Globale logging-niveau; vanaf welk type message moet gelogd worden?
+# Kan zijn: DEBUG, INFO, WARNING, of ERROR
+LOG_LEVEL = INFO
+# Of logs in een logbestand moeten worden opgeslagen
+LOG_TO_FILE = True
+# Locatie van het logbestand (wordt aangemaakt indien deze nog niet bestaat)
+LOG_FILE = logs/source_to_staging.log
+# Max. grootte (in bytes) van het logbestand voordat er een nieuw bestand wordt gestart (rotatie). Voorbeeld: 5.000.000 ≈ 5 MB
+LOG_ROTATE_BYTES = 5000000
+# Aantal oude logbestanden dat bewaard blijft bij rotatie (bijv. app.log.1 t/m app.log.N)
+LOG_BACKUP_COUNT = 3
+# Optioneel: eigen opmaak van logregels. Laat weg voor standaard; voorbeeld toont tijd, level, logger en bericht
+# LOG_FORMAT = %(asctime)s %(levelname)-8s [%(name)s] %(message)s

@@ -13,9 +13,7 @@ In de sectie "Configuratie" staat uitgelegd hoe deze module te configureren.
 
 ## Configuratie
 
-`odata_to_staging` gebruikt één INI-bestand (`--config`) met de secties
-- `[odata-source]`, `[database-destination]`,
-, `[settings]` en optioneel `[logging]`.
+`odata_to_staging` gebruikt één INI-bestand (`--config`).
 Een voorbeeld staat in `odata_to_staging/config.ini.example`.
 Je kan ook via environment-variables configureren; zie voorbeeld
 `odata_to_staging/.env.example`.

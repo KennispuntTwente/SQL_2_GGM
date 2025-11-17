@@ -40,13 +40,23 @@ def _collect_entity_options(cfg: Any, entities: List[str]) -> Dict[str, Dict[str
     per_entity: Dict[str, Dict[str, str]] = {}
     for es_name in entities:
         es_opts: Dict[str, str] = {}
+        # Prefer [odata-export], fallback to legacy [odata-source]
         sel = cast(
             Optional[str],
             get_config_value(
                 f"ODATA_SELECT_{es_name}",
-                section="odata-source",
+                section="odata-export",
                 cfg_parser=cfg,
                 allow_none_if_cast_fails=True,
+            )
+            or cast(
+                Optional[str],
+                get_config_value(
+                    f"ODATA_SELECT_{es_name}",
+                    section="odata-source",
+                    cfg_parser=cfg,
+                    allow_none_if_cast_fails=True,
+                ),
             ),
         )
         if sel:
@@ -55,9 +65,18 @@ def _collect_entity_options(cfg: Any, entities: List[str]) -> Dict[str, Dict[str
             Optional[str],
             get_config_value(
                 f"ODATA_EXPAND_{es_name}",
-                section="odata-source",
+                section="odata-export",
                 cfg_parser=cfg,
                 allow_none_if_cast_fails=True,
+            )
+            or cast(
+                Optional[str],
+                get_config_value(
+                    f"ODATA_EXPAND_{es_name}",
+                    section="odata-source",
+                    cfg_parser=cfg,
+                    allow_none_if_cast_fails=True,
+                ),
             ),
         )
         if exp:
@@ -66,9 +85,18 @@ def _collect_entity_options(cfg: Any, entities: List[str]) -> Dict[str, Dict[str
             Optional[str],
             get_config_value(
                 f"ODATA_FILTER_{es_name}",
-                section="odata-source",
+                section="odata-export",
                 cfg_parser=cfg,
                 allow_none_if_cast_fails=True,
+            )
+            or cast(
+                Optional[str],
+                get_config_value(
+                    f"ODATA_FILTER_{es_name}",
+                    section="odata-source",
+                    cfg_parser=cfg,
+                    allow_none_if_cast_fails=True,
+                ),
             ),
         )
         if fil:
@@ -84,8 +112,18 @@ def main():
         Optional[str],
         get_config_value(
             "ODATA_ENTITY_SETS",
-            section="odata-source",
+            section="odata-export",
             cfg_parser=cfg,
+            allow_none_if_cast_fails=True,
+        )
+        or cast(
+            Optional[str],
+            get_config_value(
+                "ODATA_ENTITY_SETS",
+                section="odata-source",
+                cfg_parser=cfg,
+                allow_none_if_cast_fails=True,
+            ),
         ),
     )
     if not entities_str:
@@ -102,7 +140,7 @@ def main():
         int,
         get_config_value(
             "ODATA_PAGE_SIZE",
-            section="settings",
+            section="odata-network",
             cfg_parser=cfg,
             default=5000,
             cast_type=int,
@@ -184,8 +222,17 @@ def main():
         manifest_path=manifest_path,
         write_mode=write_mode,
         admin_database=admin_db_override,
-        # For OData sources, normalize table names to lower-case in staging
-        lower_table_names=True,
+        # Normalize table names to lower-case in staging (configurable; default True)
+        lower_table_names=cast(
+            bool,
+            get_config_value(
+                "LOWER_TABLE_NAMES",
+                section="settings",
+                cfg_parser=cfg,
+                default=True,
+                cast_type=bool,
+            ),
+        ),
     )
 
 

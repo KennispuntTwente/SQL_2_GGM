@@ -44,6 +44,9 @@ data worden verwerkt ondanks een beperkt werkgeheugen van de client.
 
 > Zie [source_to_staging/README.md](source_to_staging/README.md) voor meer informatie over deze stap.
 
+> Een variant op deze module is [odata_to_staging](odata_to_staging/README.md).
+Hierbij wordt data uit een OData-API gedownload in plaats van een SQL-server.
+
 ### Van staging naar het GGM ('staging_to_silver')
 
 Op dit punt staat de data in de structuur van de applicatie ('brons') op de SQL-server.
