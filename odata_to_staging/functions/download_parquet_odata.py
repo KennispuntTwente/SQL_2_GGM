@@ -187,10 +187,13 @@ def download_parquet_odata(
             if remaining is not None and isinstance(nrows, int):
                 remaining -= nrows
 
-            # Stop when server has no more pages and count/limit is satisfied
-            if next_url is None and (
-                remaining is None or (remaining is not None and remaining <= 0)
-            ):
+            # Stop only when an explicit remaining limit is exhausted.
+            # Previous logic also stopped when next_url was None AND remaining was None,
+            # which truncated downloads for services that expect client-driven $skip/$top paging
+            # without advertising a __next link or supporting $count. In that scenario we now
+            # continue issuing skip/top requests until an empty page is returned (handled above)
+            # or a row_limit is satisfied.
+            if remaining is not None and remaining <= 0:
                 break
 
         if not wrote_any:
