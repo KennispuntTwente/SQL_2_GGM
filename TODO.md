@@ -12,8 +12,3 @@ SQLAlchemy expects schema to contain only the schema name; embedding the databas
 * OData downloads silently truncate when $count is unavailable
 The OData exporter relies on either ROW_LIMIT or a successful count() call to populate remaining. If both are absent (for example when the source does not support $count), remaining stays None. The pagination loop then breaks immediately after the first chunk because the stop condition next_url is None and (remaining is None …) becomes True even though more pages are available; next_url is None whenever the service expects the client to page via $skip/$top. In practice this means only the first page_size rows are ever written for such services.
 Fix suggestion: Continue fetching when next_url is None but you’re using skip/top, and only break once the returned page is empty (or when you know you’ve reached the requested row limit).
-
-* INIT_SQL_FOLDER may run against the wrong database without warning
-In the MSSQL cross-database scenario, the code attempts to build a dedicated engine for SILVER_DB, but any exception in that block is swallowed and the function silently falls back to the staging engine before executing the SQL scripts.
-If the second engine fails to initialize (mis-typed DB name, missing driver, etc.), the init scripts—including optional DELETE_EXISTING_SCHEMA—are executed against the staging database rather than the intended silver database, with no log message explaining the fallback.
-Fix suggestion: log the exception (and ideally abort) instead of silently reusing the staging engine, so destructive scripts don’t touch the wrong database.

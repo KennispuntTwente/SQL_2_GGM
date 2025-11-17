@@ -175,9 +175,21 @@ def run_init_sql(
                 silver_db,
                 database,
             )
-    except Exception:
-        # Fallback to the main engine if creating a second engine fails
-        engine_for_init = engine
+    except Exception as e:
+        # Safety guard: previously this silently fell back to the staging engine, risking
+        # execution of potentially destructive INIT SQL (e.g. schema drops) against the wrong DB.
+        # We now abort loudly to force explicit correction of configuration issues.
+        log.error(
+            (
+                "Failed to create dedicated MSSQL engine for SILVER_DB=%s (DST_DB=%s). "
+                "Aborting INIT_SQL_FOLDER execution to prevent running scripts against the staging database. "
+                "Original error: %s"
+            ),
+            silver_db,
+            database,
+            e,
+        )
+        raise
 
     # If explicitly requested, drop existing objects in the INIT target schema
     # when initializing against a separate MSSQL SILVER_DB to avoid re-run DDL collisions.
