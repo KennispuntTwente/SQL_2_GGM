@@ -33,11 +33,19 @@ def test_upload_parquet_append_sqlite(tmp_path: Path):
     dst_db = tmp_path / "dst.sqlite"
     dst_engine = create_engine(f"sqlite+pysqlite:///{dst_db}")
     with dst_engine.begin() as conn:
-        conn.execute(text("CREATE TABLE Demotable (id INTEGER PRIMARY KEY, name TEXT, value INTEGER)"))
-        conn.execute(text("INSERT INTO Demotable (id, name, value) VALUES (100, 'pre', 999)"))
+        conn.execute(
+            text(
+                "CREATE TABLE Demotable (id INTEGER PRIMARY KEY, name TEXT, value INTEGER)"
+            )
+        )
+        conn.execute(
+            text("INSERT INTO Demotable (id, name, value) VALUES (100, 'pre', 999)")
+        )
 
     # Append should keep pre-existing row and add 3
-    upload_parquet(dst_engine, input_dir=str(out_dir), cleanup=False, write_mode="append")
+    upload_parquet(
+        dst_engine, input_dir=str(out_dir), cleanup=False, write_mode="append"
+    )
 
     with dst_engine.connect() as conn:
         count = conn.execute(text("SELECT COUNT(*) FROM Demotable")).scalar_one()
@@ -54,11 +62,21 @@ def test_upload_parquet_truncate_sqlite(tmp_path: Path):
     dst_db = tmp_path / "dst2.sqlite"
     dst_engine = create_engine(f"sqlite+pysqlite:///{dst_db}")
     with dst_engine.begin() as conn:
-        conn.execute(text("CREATE TABLE Demotable (id INTEGER PRIMARY KEY, name TEXT, value INTEGER)"))
-        conn.execute(text("INSERT INTO Demotable (id, name, value) VALUES (100, 'pre1', 999), (101, 'pre2', 998)"))
+        conn.execute(
+            text(
+                "CREATE TABLE Demotable (id INTEGER PRIMARY KEY, name TEXT, value INTEGER)"
+            )
+        )
+        conn.execute(
+            text(
+                "INSERT INTO Demotable (id, name, value) VALUES (100, 'pre1', 999), (101, 'pre2', 998)"
+            )
+        )
 
     # Truncate should remove pre-existing rows, then load 3
-    upload_parquet(dst_engine, input_dir=str(out_dir), cleanup=False, write_mode="truncate")
+    upload_parquet(
+        dst_engine, input_dir=str(out_dir), cleanup=False, write_mode="truncate"
+    )
 
     with dst_engine.connect() as conn:
         count = conn.execute(text("SELECT COUNT(*) FROM Demotable")).scalar_one()

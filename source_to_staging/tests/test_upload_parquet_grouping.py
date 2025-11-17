@@ -28,7 +28,10 @@ def test_parse_parquet_base_name_chunked():
 def test_parse_parquet_base_name_embedded_part():
     # Should not strip _part in the middle
     assert _parse_parquet_base_name("user_partitions.parquet") == "user_partitions"
-    assert _parse_parquet_base_name("user_partitions_part0001.parquet") == "user_partitions"
+    assert (
+        _parse_parquet_base_name("user_partitions_part0001.parquet")
+        == "user_partitions"
+    )
 
 
 @pytest.mark.parametrize(

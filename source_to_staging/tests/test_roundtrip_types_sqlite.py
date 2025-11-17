@@ -31,7 +31,7 @@ def test_end_to_end_roundtrip_values_sqlite(tmp_path: Path):
     (allowing for SQLite's dynamic typing of booleans/datetimes).
     """
     # Source DB with mixed columns; SQLite stores types dynamically, so we focus on value fidelity
-    src_engine = create_engine(f"sqlite+pysqlite:///{tmp_path/'src.sqlite'}")
+    src_engine = create_engine(f"sqlite+pysqlite:///{tmp_path / 'src.sqlite'}")
     with src_engine.begin() as conn:
         conn.exec_driver_sql(
             """
@@ -86,7 +86,7 @@ def test_end_to_end_roundtrip_values_sqlite(tmp_path: Path):
     download_parquet(src_engine, ["fact"], output_dir=str(out_dir), chunk_size=2)
 
     # Upload into destination DB
-    dst_engine = create_engine(f"sqlite+pysqlite:///{tmp_path/'dst.sqlite'}")
+    dst_engine = create_engine(f"sqlite+pysqlite:///{tmp_path / 'dst.sqlite'}")
     upload_parquet(dst_engine, input_dir=str(out_dir), cleanup=False)
 
     # Verify uploaded values match originals
@@ -103,11 +103,21 @@ def test_end_to_end_roundtrip_values_sqlite(tmp_path: Path):
         return abs(a - b) <= tol
 
     exp = rows
-    for (gid, gbig, gamt, gflag, gtxt, gd, gdt), (eid, ebig, eamt, eflag, etxt, ed, edt) in zip(got, exp):
+    for (gid, gbig, gamt, gflag, gtxt, gd, gdt), (
+        eid,
+        ebig,
+        eamt,
+        eflag,
+        etxt,
+        ed,
+        edt,
+    ) in zip(got, exp):
         assert gid == eid
         assert gbig == ebig
         assert approx(gamt, eamt)
-        assert (gflag == eflag) or (gflag in (0, 1) and eflag in (0, 1) and gflag == eflag)
+        assert (gflag == eflag) or (
+            gflag in (0, 1) and eflag in (0, 1) and gflag == eflag
+        )
         assert gtxt == etxt
         assert gd == ed
         assert gdt == edt
@@ -126,7 +136,9 @@ def test_upload_parquet_preserves_nulls_and_values(tmp_path: Path):
             "f64": pl.Series("f64", [1.5, None, -2.25], dtype=pl.Float64),
             "bool": pl.Series("bool", [True, None, False], dtype=pl.Boolean),
             "text": pl.Series("text", ["a", None, ""], dtype=pl.Utf8),
-            "date": pl.Series("date", [date(2024, 1, 1), None, date(1999, 12, 31)], dtype=pl.Date),
+            "date": pl.Series(
+                "date", [date(2024, 1, 1), None, date(1999, 12, 31)], dtype=pl.Date
+            ),
             # Timezone-naive datetime to avoid backend-specific TZ coercions
             "dt": pl.Series(
                 "dt",
@@ -141,12 +153,14 @@ def test_upload_parquet_preserves_nulls_and_values(tmp_path: Path):
     pq = in_dir / "mixed.parquet"
     df.write_parquet(pq)
 
-    engine = create_engine(f"sqlite+pysqlite:///{tmp_path/'db.sqlite'}")
+    engine = create_engine(f"sqlite+pysqlite:///{tmp_path / 'db.sqlite'}")
     upload_parquet(engine, input_dir=str(in_dir), cleanup=False)
 
     # Read back and compare null counts and value equivalence (after normalization)
     with engine.connect() as conn:
-        back = pl.read_database("SELECT rowid, * FROM mixed ORDER BY rowid", connection=conn)
+        back = pl.read_database(
+            "SELECT rowid, * FROM mixed ORDER BY rowid", connection=conn
+        )
     # Drop SQLite rowid helper
     back = back.drop("rowid")
 
@@ -170,7 +184,9 @@ def test_upload_parquet_preserves_nulls_and_values(tmp_path: Path):
     assert got_date_str == exp_date_str
 
     exp_dt_str = df["dt"].dt.strftime("%Y-%m-%d %H:%M:%S").to_list()
-    got_dt_str = back["dt"].str.slice(0, 19).to_list()  # drop fractional seconds if present
+    got_dt_str = (
+        back["dt"].str.slice(0, 19).to_list()
+    )  # drop fractional seconds if present
     assert got_dt_str == exp_dt_str
 
     # numeric and text exact checks (floats with tolerance)
@@ -205,7 +221,7 @@ def test_connectorx_download_then_upload_roundtrip(tmp_path: Path, monkeypatch):
 
     batches = [
         _batch([1, 2], [1.25, -3.5], [True, None], ["a", None]),
-        _batch([3], [0.0], [False], [""] ),
+        _batch([3], [0.0], [False], [""]),
     ]
 
     def fake_read_sql(conn, query, *, return_type, batch_size, **kwargs):
@@ -221,12 +237,14 @@ def test_connectorx_download_then_upload_roundtrip(tmp_path: Path, monkeypatch):
     download_parquet(uri, ["sales"], output_dir=str(out_dir), chunk_size=10)
 
     # Upload to a fresh SQLite db
-    engine = create_engine(f"sqlite+pysqlite:///{tmp_path/'cx_roundtrip.sqlite'}")
+    engine = create_engine(f"sqlite+pysqlite:///{tmp_path / 'cx_roundtrip.sqlite'}")
     upload_parquet(engine, input_dir=str(out_dir), cleanup=False)
 
     # Validate
     with engine.connect() as conn:
-        back = pl.read_database("SELECT id, amount, flag, name FROM sales ORDER BY id", connection=conn)
+        back = pl.read_database(
+            "SELECT id, amount, flag, name FROM sales ORDER BY id", connection=conn
+        )
 
     # Column names are lowercased by upload
     assert back.columns == ["id", "amount", "flag", "name"]

@@ -132,7 +132,9 @@ def test_download_parquet_connectorx_schema_qualification(tmp_path, monkeypatch)
 
     uri = "postgresql://user:pass@host/db"
     out_dir = tmp_path / "out"
-    download_parquet(uri, ["tbl"], output_dir=str(out_dir), chunk_size=100, schema="myschema")
+    download_parquet(
+        uri, ["tbl"], output_dir=str(out_dir), chunk_size=100, schema="myschema"
+    )
 
     # Verify schema-qualified query was constructed
     assert captured["query"].strip() == "SELECT * FROM myschema.tbl"
@@ -147,7 +149,9 @@ def test_download_parquet_connectorx_schema_qualification(tmp_path, monkeypatch)
 
 
 @pytest.mark.cx_dump
-def test_download_parquet_connectorx_row_limit_with_driver_suffix_postgres(tmp_path, monkeypatch):
+def test_download_parquet_connectorx_row_limit_with_driver_suffix_postgres(
+    tmp_path, monkeypatch
+):
     # Ensure URI with driver suffix (postgresql+psycopg2) applies LIMIT correctly
     captured = {}
 
@@ -162,7 +166,14 @@ def test_download_parquet_connectorx_row_limit_with_driver_suffix_postgres(tmp_p
 
     uri = "postgresql+psycopg2://user:pass@host/db"
     out_dir = tmp_path / "out"
-    download_parquet(uri, ["clients"], output_dir=str(out_dir), chunk_size=10, schema="myschema", row_limit=5)
+    download_parquet(
+        uri,
+        ["clients"],
+        output_dir=str(out_dir),
+        chunk_size=10,
+        schema="myschema",
+        row_limit=5,
+    )
 
     q = captured["query"].strip().lower()
     # Expect LIMIT clause and proper FROM target retained
@@ -171,7 +182,9 @@ def test_download_parquet_connectorx_row_limit_with_driver_suffix_postgres(tmp_p
 
 
 @pytest.mark.cx_dump
-def test_download_parquet_connectorx_row_limit_with_driver_suffix_mssql(tmp_path, monkeypatch):
+def test_download_parquet_connectorx_row_limit_with_driver_suffix_mssql(
+    tmp_path, monkeypatch
+):
     # Ensure URI with driver suffix (mssql+pyodbc) applies TOP correctly
     captured = {}
 
@@ -185,7 +198,14 @@ def test_download_parquet_connectorx_row_limit_with_driver_suffix_mssql(tmp_path
 
     uri = "mssql+pyodbc://user:pass@host/db"
     out_dir = tmp_path / "out"
-    download_parquet(uri, ["orders"], output_dir=str(out_dir), chunk_size=10, schema="dbo", row_limit=5)
+    download_parquet(
+        uri,
+        ["orders"],
+        output_dir=str(out_dir),
+        chunk_size=10,
+        schema="dbo",
+        row_limit=5,
+    )
 
     q = captured["query"].strip().lower()
     # Expect TOP syntax at the start and proper target

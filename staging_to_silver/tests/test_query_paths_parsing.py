@@ -2,13 +2,13 @@ from staging_to_silver.functions.queries_setup import parse_extra_query_paths
 
 
 def test_query_paths_parsing_preserves_spaces_and_quotes():
-    raw = r'C:\Data Warehouse\ggm\queries;C:\Users\Luka\My Queries; "C:\Quoted Path\With Space" , C:\NoSpace\Path'
+    raw = r'C:\\Data Warehouse\\ggm\\queries;C:\\Users\\Luka\\My Queries; "C:\\Quoted Path\\With Space" , C:\\NoSpace\\Path'
     paths = parse_extra_query_paths(raw)
     assert paths == [
-        r"C:\Data Warehouse\ggm\queries",
-        r"C:\Users\Luka\My Queries",
-        r"C:\Quoted Path\With Space",
-        r"C:\NoSpace\Path",
+        r"C:\\Data Warehouse\\ggm\\queries",
+        r"C:\\Users\\Luka\\My Queries",
+        r"C:\\Quoted Path\\With Space",
+        r"C:\\NoSpace\\Path",
     ]
     # Ensure no unintended splitting occurred on internal spaces
     for p in paths:

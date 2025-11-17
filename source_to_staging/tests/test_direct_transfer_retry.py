@@ -49,11 +49,7 @@ def test_direct_transfer_retries_on_transient_insert(tmp_path, monkeypatch):
             is_insert = False
             target_name = None
 
-        if (
-            is_insert
-            and target_name == "foo"
-            and call_state["fail_count"] < 1
-        ):
+        if is_insert and target_name == "foo" and call_state["fail_count"] < 1:
             call_state["fail_count"] += 1
             # Raise an OperationalError with a recognizable transient message
             raise OperationalError("insert", {}, Exception("deadlock detected"))

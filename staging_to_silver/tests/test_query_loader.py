@@ -83,6 +83,7 @@ def test_duplicate_destination_detection():
     # Re-export an existing destination name to trigger duplicate error
     def fake_builder(engine, source_schema=None):
         from sqlalchemy import select, literal
+
         return select(literal(1).label("x"))
 
     mod_name = "_tmp_fake_queries_duplicate"

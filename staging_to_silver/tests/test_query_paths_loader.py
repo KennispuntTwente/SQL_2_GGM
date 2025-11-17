@@ -48,7 +48,7 @@ __query_exports__ = {
 
     # Compute path to built-in queries directory
     repo_root = Path(__file__).resolve().parents[1]
-    default_dir = repo_root / "staging_to_silver" / "queries"
+    default_dir = repo_root / "queries"
     assert default_dir.exists(), f"Default queries dir not found: {default_dir}"
 
     # Provide both paths; default package should be loaded via filesystem scan

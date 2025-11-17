@@ -44,14 +44,28 @@ def test_sqlalchemy_direct_write_mode_append(tmp_path):
     # Create source table with 3 rows
     src_engine = create_engine(f"sqlite+pysqlite:///{src_db}")
     with src_engine.begin() as conn:
-        conn.execute(text("CREATE TABLE Demotable (id INTEGER PRIMARY KEY, name TEXT, value INTEGER)"))
-        conn.execute(text("INSERT INTO Demotable (name, value) VALUES ('a', 1), ('b', 2), ('c', 3)"))
+        conn.execute(
+            text(
+                "CREATE TABLE Demotable (id INTEGER PRIMARY KEY, name TEXT, value INTEGER)"
+            )
+        )
+        conn.execute(
+            text(
+                "INSERT INTO Demotable (name, value) VALUES ('a', 1), ('b', 2), ('c', 3)"
+            )
+        )
 
     # Pre-create destination table with a non-conflicting row (id=100)
     dst_engine = create_engine(f"sqlite+pysqlite:///{dst_db}")
     with dst_engine.begin() as conn:
-        conn.execute(text("CREATE TABLE Demotable (id INTEGER PRIMARY KEY, name TEXT, value INTEGER)"))
-        conn.execute(text("INSERT INTO Demotable (id, name, value) VALUES (100, 'pre', 999)"))
+        conn.execute(
+            text(
+                "CREATE TABLE Demotable (id INTEGER PRIMARY KEY, name TEXT, value INTEGER)"
+            )
+        )
+        conn.execute(
+            text("INSERT INTO Demotable (id, name, value) VALUES (100, 'pre', 999)")
+        )
 
     # Write INI with WRITE_MODE=append
     cfg_path = tmp_path / "source_to_staging_append.ini"
@@ -89,14 +103,30 @@ def test_sqlalchemy_direct_write_mode_truncate(tmp_path):
     # Source with 3 rows
     src_engine = create_engine(f"sqlite+pysqlite:///{src_db}")
     with src_engine.begin() as conn:
-        conn.execute(text("CREATE TABLE Demotable (id INTEGER PRIMARY KEY, name TEXT, value INTEGER)"))
-        conn.execute(text("INSERT INTO Demotable (name, value) VALUES ('a', 1), ('b', 2), ('c', 3)"))
+        conn.execute(
+            text(
+                "CREATE TABLE Demotable (id INTEGER PRIMARY KEY, name TEXT, value INTEGER)"
+            )
+        )
+        conn.execute(
+            text(
+                "INSERT INTO Demotable (name, value) VALUES ('a', 1), ('b', 2), ('c', 3)"
+            )
+        )
 
     # Destination pre-filled with 2 rows (to be truncated)
     dst_engine = create_engine(f"sqlite+pysqlite:///{dst_db}")
     with dst_engine.begin() as conn:
-        conn.execute(text("CREATE TABLE Demotable (id INTEGER PRIMARY KEY, name TEXT, value INTEGER)"))
-        conn.execute(text("INSERT INTO Demotable (id, name, value) VALUES (100, 'pre1', 999), (101, 'pre2', 998)"))
+        conn.execute(
+            text(
+                "CREATE TABLE Demotable (id INTEGER PRIMARY KEY, name TEXT, value INTEGER)"
+            )
+        )
+        conn.execute(
+            text(
+                "INSERT INTO Demotable (id, name, value) VALUES (100, 'pre1', 999), (101, 'pre2', 998)"
+            )
+        )
 
     cfg_path = tmp_path / "source_to_staging_truncate.ini"
     cfg_path.write_text(

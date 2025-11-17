@@ -13,7 +13,7 @@ from source_to_staging.functions.download_parquet import download_parquet
 from source_to_staging.functions.upload_parquet import upload_parquet
 from utils.database.create_connectorx_uri import create_connectorx_uri
 from utils.database.initialize_oracle_client import try_init_oracle_client
-from .integration_utils import (
+from tests.integration_utils import (
     ports,
     ports_dest,
     docker_running,
@@ -207,7 +207,9 @@ def test_parquet_dump_oracle_to_all(
         pytest.param("mariadb", marks=pytest.mark.mariadb, id="mariadb-to-oracle"),
     ],
 )
-def test_parquet_dump_all_to_oracle(tmp_path, use_connectorx, oracle_dest_engine, db_type):
+def test_parquet_dump_all_to_oracle(
+    tmp_path, use_connectorx, oracle_dest_engine, db_type
+):
     """
     For both ConnectorX and SQLAlchemy dump modes: transfer from Postgres, MSSQL, MySQL, MariaDB to Oracle.
     """

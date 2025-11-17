@@ -8,7 +8,7 @@ from utils.database.initialize_oracle_client import try_init_oracle_client
 
 from dev_sql_server.get_connection import get_connection
 from source_to_staging.functions.direct_transfer import direct_transfer
-from .integration_utils import (
+from tests.integration_utils import (
     ports,
     ports_dest,
     docker_running,

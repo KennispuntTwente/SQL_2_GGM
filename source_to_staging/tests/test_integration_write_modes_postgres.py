@@ -6,7 +6,7 @@ from dev_sql_server.get_connection import get_connection
 from source_to_staging.functions.direct_transfer import direct_transfer
 from source_to_staging.functions.download_parquet import download_parquet
 from source_to_staging.functions.upload_parquet import upload_parquet
-from .integration_utils import (
+from tests.integration_utils import (
     ports,
     ports_dest,
     docker_running,

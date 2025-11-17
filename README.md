@@ -238,7 +238,7 @@ Daarnaast kan je tests ook in je eigen ontwikkeomgeving uitvoeren; zie uitleg hi
 
 #### pytest (slow & fast tests)
 
-De map tests bevat diverse tests in het pytest-framework.
+De map `tests/` en `.../tests/` (in submappen bevatten diverse tests in het pytest-framework.
 
 Enkele tests (`test_integration_*.py`; gemarkeerd als 'slow') vereisen
 dat je Docker (dan wel Podman) beschikbaar hebt op je machine (er worden namelijk

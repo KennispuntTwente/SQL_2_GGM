@@ -5,7 +5,11 @@ from sqlalchemy import text
 
 from dev_sql_server.get_connection import get_connection
 from utils.database.execute_sql_folder import execute_sql_folder, drop_schema_objects
-from .integration_utils import docker_running, slow_tests_enabled, cleanup_db_containers
+from tests.integration_utils import (
+    docker_running,
+    slow_tests_enabled,
+    cleanup_db_containers,
+)
 
 
 def _mssql_driver_available() -> bool:
@@ -18,8 +22,14 @@ def _mssql_driver_available() -> bool:
 
 
 @pytest.mark.slow
-@pytest.mark.skipif(not slow_tests_enabled(), reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.")
-@pytest.mark.skipif(not docker_running(), reason="Docker is not available/running; required for this integration test.")
+@pytest.mark.skipif(
+    not slow_tests_enabled(),
+    reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.",
+)
+@pytest.mark.skipif(
+    not docker_running(),
+    reason="Docker is not available/running; required for this integration test.",
+)
 @pytest.mark.postgres
 def test_execute_sql_and_delete_schema_postgres(tmp_path: Path):
     # Start a clean Postgres
@@ -38,7 +48,9 @@ def test_execute_sql_and_delete_schema_postgres(tmp_path: Path):
         sql_dir.mkdir()
 
         # Generic file and Postgres-specific file; with suffix_filter=True, only *_postgres.sql runs
-        (sql_dir / "01_generic.sql").write_text("CREATE TABLE ignore_me(id INT);", encoding="utf-8")
+        (sql_dir / "01_generic.sql").write_text(
+            "CREATE TABLE ignore_me(id INT);", encoding="utf-8"
+        )
         (sql_dir / "02_make_table_postgres.sql").write_text(
             """
             CREATE TABLE foo_pg(id INT PRIMARY KEY);
@@ -51,36 +63,51 @@ def test_execute_sql_and_delete_schema_postgres(tmp_path: Path):
         execute_sql_folder(engine, sql_dir, suffix_filter=True, schema="silver")
 
         with engine.connect() as conn:
-            count = conn.execute(text("SELECT COUNT(*) FROM silver.foo_pg")).scalar_one()
+            count = conn.execute(
+                text("SELECT COUNT(*) FROM silver.foo_pg")
+            ).scalar_one()
             assert count == 1
             # ensure generic file did not run
-            exists = conn.execute(text(
-                """
+            exists = conn.execute(
+                text(
+                    """
                 SELECT COUNT(*) FROM information_schema.tables
                 WHERE table_schema='silver' AND table_name='ignore_me'
                 """
-            )).scalar_one()
+                )
+            ).scalar_one()
             assert exists == 0
 
         # Now delete schema contents and ensure table is gone
         drop_schema_objects(engine, schema="silver")
 
         with engine.connect() as conn:
-            exists = conn.execute(text(
-                """
+            exists = conn.execute(
+                text(
+                    """
                 SELECT COUNT(*) FROM information_schema.tables
                 WHERE table_schema='silver' AND table_name='foo_pg'
                 """
-            )).scalar_one()
+                )
+            ).scalar_one()
             assert exists == 0
     finally:
         cleanup_db_containers("postgres")
 
 
 @pytest.mark.slow
-@pytest.mark.skipif(not slow_tests_enabled(), reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.")
-@pytest.mark.skipif(not docker_running(), reason="Docker is not available/running; required for this integration test.")
-@pytest.mark.skipif(not _mssql_driver_available(), reason="ODBC Driver 18 for SQL Server not installed; required for MSSQL test.")
+@pytest.mark.skipif(
+    not slow_tests_enabled(),
+    reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.",
+)
+@pytest.mark.skipif(
+    not docker_running(),
+    reason="Docker is not available/running; required for this integration test.",
+)
+@pytest.mark.skipif(
+    not _mssql_driver_available(),
+    reason="ODBC Driver 18 for SQL Server not installed; required for MSSQL test.",
+)
 @pytest.mark.mssql
 def test_execute_sql_and_delete_schema_mssql(tmp_path: Path):
     # Start a clean MSSQL
@@ -118,17 +145,25 @@ def test_execute_sql_and_delete_schema_mssql(tmp_path: Path):
         drop_schema_objects(engine, schema="dbo")
 
         with engine.connect() as conn:
-            exists = conn.execute(text(
-                "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='dbo' AND table_name='foo_ms'"
-            )).scalar_one()
+            exists = conn.execute(
+                text(
+                    "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='dbo' AND table_name='foo_ms'"
+                )
+            ).scalar_one()
             assert exists == 0
     finally:
         cleanup_db_containers("mssql")
 
 
 @pytest.mark.slow
-@pytest.mark.skipif(not slow_tests_enabled(), reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.")
-@pytest.mark.skipif(not docker_running(), reason="Docker is not available/running; required for this integration test.")
+@pytest.mark.skipif(
+    not slow_tests_enabled(),
+    reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.",
+)
+@pytest.mark.skipif(
+    not docker_running(),
+    reason="Docker is not available/running; required for this integration test.",
+)
 @pytest.mark.mariadb
 def test_execute_sql_and_delete_schema_mariadb(tmp_path: Path):
     db_name = "ggm_exec_folder_mb"
@@ -166,17 +201,25 @@ def test_execute_sql_and_delete_schema_mariadb(tmp_path: Path):
         drop_schema_objects(engine, schema=db_name)
 
         with engine.connect() as conn:
-            exists = conn.execute(text(
-                "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=:db AND table_name='foo_mb'"
-            ).bindparams(db=db_name)).scalar_one()
+            exists = conn.execute(
+                text(
+                    "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=:db AND table_name='foo_mb'"
+                ).bindparams(db=db_name)
+            ).scalar_one()
             assert exists == 0
     finally:
         cleanup_db_containers("mariadb")
 
 
 @pytest.mark.slow
-@pytest.mark.skipif(not slow_tests_enabled(), reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.")
-@pytest.mark.skipif(not docker_running(), reason="Docker is not available/running; required for this integration test.")
+@pytest.mark.skipif(
+    not slow_tests_enabled(),
+    reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.",
+)
+@pytest.mark.skipif(
+    not docker_running(),
+    reason="Docker is not available/running; required for this integration test.",
+)
 @pytest.mark.oracle
 def test_execute_sql_and_delete_schema_oracle(tmp_path: Path):
     engine = get_connection(
@@ -215,9 +258,9 @@ def test_execute_sql_and_delete_schema_oracle(tmp_path: Path):
         drop_schema_objects(engine, schema="SA")
 
         with engine.connect() as conn:
-            exists = conn.execute(text(
-                "SELECT COUNT(*) FROM user_tables WHERE table_name='FOO_OR'"
-            )).scalar_one()
+            exists = conn.execute(
+                text("SELECT COUNT(*) FROM user_tables WHERE table_name='FOO_OR'")
+            ).scalar_one()
             assert exists == 0
     finally:
         cleanup_db_containers("oracle")
@@ -233,7 +276,9 @@ def test_execute_sql_and_delete_schema_sqlite(tmp_path: Path):
     sql_dir = tmp_path / "sql"
     sql_dir.mkdir()
 
-    (sql_dir / "01_generic.sql").write_text("CREATE TABLE will_be_ignored(id INT);", encoding="utf-8")
+    (sql_dir / "01_generic.sql").write_text(
+        "CREATE TABLE will_be_ignored(id INT);", encoding="utf-8"
+    )
     (sql_dir / "02_make_table_sqlite.sql").write_text(
         """
         CREATE TABLE foo_sq(id INT PRIMARY KEY);
@@ -251,7 +296,9 @@ def test_execute_sql_and_delete_schema_sqlite(tmp_path: Path):
     drop_schema_objects(engine, schema=None)
 
     with engine.connect() as conn:
-        exists = conn.execute(text(
-            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='foo_sq'"
-        )).scalar_one()
+        exists = conn.execute(
+            text(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='foo_sq'"
+            )
+        ).scalar_one()
         assert exists == 0
