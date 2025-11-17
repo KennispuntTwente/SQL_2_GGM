@@ -18,4 +18,6 @@ dependencies = [
     "pytest>=8.4.1",
     "sqlalchemy>=2.0.41",
     "sqlparse>=0.5.3",
+    "pyodata>=1.11.2",
+    "requests>=2.32.0",
 ]

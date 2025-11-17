@@ -1,0 +1,51 @@
+[odata-source]
+# Basis-URL van het OData endpoint (bijv.: https://example.com/odata.svc/)
+ODATA_URL = 
+# Authenticatie-modus (één van: NONE | BASIC | BEARER)
+ODATA_AUTH_MODE = NONE
+ODATA_USERNAME = 
+ODATA_PASSWORD = 
+ODATA_BEARER_TOKEN = 
+# Optionele HTTP-headers in JSON-formaat, bijv. {"X-CSRF-Token":"Fetch"}
+ODATA_HEADERS =         
+ODATA_VERIFY_SSL = true 
+
+# Comma-separated lijst van OData EntitySets om te exporteren, bijv.: Employees,Orders
+# (Dit worden de tabellen die worden geüpload in '[database-destination]')
+ODATA_ENTITY_SETS = 
+
+# Optionele per-entity-set instellingen (gebruik de exacte naam van de entity-set):
+# ODATA_SELECT_Employees = EmployeeID,LastName
+# ODATA_FILTER_Employees = Active eq true
+# ODATA_EXPAND_Employees = Orders
+
+[database-destination]
+# De database waarin de OData-gegevens worden geladen
+DST_DRIVER = mssql+pyodbc
+DST_HOST = localhost
+DST_PORT = 1433
+DST_DB = staging
+DST_SCHEMA = staging
+DST_USERNAME = sa
+DST_PASSWORD = YourStrong!Passw0rd
+DST_MSSQL_ODBC_DRIVER = ODBC Driver 18 for SQL Server
+# Optionele admin DB override voor automatisch aanmaken van DB (MSSQL/Postgres)
+# DST_ADMIN_DB = master
+
+[settings]
+# Aantal rijen dat in één OData-aanroep wordt opgehaald
+ODATA_PAGE_SIZE = 5000 
+# Rij-limiet per entity-set (voor ontwikkelen/testen)
+ROW_LIMIT =   
+# Schrijfmodus (één van: replace | truncate | append)    
+WRITE_MODE = replace
+# Of tijdelijke Parquet-bestanden moeten worden verwijderd na upload
+CLEANUP_PARQUET_FILES = true
+# Of het aantal verwerkte rijen moet worden gelogd
+LOG_ROW_COUNT = true
+# Of wachtwoord moet worden gevraagd in command line in plaats van config-bestand
+ASK_PASSWORD_IN_CLI = false
+
+[logging]
+# LOG_FILE = logs/odata_to_staging.log 
+# LOG_LEVEL = INFO

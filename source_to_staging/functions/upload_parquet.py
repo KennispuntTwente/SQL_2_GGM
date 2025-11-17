@@ -140,6 +140,8 @@ def upload_parquet(
     write_mode: str = "replace",  # replace | truncate | append
     # Optional override for admin DB hop when creating databases on Postgres/MSSQL
     admin_database: str | None = None,
+    # Optional behavior tweak: normalize destination table names to lower-case
+    lower_table_names: bool = False,
 ):
     """
     Uploads (possibly chunked) Parquet files into destination DB.
@@ -285,7 +287,9 @@ def upload_parquet(
 
     try:
         for table_name, files in grouped.items():
-            full_table = f"{schema}.{table_name}" if schema else table_name
+            # Normalize table name if requested (useful when sources emit mixed-case names, e.g., OData)
+            logical_table = table_name.lower() if lower_table_names else table_name
+            full_table = f"{schema}.{logical_table}" if schema else logical_table
             logger.info("📦 Uploading %s part(s) to table %s", len(files), full_table)
             # Ensure per-table cleanup executes even if an error occurs during processing
             try:
@@ -295,7 +299,7 @@ def upload_parquet(
                 inspector = inspect(engine)
                 table_exists = False
                 try:
-                    table_exists = inspector.has_table(table_name, schema=schema)
+                    table_exists = inspector.has_table(logical_table, schema=schema)
                 except Exception:
                     # If inspector fails for some dialect edge-case, assume False and proceed
                     table_exists = False
@@ -311,7 +315,7 @@ def upload_parquet(
 
                                 meta = MetaData()
                                 tgt = Table(
-                                    table_name,
+                                    logical_table,
                                     meta,
                                     schema=schema,
                                     autoload_with=engine,
@@ -320,12 +324,12 @@ def upload_parquet(
                             except Exception:
                                 # last resort
                                 qname = quote_truncate_target(
-                                    engine, None, schema, table_name
+                                    engine, None, schema, logical_table
                                 )
                                 conn.execute(text(f"DELETE FROM {qname}"))
                         else:
                             qname = quote_truncate_target(
-                                engine, engine.url.database, schema, table_name
+                                engine, engine.url.database, schema, logical_table
                             )
                             conn.execute(text(f"TRUNCATE TABLE {qname}"))
 
@@ -469,7 +473,7 @@ def upload_parquet(
                     engine_options = {"dtype": dtype_map} if dtype_map else None
 
                     write_kwargs = dict(
-                        table_name=table_name,
+                        table_name=logical_table,
                         connection=engine,
                         if_table_exists=mode,
                         engine="sqlalchemy",
@@ -480,7 +484,40 @@ def upload_parquet(
                     try:
                         df.write_database(**write_kwargs)
                     except TypeError as e:
-                        # Some polars versions do not support certain kwargs; progressively drop them.
+                        # Fallback: some polars versions do not support the 'schema' kw.
+                        # If a schema was requested and we're on Postgres, set search_path for the session
+                        # and retry using a live connection (without 'schema'). If that still fails, progressively
+                        # drop unsupported kwargs.
+                        dname = engine.dialect.name.lower()
+                        if schema is not None and dname == "postgresql":
+                            try:
+                                # Remove schema kw for retry; we'll rely on search_path instead
+                                write_kwargs.pop("schema", None)
+                                # Open a dedicated session with desired search_path
+                                with engine.begin() as conn:
+                                    try:
+                                        conn.execute(
+                                            text("SET search_path TO :schema, public"),
+                                            {"schema": schema},
+                                        )
+                                    except Exception:
+                                        # Last-resort quoted SET in case of special chars
+                                        conn.execute(
+                                            text(
+                                                f"SET search_path TO {quote_ident(engine, schema)}, public"
+                                            )
+                                        )
+                                    write_kwargs["connection"] = conn
+                                    df.write_database(**write_kwargs)
+                                    # Success; skip the progressive drop logic
+                                    continue
+                            except TypeError:
+                                # Fall through to progressive drop
+                                pass
+                            except Exception:
+                                # Fall through to progressive drop if SET or write failed
+                                pass
+                        # Progressive drop of kwargs for other dialects / failures
                         for drop_key in ("schema", "dtype"):
                             if drop_key in write_kwargs:
                                 write_kwargs.pop(drop_key, None)
@@ -493,7 +530,7 @@ def upload_parquet(
                             # If none of the fallbacks worked, re-raise original error
                             raise e
 
-                logger.info("✅ Loaded: %s", table_name)
+                logger.info("✅ Loaded: %s", logical_table)
             finally:
                 # 5) Cleanup parquet files for this table, even if an error occurred
                 if cleanup:
