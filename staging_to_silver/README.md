@@ -21,6 +21,8 @@ hoe je zelf queries kan schrijven om data uit de applicatie te ontsluiten naar h
 
 (Voor uitleg van commands om deze module te runnen met configuratie, zie de `README.md` in de root van de repository; sectie "Uitvoeren".)
 
+(Als je deze module wil uitproberen met synthetische data en zonder productie-database, zie de demo-scripts in `staging_to_silver/demo/`.)
+
 ## Configuratie
 
 `staging_to_silver` gebruikt één INI-bestand (`--config`) met secties `[database-destination]`, `[settings]` en optioneel `[logging]`.

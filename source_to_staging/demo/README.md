@@ -4,9 +4,10 @@ Korte demo om de module snel uit te proberen met de meegeleverde synthetische da
 
 ## Command
 
-Voer in de projectroot uit (met geactiveerde virtualenv):
+Voer in de projectroot uit, met Docker/Podman geïnstalleerd & actief:
 
 ```bash
+source .venv/Scripts/activate
 bash source_to_staging/demo/demo.sh
 ```
 

@@ -11,6 +11,8 @@ In de sectie "Configuratie" staat uitgelegd hoe deze module te configureren.
 
 (Voor uitleg van commands om deze module te runnen met configuratie, zie de `README.md` in de root van de repository; sectie "Uitvoeren".)
 
+(Als je deze module wil uitproberen met synthetische data en zonder productie-database, zie de demo-scripts in `odata_to_staging/demo/`.)
+
 ## Configuratie
 
 `odata_to_staging` gebruikt één INI-bestand (`--config`).

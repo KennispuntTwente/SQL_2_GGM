@@ -75,8 +75,11 @@ je de code runt verbinding kan maken met zowel de SQL-server van de applicatie a
 Dit zou kunnen op een eigen machine, op een eigen server (on-premises), of bijvoorbeeld in een cloud-omgeving (bijv., Azure).
 Je zou bijvoorbeeld een scheduler (oftewel CRON-job) kunnen instellen welke het proces elke nacht draait.
 
-> Tip: wil je de code uitproberen zonder dat je een applicatie-SQL-server hebt met data? Zie dan [synthetic/README.md](synthetic/README.md).
-Hierin staat beschreven hoe je synthetische data kunt genereren en laden in een ontwikkel-database in Docker.
+> Tip: wil je de code gemakkelijk uitproberen zonder te verbinden met een productie-database? Zie dan
+de demo-scripts: [source_to_staging/demo/README.md](source_to_staging/demo/README.md) en
+[staging_to_silver/demo/README.md](staging_to_silver/demo/README.md). Hierbij wordt synthetische data gegenereerd,
+geladen, en getransformeerd naar het GGM (in een ontwikkel-database in Docker/Podman; maar je kan de scripts ook aanpassen
+om een andere database te gebruiken).
 
 ### Vanuit eigen Python-omgeving
 
@@ -211,7 +214,9 @@ Tips/opmerkingen:
 
 Wil je de code uitvoeren zonder dat je een applicatie-SQL-server hebt met data?
 Dan kan je synthetische data genereren met de module in de map `synthetic`.
-Zie de README in die map voor uitleg: [synthetic/README.md](synthetic/README.md).
+Zie de [source_to_staging/demo/README.md](source_to_staging/demo/README.md), [staging_to_silver/demo/README.md](staging_to_silver/demo/README.md),
+en [synthetic/README.md](synthetic/README.md) voor voorbeelden van demo-scripts die synthetische data genereren, laden, en verwerken.
+Ook [odata_to_staging/demo/README.md](odata_to_staging/demo/README.md) bevat een demo-script voor die module.
 
 ### Een eigen versie van dit project gebruiken
 

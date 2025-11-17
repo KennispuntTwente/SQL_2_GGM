@@ -4,9 +4,10 @@ Korte demo om een klein stukje data vanaf een OData-endpoint (bijv. Northwind) i
 
 ## Command
 
-Voer in de projectroot uit (met geactiveerde virtualenv):
+Voer in de projectroot uit, met Docker/Podman geïnstalleerd & actief:
 
 ```bash
+source .venv/Scripts/activate
 bash odata_to_staging/demo/demo.sh
 ```
 

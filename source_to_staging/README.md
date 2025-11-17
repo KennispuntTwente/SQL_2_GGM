@@ -12,6 +12,8 @@ In de sectie "Configuratie" staat uitgelegd hoe deze module te configureren.
 
 (Voor uitleg van commands om deze module te runnen met configuratie, zie de `README.md` in de root van de repository; sectie "Uitvoeren".)
 
+(Als je deze module wil uitproberen met synthetische data en zonder productie-database, zie de demo-scripts in `source_to_staging/demo/`.)
+
 ## Configuratie
 
 `source_to_staging` gebruikt één INI-bestand (`--config`) met de secties
@@ -38,3 +40,5 @@ vanuit de applicatie-SQL-server naar de target-SQL-server. Kies de modus in `[se
 In principe zouden alle manieren met alle database-types moeten werken, maar mocht je fouten tegenkomen dan zou je kunnen
 proberen te switchen naar een andere modus. De 'dump'-varianten kunnen interessant zijn als je bijvoorbeeld
 de parquet-bestanden wil gebruiken om een ruwe historie op te bouwen (buiten de actuele data op de target-SQL-server).
+
+ 

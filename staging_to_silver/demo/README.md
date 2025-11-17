@@ -4,9 +4,10 @@ Korte demo om de silver-pipeline te draaien op de synthetische stagingtabellen i
 
 ## Command
 
-Voer in de projectroot uit (met geactiveerde virtualenv):
+Voer in de projectroot uit, met Docker/Podman geïnstalleerd & actief:
 
 ```bash
+source .venv/Scripts/activate
 bash staging_to_silver/demo/demo.sh
 ```
 
