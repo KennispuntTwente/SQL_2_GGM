@@ -43,15 +43,18 @@ def build_declaratieregel(engine, source_schema=None):
         isouter=False,  # inner join
     )
 
-    # Selectie (let op: IS_VOOR_BESCHIKKING_ID komt nu uit WVINDB)
+    # Selectie conform DDL volgorde:
+    # DECLARATIEREGEL_ID, BEDRAG, BETREFT_CLIENT_ID, CODE, DATUMEINDE, DATUMSTART, IS_VOOR_BESCHIKKING_ID, VALT_BINNEN_DECLARATIE_ID
+    # Deterministic primary key: reuse WVDOS.UNIEK (unique per besluitnr+volgnr_ind)
     stmt = select(
+        col(wvdos, "uniek").label("DECLARATIEREGEL_ID"),
         col(szukhis, "bedrag").label("BEDRAG"),
-        col(wvindb, "besluitnr").label("IS_VOOR_BESCHIKKING_ID"),
         col(wvindb, "clientnr").label("BETREFT_CLIENT_ID"),
-        col(szukhis, "verslagnr").label("VALT_BINNEN_DECLARATIE_ID"),
         cast(literal(None), String(80)).label("CODE"),
         cast(literal(None), Date).label("DATUMEINDE"),
         cast(literal(None), Date).label("DATUMSTART"),
+        col(wvindb, "besluitnr").label("IS_VOOR_BESCHIKKING_ID"),
+        col(szukhis, "verslagnr").label("VALT_BINNEN_DECLARATIE_ID"),
     ).select_from(full_join)
 
     return stmt

@@ -36,7 +36,7 @@ with engine.begin() as conn:
     conn.execute(text('CREATE SCHEMA IF NOT EXISTS silver'))
 PY
 
-# 4) Pre-create silver tables from GGM DDL and add a helper trigger for DECLARATIEREGEL PK
+# 4) Pre-create silver tables from GGM DDL
 python - <<'PY'
 import os
 from dev_sql_server.get_connection import get_connection
@@ -51,39 +51,6 @@ engine = get_connection(db_type="postgres", db_name="ggm", user="sa", password=P
 
 # 4a) Execute the standard GGM DDL scripts into schema "silver"
 execute_sql_folder(engine, "ggm_selectie", suffix_filter=True, schema="silver")
-
-# 4b) Add a trigger so inserts that omit DECLARATIEREGEL_ID still succeed in dev runs
-ddl = """
-CREATE OR REPLACE FUNCTION silver.set_declaratieregel_id()
-RETURNS trigger AS $$
-BEGIN
-  IF NEW.declaratieregel_id IS NULL THEN
-    NEW.declaratieregel_id := COALESCE(NEW.is_voor_beschikking_id::text, '') || '-' || COALESCE(NEW.valt_binnen_declaratie_id::text, '');
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_trigger t
-    JOIN pg_class c ON c.oid = t.tgrelid
-    JOIN pg_namespace n ON n.oid = c.relnamespace
-    WHERE t.tgname = 'trg_set_declaratieregel_id'
-      AND n.nspname = 'silver'
-      AND c.relname = 'declaratieregel'
-  ) THEN
-    CREATE TRIGGER trg_set_declaratieregel_id
-    BEFORE INSERT ON silver.declaratieregel
-    FOR EACH ROW
-    EXECUTE FUNCTION silver.set_declaratieregel_id();
-  END IF;
-END$$;
-"""
-
-with engine.begin() as conn:
-    conn.execute(text(ddl))
 PY
 
 # 5) source_to_staging: source -> staging schema in DB ggm

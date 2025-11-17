@@ -155,18 +155,14 @@ def generate(out_dir: Path, cfg: GenConfig) -> None:
         wvdos_rows,
     )
 
-    # szukhis – generated with uniekwvdos intentionally not matching wvdos.uniek
-    # Rationale: the current silver DECLARATIEREGEL mapping doesn't project a PK column
-    # and the target DDL requires a NOT NULL PK. By avoiding a join hit here, the
-    # DECLARATIEREGEL select yields 0 rows, so the insert is a no-op and the pipeline
-    # remains green while other silver tables still populate.
+    # szukhis – generated with uniekwvdos MATCHING wvdos.uniek so Declaratieregel
+    # produces joined rows and exercises the PK logic added to the mapping.
     szukhis_rows: list[list[object]] = []
     vers = 1
     for besluitnr, _client in besluit_ids:
         for volgnr_ind in (1, 2):
-            # Note: wvdos.uniek is "DOS{besluitnr}{volgnr_ind}"; use a different pattern here
-            # so the inner-join in Declaratieregel produces zero rows.
-            uniek = f"SZK{besluitnr}{volgnr_ind}"
+            # Match pattern used in wvdos for deterministic PK derivation
+            uniek = f"DOS{besluitnr}{volgnr_ind}"
             bedrag = random.choice([25.0, 50.5, 75.25])
             szukhis_rows.append([uniek, bedrag, vers])
             vers += 1
