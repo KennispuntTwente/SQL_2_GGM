@@ -1,4 +1,3 @@
-import sys
 import logging
 
 from sqlalchemy.engine import URL, Engine
@@ -119,5 +118,12 @@ def create_sqlalchemy_engine(
         )
 
     else:
-        logging.error(f"Unsupported database driver: {driver}")
-        sys.exit(1)
+        # Unsupported driver: raise a ValueError instead of terminating the interpreter.
+        # This lets callers (CLI entrypoints, tests) decide how to surface or handle the misconfiguration.
+        msg = (
+            "Unsupported database driver: "
+            f"{driver}. Supported drivers include Oracle (oracle), SQLite (sqlite / sqlite+pysqlite), "
+            "PostgreSQL (postgresql / postgres), SQL Server (mssql / sqlserver), MySQL (mysql) and MariaDB (mariadb)."
+        )
+        logging.error(msg)
+        raise ValueError(msg)

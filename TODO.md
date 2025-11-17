@@ -20,6 +20,3 @@ Fix suggestion: log the exception (and ideally abort) instead of silently reusin
 
 * Manifest failures fall back to scanning stale files
 The exporter writes a manifest of the parquet files that were just produced, but when the manifest write fails it silently returns `None`. The uploader then falls back to scanning the entire output directory whenever `manifest_files` is `None`, so a failed manifest write/read can cause long-deleted or stale files from previous runs to be re-uploaded without warning. This defeats the purpose of the manifest guard. Consider failing fast when the manifest cannot be written/read, or delete stale files before falling back. 【F:source_to_staging/functions/download_parquet.py†L262-L285】
-
-* `create_sqlalchemy_engine` aborts the whole process on unsupported drivers
-The helper logs an error and immediately calls `sys.exit(1)` when the driver string does not match any of the supported backends.【F:utils/database/create_sqlalchemy_engine.py†L1-L123】 This function is imported by many modules; terminating the interpreter from deep inside a utility makes it impossible to surface the failure to callers (e.g., CLI tools cannot catch it to show a better error, and unit tests exit abruptly). Replace the hard exit with a descriptive `ValueError` so callers can decide how to handle misconfiguration.
