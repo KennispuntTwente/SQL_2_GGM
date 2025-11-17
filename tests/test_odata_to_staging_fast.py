@@ -1,9 +1,11 @@
 import os
-from types import SimpleNamespace
+import sys
+from types import SimpleNamespace, ModuleType
 
 import polars as pl
 
 from odata_to_staging.functions.download_parquet_odata import download_parquet_odata
+from odata_to_staging.functions.engine_loaders import load_odata_client
 
 
 class _Prop:
@@ -89,6 +91,19 @@ class _Client:
         self.entity_sets = entity_sets
 
 
+class _Cfg:
+    """Minimal config stub: mapping section -> key -> value."""
+
+    def __init__(self, mapping):
+        self._mapping = mapping
+
+    def has_option(self, section, option):  # ConfigParser-like API subset
+        return option in self._mapping.get(section, {})
+
+    def get(self, section, option, fallback=None):  # ConfigParser-like API subset
+        return self._mapping.get(section, {}).get(option, fallback)
+
+
 def test_download_empty_entity_set(tmp_path):
     # Schema: Employees(ID key, Name prop)
     et = _EntityType(keys=["ID"], props=["Name"])
@@ -141,3 +156,77 @@ def test_download_simple_two_rows(tmp_path):
     df = pl.read_parquet(out_dir / files[0])
     assert set(df.columns) == {"ID", "Name"}
     assert len(df) == 2
+
+
+def test_load_odata_client_basic_auth(monkeypatch):
+    """load_odata_client wires BASIC auth and retain_null config."""
+
+    captured = {}
+
+    class _Session:
+        def __init__(self):
+            self.verify = True
+            self.headers = {}
+            self.auth = None
+
+    class _PyodataClient:
+        def __init__(self, service_url, session, config=None):
+            captured["service_url"] = service_url
+            captured["session"] = session
+            captured["config"] = config
+
+    class _Config:
+        def __init__(self, retain_null):
+            self.retain_null = retain_null
+
+    # Build a synthetic pyodata package with submodules so that
+    # `import pyodata.v2.model` works and `pyodata.Client(...)` is available.
+    mod_pyodata = ModuleType("pyodata")
+    mod_pyodata.__path__ = []  # mark as package
+
+    mod_pyodata_v2 = ModuleType("pyodata.v2")
+    mod_pyodata_v2.__path__ = []  # mark as package
+
+    mod_pyodata_v2_model = ModuleType("pyodata.v2.model")
+    setattr(mod_pyodata_v2_model, "Config", _Config)
+
+    # Wire package attributes for attribute access pyodata.v2.model
+    setattr(mod_pyodata, "v2", mod_pyodata_v2)
+    setattr(mod_pyodata_v2, "model", mod_pyodata_v2_model)
+
+    # Provide Client factory on top-level pyodata package
+    def _client_factory(service_url, session, config=None):
+        return _PyodataClient(service_url, session, config=config)
+
+    setattr(mod_pyodata, "Client", _client_factory)
+
+    # Patch requests.Session and register our synthetic modules in sys.modules
+    monkeypatch.setattr(
+        "odata_to_staging.functions.engine_loaders.requests.Session", _Session
+    )
+    monkeypatch.setitem(sys.modules, "pyodata", mod_pyodata)
+    monkeypatch.setitem(sys.modules, "pyodata.v2", mod_pyodata_v2)
+    monkeypatch.setitem(sys.modules, "pyodata.v2.model", mod_pyodata_v2_model)
+
+    cfg = _Cfg(
+        {
+            "odata-source": {
+                "ODATA_URL": "https://example.test/odata",
+                "ODATA_AUTH_MODE": "BASIC",
+                "ODATA_USERNAME": "user1",
+                "ODATA_PASSWORD": "secret",
+                "ODATA_RETAIN_NULL": "True",
+            },
+            "settings": {"ASK_PASSWORD_IN_CLI": "False"},
+        }
+    )
+
+    client = load_odata_client(cfg)
+    assert isinstance(client, _PyodataClient)
+    assert captured["service_url"] == "https://example.test/odata"
+    sess = captured["session"]
+    assert isinstance(sess, _Session)
+    # BASIC auth set on session
+    assert sess.auth == ("user1", "secret")
+    # retain_null=True propagated into pyodata config
+    assert captured["config"].retain_null is True
