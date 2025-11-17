@@ -1,5 +1,6 @@
 import logging
-from typing import Dict, Callable, cast
+import re
+from typing import Dict, Callable, cast, List
 
 from utils.config.get_config_value import get_config_value
 from staging_to_silver.functions.query_loader import load_queries
@@ -26,16 +27,35 @@ def prepare_queries(cfg) -> Dict[str, Callable]:
         "SILVER_COLUMN_NAME_CASE", section="settings", cfg_parser=cfg, default=None
     )
 
-    # Determine additional query sources (folders or individual files) from config
+    # Determine additional query sources (folders or individual files) from config.
+    # Historical behavior split on commas/semicolons/whitespace which broke Windows paths containing spaces.
+    # New behavior: only split on commas/semicolons; preserve embedded whitespace; allow optional quoting.
     raw_paths = cast(
         str,
         get_config_value("QUERY_PATHS", section="settings", cfg_parser=cfg, default=""),
     )
-    extra_paths = []
-    if raw_paths.strip():
-        # Split on commas/semicolons/whitespace similar to allow/deny list parsing
-        tokens = raw_paths.replace(";", " ").replace(",", " ").split()
-        extra_paths = [t.strip() for t in tokens if t.strip()]
+
+    def parse_extra_query_paths(value: str) -> List[str]:
+        """Parse QUERY_PATHS config value into a list of file or directory paths.
+
+        Delimiters: comma or semicolon. Whitespace surrounding tokens is trimmed.
+        Embedded spaces inside a path are preserved (e.g. C:\\Data Warehouse\\ggm\\queries).
+        Optional single or double quotes around a path are removed.
+        Empty tokens are ignored. Duplicates are preserved in order (load_queries will de-dup if needed).
+        """
+        paths: List[str] = []
+        # Split strictly on , or ; so spaces remain intact.
+        for token in re.split(r"[;,]", value):
+            token = token.strip()
+            if not token:
+                continue
+            # Drop surrounding quotes if present and balanced.
+            if len(token) >= 2 and token[0] == token[-1] and token[0] in ('"', "'"):
+                token = token[1:-1]
+            paths.append(token)
+        return paths
+
+    extra_paths = parse_extra_query_paths(raw_paths) if raw_paths.strip() else []
 
     queries = load_queries(
         package="staging_to_silver.queries",
@@ -69,3 +89,16 @@ def prepare_queries(cfg) -> Dict[str, Callable]:
         log.info("Skipping queries (filtered): %s", ", ".join(sorted(skipped)))
 
     return selected
+
+
+# Expose parsing helper for tests
+def parse_extra_query_paths(value: str) -> List[str]:  # type: ignore[redefinition]
+    paths: List[str] = []
+    for token in re.split(r"[;,]", value):
+        token = token.strip()
+        if not token:
+            continue
+        if len(token) >= 2 and token[0] == token[-1] and token[0] in ('"', "'"):
+            token = token[1:-1]
+        paths.append(token)
+    return paths

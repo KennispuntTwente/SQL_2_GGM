@@ -3,9 +3,6 @@ Potentially unnecessary or suspect deps; investigate/remove
 Update authors for pyproject.toml; description; license; README wiring
 Enable build system in pyproject.toml
 
-* queries_setup.py: QUERY_PATHS is tokenized with value.replace(...).split(), so any Windows path containing spaces (C:\Data Warehouse\ggm\queries) is split into two tokens and subsequently ignored. Switch to shlex.split or require semicolons only so paths with spaces remain intact.
-QUERY_PATHS cannot point to directories containing spaces. The parser at staging_to_silver/functions/queries_setup.py (line 37) splits on commas, semicolons, and whitespace, so C:\Users\Luka\My Queries is broken into three tokens and the mappings are never loaded. Consider using shlex.split or documenting a quoting mechanism.
-
 * direct_transfer.py & upload_parquet.py: don't blindly lowercase column names by default?
 
 * Oracle client initialization: initialize_oracle_client re-reads config via get_config_value, which again emits the warning noted above whenever the client path isn’t configured (very common outside Oracle). Consider short-circuiting when the initial probe already returned falsy to avoid duplicate noisy warnings.
