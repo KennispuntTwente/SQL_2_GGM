@@ -259,7 +259,10 @@ def download_parquet(
                     created_files.append(os.path.basename(out))
                     logger.info("✅ pl.read_database chunk %s written: %s", idx, out)
 
-    # Write a manifest for this run so upload can be restricted to the current files only
+    # Write a manifest for this run so upload can be restricted to the current files only.
+    # Fail fast if the manifest cannot be written – silently returning None causes the
+    # subsequent upload step to scan the entire directory (including stale files from
+    # previous runs). This defeats the guardrail intent of the manifest.
     manifest_path = os.path.join(
         output_dir, f".ggmpilot_parquet_manifest_{run_id}.json"
     )
@@ -270,14 +273,24 @@ def download_parquet(
             "output_dir": os.path.abspath(output_dir),
             "files": created_files,
         }
-        with open(manifest_path, "w", encoding="utf-8") as f:
+        # Atomic-ish write: write to a temp file first then rename
+        tmp_path = f"{manifest_path}.tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
             json.dump(manifest, f, ensure_ascii=False, indent=2)
+        os.replace(tmp_path, manifest_path)
         logger.info(
             "🧾 Manifest written: %s (%s files)", manifest_path, len(created_files)
         )
     except Exception as e:
-        logger.warning("Failed to write manifest %s: %s", manifest_path, e)
-        manifest_path = None  # type: ignore[assignment]
+        # Attempt cleanup of any partial temp file
+        try:
+            if "tmp_path" in locals() and os.path.exists(tmp_path):
+                os.remove(tmp_path)
+        except Exception:
+            pass
+        raise RuntimeError(
+            f"Failed to write parquet manifest {manifest_path}: {e}. Aborting to avoid stale file uploads."
+        ) from e
 
     logger.info("🎉 Export complete – all tables written")
 

@@ -146,6 +146,11 @@ def upload_parquet(
     """
     Uploads (possibly chunked) Parquet files into destination DB.
     Ensures the target database and schema exist before loading.
+
+    Manifest fail-fast policy:
+    If manifest_path is provided its contents MUST be readable and contain a 'files' list.
+    Any read/parse error or malformed structure raises RuntimeError instead of silently
+    scanning the entire directory (which could re-ingest stale files from previous runs).
     """
     if write_mode.lower() not in {"replace", "truncate", "append"}:
         raise ValueError("write_mode must be one of: replace|truncate|append")
@@ -156,25 +161,26 @@ def upload_parquet(
         try:
             with open(manifest_path, "r", encoding="utf-8") as f:
                 manifest = json.load(f)
-            # Basic sanity: ensure manifest output_dir matches input_dir if absolute
-            mf_dir = manifest.get("output_dir")
-            files = manifest.get("files")
-            if isinstance(files, list):
-                manifest_files = [str(x) for x in files]
-            if mf_dir and os.path.isabs(mf_dir):
-                if os.path.abspath(input_dir) != os.path.abspath(mf_dir):
-                    logger.warning(
-                        "Manifest output_dir %s differs from input_dir %s; proceeding with input_dir",
-                        mf_dir,
-                        input_dir,
-                    )
         except Exception as e:
-            logger.warning(
-                "Failed to read manifest %s: %s; falling back to directory scan",
-                manifest_path,
-                e,
+            raise RuntimeError(
+                f"Failed to read parquet manifest {manifest_path}: {e}. Aborting upload to avoid stale file ingestion."
+            ) from e
+
+        # Basic sanity: ensure manifest output_dir matches input_dir if absolute
+        mf_dir = manifest.get("output_dir")
+        files = manifest.get("files")
+        if not isinstance(files, list):
+            raise RuntimeError(
+                f"Manifest {manifest_path} missing 'files' list; aborting to avoid scanning stale directory contents."
             )
-            manifest_files = None
+        manifest_files = [str(x) for x in files]
+        if mf_dir and os.path.isabs(mf_dir):
+            if os.path.abspath(input_dir) != os.path.abspath(mf_dir):
+                logger.warning(
+                    "Manifest output_dir %s differs from input_dir %s; proceeding with input_dir anyway (files list still enforced).",
+                    mf_dir,
+                    input_dir,
+                )
 
     # 1) Determine and create target database if needed
     db_name = engine.url.database
@@ -482,7 +488,7 @@ def upload_parquet(
                     if schema is not None:
                         write_kwargs["schema"] = schema
                     try:
-                        df.write_database(**write_kwargs)
+                        df.write_database(**write_kwargs)  # type: ignore[arg-type]
                     except TypeError as e:
                         # Fallback: some polars versions do not support the 'schema' kw.
                         # If a schema was requested and we're on Postgres, set search_path for the session
@@ -508,7 +514,7 @@ def upload_parquet(
                                             )
                                         )
                                     write_kwargs["connection"] = conn
-                                    df.write_database(**write_kwargs)
+                                    df.write_database(**write_kwargs)  # type: ignore[arg-type]
                                     # Success; skip the progressive drop logic
                                     continue
                             except TypeError:
@@ -522,7 +528,7 @@ def upload_parquet(
                             if drop_key in write_kwargs:
                                 write_kwargs.pop(drop_key, None)
                                 try:
-                                    df.write_database(**write_kwargs)
+                                    df.write_database(**write_kwargs)  # type: ignore[arg-type]
                                     break
                                 except TypeError:
                                     continue
