@@ -117,3 +117,22 @@ services:
       - type: bind
         source: ../../data
         target: /app/data
+
+  app-odata-to-staging:
+    build: ../..
+    image: ggmpilot:latest
+    container_name: ggmpilot-app-odata-to-staging
+    depends_on:
+      db:
+        condition: service_healthy
+    working_dir: /app
+    entrypoint: ["/app/.venv/bin/python", "docker/smoke/smoke_odata_to_staging.py"]
+    command: ["--config", "/app/docker/config/odata_to_staging.ini"]
+    environment:
+      IN_DOCKER: "1"
+      PIPELINE: odata-to-staging
+      PYTHONPATH: "/app"
+    volumes:
+      - type: bind
+        source: ../../data
+        target: /app/data

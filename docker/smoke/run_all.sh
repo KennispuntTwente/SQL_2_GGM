@@ -82,6 +82,13 @@ fi
 echo "[smoke] Cleaning up…"
 docker compose -f docker/smoke/docker-compose.yml down -v --remove-orphans || true
 
+echo "[smoke] Running app-odata-to-staging"
+if ! run_service_detached app-odata-to-staging; then
+	overall=1
+fi
+echo "[smoke] Cleaning up…"
+docker compose -f docker/smoke/docker-compose.yml down -v --remove-orphans || true
+
 echo "[smoke] Running app-staging-to-silver"
 if ! run_service_detached app-staging-to-silver; then
 	overall=1
