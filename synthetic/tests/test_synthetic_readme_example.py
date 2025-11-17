@@ -18,7 +18,8 @@ def test_synthetic_readme_one_liner_script_runs(tmp_path):
     if os.getenv("RUN_SLOW_TESTS") != "1":
         pytest.skip("RUN_SLOW_TESTS not enabled")
 
-    repo = pathlib.Path(__file__).resolve().parents[1]
+    # Repo root needed so paths like synthetic/examples/... resolve correctly
+    repo = pathlib.Path(__file__).resolve().parents[2]
     script = repo / "synthetic" / "examples" / "one_liner_postgres.sh"
     assert script.exists(), "Example script missing; README reference out of sync"
 

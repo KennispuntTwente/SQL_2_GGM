@@ -40,7 +40,8 @@ def test_readme_one_liner_pipeline_postgres(tmp_path):
     if os.getenv("RUN_SLOW_TESTS") != "1":
         pytest.skip("RUN_SLOW_TESTS not enabled")
 
-    repo_root = pathlib.Path(__file__).resolve().parents[1]
+    # Use repository root as CWD so `python -m synthetic.*` resolves the package
+    repo_root = pathlib.Path(__file__).resolve().parents[2]
     synthetic_dir = repo_root / "data" / "synthetic_e2e"
     synthetic_dir.mkdir(parents=True, exist_ok=True)
 
@@ -49,9 +50,12 @@ def test_readme_one_liner_pipeline_postgres(tmp_path):
     port = random.randint(56000, 58000)
 
     # 1) Generate CSVs
+    # Use module invocation so this works both from source checkout and
+    # installed package layouts (as used in CI).
     gen_cmd = [
         "python",
-        str(repo_root / "synthetic" / "generate_synthetic_data.py"),
+        "-m",
+        "synthetic.generate_synthetic_data",
         "--out",
         str(synthetic_dir),
         "--rows",
