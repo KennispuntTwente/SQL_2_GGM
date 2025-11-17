@@ -16,6 +16,7 @@ import os
 import hashlib
 import pkgutil
 import inspect
+import logging
 from functools import lru_cache
 from typing import Callable, Dict, Optional, Sequence
 
@@ -190,6 +191,7 @@ def _load_queries_cached(
             # Non-.py file, skip
             continue
 
+        logger = logging.getLogger(__name__)
         for file_path in sorted(set(py_files), key=str.lower):
             # Create a stable, unique module name based on file path
             digest = hashlib.md5(file_path.encode("utf-8")).hexdigest()  # nosec - used for namespacing only
@@ -202,8 +204,15 @@ def _load_queries_cached(
                 module = importlib.util.module_from_spec(spec)
                 # type: ignore[attr-defined]
                 spec.loader.exec_module(module)  # Executes the module code
-            except Exception:
-                # Skip files that cannot be imported
+            except Exception as e:
+                # Log failures so users know a mapping was skipped instead of silently losing a table
+                # Include path and stack trace for debugging syntax/import errors.
+                logger.error(
+                    "Failed to import custom mapping file %s: %s",
+                    file_path,
+                    e,
+                    exc_info=True,
+                )
                 continue
 
             for dest, fn in _load_exports(module).items():
