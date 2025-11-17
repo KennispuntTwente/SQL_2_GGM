@@ -2,6 +2,11 @@
 
 Purpose: equip AI coding agents to be immediately productive in this repo by capturing the real architecture, workflows, and project‑specific conventions.
 
+## Running Python
+- Important: This projects uses a virtual environment managed by 'uv'. All Python commands should be run with the venv active.
+Run `source .venv/Scripts/activate` (Windows bash) or `source .venv/bin/activate` (Linux/Mac) from the repo root to activate,
+and only then run Python commands (e.g., `python -m ...`, `pip install ...`, `pytest`, etc.).
+
 ## Big picture
 - Two-step pipeline to the Gemeentelijk Gegevensmodel (GGM):
   1) source_to_staging: copy source DB tables into a staging schema (streamed chunks or Parquet dump+load).
