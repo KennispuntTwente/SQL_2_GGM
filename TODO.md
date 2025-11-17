@@ -1,28 +1,17 @@
 * Packages/dependencies
-Potentially unnecessary or suspect deps:
-pandas is declared but not used; consider removing to reduce image size and dependency footprint.
-Verify if sqlparse is used; remove if not needed.
-Add [build-system] (e.g., requires=["setuptools>=...","wheel"], build-backend="setuptools.build_meta").
-Move pytest and any dev-only tooling into a dev/extra group (uv supports this).
-Remove unused deps or clearly justify them.
-Metadata gaps: description, readme, authors, license (although LICENSE.md exists), and classifiers.
-Fill metadata for better distribution/consumption.
+Potentially unnecessary or suspect deps; investigate/remove
+Update authors for pyproject.toml; description; license; README wiring
+Enable build system in pyproject.toml
 
-* Analyze current set of queries and based on that generate a synthetic dataset
-which can be used for development/testing purposes
+* queries_setup.py: QUERY_PATHS is tokenized with value.replace(...).split(), so any Windows path containing spaces (C:\Data Warehouse\ggm\queries) is split into two tokens and subsequently ignored. Switch to shlex.split or require semicolons only so paths with spaces remain intact.
+QUERY_PATHS cannot point to directories containing spaces. The parser at staging_to_silver/functions/queries_setup.py (line 37) splits on commas, semicolons, and whitespace, so C:\Users\Luka\My Queries is broken into three tokens and the mappings are never loaded. Consider using shlex.split or documenting a quoting mechanism.
 
-* Unify table name casing for YAML/INI “SRC_TABLES” > file names > staging table names
-Current behavior preserves the case from config to filenames to destination table names, while columns are lowercased. On Postgres/unquoted identifiers, unintended case changes can occur.
-Evidence: upload_parquet keeps table_name from filenames; columns are lowered, tables are not.
-source_to_staging/functions/upload_parquet.py: per-group write stays with base name
-Fix: Add a setting (e.g., LOWERCASE_TABLE_NAMES=true|false) and apply it consistently when deriving base table and writing.
+* direct_transfer.py & upload_parquet.py: don't blindly lowercase column names by default?
 
-* Robust fallback when polars signatures differ
-The current TypeError fallback in upload_parquet only drops "schema" and "dtype" keys from write_kwargs, but dtype is nested under engine_options in current code and never removed; and if_table_exists remains.
-Evidence: source_to_staging/functions/upload_parquet.py:440–448.
-Fix: In fallback, try these attempts in order:
-New signature (dtype=..., if_exists=..., schema=...).
-New signature without dtype (dtype omitted).
-New signature without schema.
-Legacy signature (if_table_exists=..., possibly without dtype).
-If still failing, re-raise with a helpful hint about polars version.
+* Oracle client initialization: initialize_oracle_client re-reads config via get_config_value, which again emits the warning noted above whenever the client path isn’t configured (very common outside Oracle). Consider short-circuiting when the initial probe already returned falsy to avoid duplicate noisy warnings.
+
+* Declaratieregel mapping never projects the required primary key. staging_to_silver/queries/Declaratieregel.py (line 5) only emits BEDRAG/IS_VOOR_BESCHIKKING_ID/etc. while the shipped DDL defines DECLARATIEREGEL_ID as PRIMARY KEY NOT NULL (ggm_selectie/Sociaal_Domein_Beschikking_en_Voorziening__Domain_Objects_postgres.sql (line 92)). Inserts will fail as soon as the join produces any rows, which is currently masked by the synthetic generator purposely breaking the join (synthetic/generate_synthetic_data.py (line 158)) and by the Docker example adding a trigger to fabricate IDs (synthetic/examples/one_liner_postgres.sh (line 39)). Fix the query to derive a deterministic ID (e.g., reuse szukhis.uniekwvdos), drop the trigger workaround, and extend tests so DECLARATIEREGEL actually receives data.
+
+* The documented end-to-end pipeline destroys the freshly loaded source database before it is used. Both the README helper script (synthetic/examples/one_liner_postgres.sh (line 29)) and the slow integration test (tests/test_example_pipeline_postgres.py (line 64)) call get_connection(..., force_refresh=True, db_name="ggm") immediately after loading data into source. force_refresh=True tears down the Docker container/volume, so the source database disappears and later source_to_staging fails to connect. The integration test never runs in CI (guarded by RUN_SLOW_TESTS), so the regression goes unnoticed. Keep the first container alive (skip force_refresh), or reload the source data after provisioning ggm, or use two separate containers.
+
+* Custom mappings silently disappear on import failures. In staging_to_silver/functions/query_loader.py (line 198) every exception coming from a user-provided file (QUERY_PATHS) is swallowed and the file is skipped without any logging. A single syntax error therefore drops an entire table without warning. Log the exception (including the file path) and either re-raise or at least propagate a warning so users know why a mapping is missin
