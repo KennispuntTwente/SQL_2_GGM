@@ -348,6 +348,22 @@ def upload_parquet(
                     logger.info("🔹 Processing %s", path)
                     df = pl.read_parquet(path)
                     df = df.rename({col: col.lower() for col in df.columns})
+
+                    # Sanitize string columns to remove NUL bytes which Postgres rejects
+                    if dialect == "postgresql":
+                        # Identify string columns (Utf8 or String)
+                        string_cols = []
+                        for col_name, dtype in zip(df.columns, df.dtypes):
+                            # Check for Utf8 or String types (covering different Polars versions)
+                            if str(dtype) in ("Utf8", "String"):
+                                string_cols.append(col_name)
+                        
+                        if string_cols:
+                            df = df.with_columns([
+                                pl.col(c).str.replace_all("\x00", "").alias(c)
+                                for c in string_cols
+                            ])
+
                     dtype_map: dict[str, object] = {}
 
                     # Ensure the in-memory frame uses fixed-precision decimals before writing so

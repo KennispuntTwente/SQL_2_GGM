@@ -376,6 +376,8 @@ def direct_transfer(
 
     _ensure_database_and_schema(dest_engine, dest_schema, admin_database=admin_database)
 
+    dest_dialect = dest_engine.dialect.name.lower()
+
     src_meta = MetaData()
     dest_meta = MetaData()
 
@@ -465,6 +467,14 @@ def direct_transfer(
                     ]
                 else:
                     batch = [dict(row) for row in rows]  # type: ignore[union-attr]
+
+                # For PostgreSQL, strip NUL (0x00) from all string values.
+                # Postgres text/varchar columns cannot contain NUL bytes; psycopg will error.
+                if dest_dialect == "postgresql":
+                    for rec in batch:
+                        for key, val in rec.items():
+                            if isinstance(val, str) and "\x00" in val:
+                                rec[key] = val.replace("\x00", "")
 
                 # Execute insert with small retry/backoff on transient DB errors
                 attempt = 0
