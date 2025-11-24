@@ -1,23 +1,47 @@
 [project]
-name = "ggmpilot"
+name = "SQL_2_GGM"
 version = "0.1.0"
 requires-python = ">= 3.12.10"
 dependencies = [
-    "configparser>=7.2.0",
     "connectorx>=0.4.4",
-    "docker>=7.1.0",
     "python-dotenv>=1.0.1",
     "oracledb>=3.2.0",
-    "pandas>=2.3.1",
     "polars>=1.31.0",
     "psycopg2>=2.9.10",
     "pyarrow>=21.0.0",
     "pymysql>=1.1.1",
     "pyodbc>=5.2.0",
     "pypiwin32>=223; sys_platform == 'win32'",
-    "pytest>=8.4.1",
     "sqlalchemy>=2.0.41",
     "sqlparse>=0.5.3",
     "pyodata>=1.11.2",
     "requests>=2.32.0",
 ]
+description = "Pipelines to extract, load, and transform data from various sources into the Gemeentelijk Gegevensmodel (GGM)."
+readme = "README.md"
+license = { file = "LICENSE.md" }
+authors = [
+    { name = "Kennispunt Twente" },
+    { name = "Gemeente Oldenzaal" },
+    { name = "Gemeente Rijssen-Holten" },
+]
+
+[project.optional-dependencies]
+dev = [
+    "configparser>=7.2.0",
+    "docker>=7.1.0",
+    "pandas>=2.3.1",
+    "pytest>=8.4.1",
+]
+
+[dependency-groups]
+dev = [
+    "SQL_2_GGM[dev]",
+]
+
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["."]

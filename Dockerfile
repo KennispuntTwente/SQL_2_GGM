@@ -36,7 +36,7 @@ WORKDIR /app
 
 # Install uv (Python package manager); install packages
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml uv.lock LICENSE.md README.md ./
 # Try to sync with lock; if lock is out-of-date, regenerate and sync
 RUN (uv sync --locked) || (uv lock --upgrade && uv sync --locked)
 

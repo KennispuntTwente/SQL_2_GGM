@@ -164,51 +164,6 @@ wheels = [
 ]
 
 [[package]]
-name = "ggmpilot"
-version = "0.1.0"
-source = { virtual = "." }
-dependencies = [
-    { name = "configparser" },
-    { name = "connectorx" },
-    { name = "docker" },
-    { name = "oracledb" },
-    { name = "pandas" },
-    { name = "polars" },
-    { name = "psycopg2" },
-    { name = "pyarrow" },
-    { name = "pymysql" },
-    { name = "pyodata" },
-    { name = "pyodbc" },
-    { name = "pypiwin32", marker = "sys_platform == 'win32'" },
-    { name = "pytest" },
-    { name = "python-dotenv" },
-    { name = "requests" },
-    { name = "sqlalchemy" },
-    { name = "sqlparse" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "configparser", specifier = ">=7.2.0" },
-    { name = "connectorx", specifier = ">=0.4.4" },
-    { name = "docker", specifier = ">=7.1.0" },
-    { name = "oracledb", specifier = ">=3.2.0" },
-    { name = "pandas", specifier = ">=2.3.1" },
-    { name = "polars", specifier = ">=1.31.0" },
-    { name = "psycopg2", specifier = ">=2.9.10" },
-    { name = "pyarrow", specifier = ">=21.0.0" },
-    { name = "pymysql", specifier = ">=1.1.1" },
-    { name = "pyodata", specifier = ">=1.11.2" },
-    { name = "pyodbc", specifier = ">=5.2.0" },
-    { name = "pypiwin32", marker = "sys_platform == 'win32'", specifier = ">=223" },
-    { name = "pytest", specifier = ">=8.4.1" },
-    { name = "python-dotenv", specifier = ">=1.0.1" },
-    { name = "requests", specifier = ">=2.32.0" },
-    { name = "sqlalchemy", specifier = ">=2.0.41" },
-    { name = "sqlparse", specifier = ">=0.5.3" },
-]
-
-[[package]]
 name = "greenlet"
 version = "3.2.3"
 source = { registry = "https://pypi.org/simple" }
@@ -685,6 +640,64 @@ sdist = { url = "https://files.pythonhosted.org/packages/94/e7/b2c673351809dca68
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b7/ce/149a00dd41f10bc29e5921b496af8b574d8413afcd5e30dfa0ed46c2cc5e/six-1.17.0-py2.py3-none-any.whl", hash = "sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274", size = 11050, upload-time = "2024-12-04T17:35:26.475Z" },
 ]
+
+[[package]]
+name = "sql-2-ggm"
+version = "0.1.0"
+source = { editable = "." }
+dependencies = [
+    { name = "connectorx" },
+    { name = "oracledb" },
+    { name = "polars" },
+    { name = "psycopg2" },
+    { name = "pyarrow" },
+    { name = "pymysql" },
+    { name = "pyodata" },
+    { name = "pyodbc" },
+    { name = "pypiwin32", marker = "sys_platform == 'win32'" },
+    { name = "python-dotenv" },
+    { name = "requests" },
+    { name = "sqlalchemy" },
+    { name = "sqlparse" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "configparser" },
+    { name = "docker" },
+    { name = "pandas" },
+    { name = "pytest" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "sql-2-ggm", extra = ["dev"] },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "configparser", marker = "extra == 'dev'", specifier = ">=7.2.0" },
+    { name = "connectorx", specifier = ">=0.4.4" },
+    { name = "docker", marker = "extra == 'dev'", specifier = ">=7.1.0" },
+    { name = "oracledb", specifier = ">=3.2.0" },
+    { name = "pandas", marker = "extra == 'dev'", specifier = ">=2.3.1" },
+    { name = "polars", specifier = ">=1.31.0" },
+    { name = "psycopg2", specifier = ">=2.9.10" },
+    { name = "pyarrow", specifier = ">=21.0.0" },
+    { name = "pymysql", specifier = ">=1.1.1" },
+    { name = "pyodata", specifier = ">=1.11.2" },
+    { name = "pyodbc", specifier = ">=5.2.0" },
+    { name = "pypiwin32", marker = "sys_platform == 'win32'", specifier = ">=223" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.4.1" },
+    { name = "python-dotenv", specifier = ">=1.0.1" },
+    { name = "requests", specifier = ">=2.32.0" },
+    { name = "sqlalchemy", specifier = ">=2.0.41" },
+    { name = "sqlparse", specifier = ">=0.5.3" },
+]
+provides-extras = ["dev"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "sql-2-ggm", extras = ["dev"] }]
 
 [[package]]
 name = "sqlalchemy"
