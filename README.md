@@ -1,24 +1,21 @@
 # SQL_2_GGM
 
-Deze repository bevat code om gegevens te ontsluiten en onder te brengen
-in de structuur van het [Gemeentelijk Gegevensmodel (GGM)](https://www.gemeentelijkgegevensmodel.nl/v2.4.0/).
+'SQL_2_GGM' is een open-source Python-tool om data uit diverse
+applicaties 1) te ontsluiten en 2) te transformeren
+naar structuur van het [Gemeentelijk Gegevensmodel (GGM)](https://www.gemeentelijkgegevensmodel.nl/v2.4.0/). 
 
-Dit bestaat proces bestaat uit twee stappen: 1) het ontsluiten van data uit een applicatie,
-en 2) het transformeren van die data naar de structuur van het GGM. 
-
-Voor stap 1) bevat dit project twee modules: 'sql_to_staging' en 'odata_to_staging', welke respectievelijk
+Voor het 1) ontsluiten van data bevat dit project twee modules: 'sql_to_staging' en 'odata_to_staging', welke respectievelijk
 data ontsluiten uit een SQL-server (diverse types) of een OData-API, en deze data plaatsen in een 'staging' database
 op een SQL-server (diverse types) waarop het GGM zal staan.
 
-Voor stap 2) bevat dit project de module 'staging_to_silver', welke de applicatie-data via SQL-queries transformeert
+Voor het 2) transformeren van data is er de module 'staging_to_silver', welke de applicatie-data via SQL-queries transformeert
 naar het GGM. Deze SQL-queries worden in SQLAlchemy geschreven, zodat verschillende typen SQL-servers
-ondersteund worden als target (bijv., Oracle, Postgres, Microsoft SQL Server, MySQL, etc.).
+ondersteund worden (bijv., Oracle, Postgres, Microsoft SQL Server, MySQL, etc.).
 
-Dit is dus een open-source tool voor data ontsluiting & -transformatie
-naar het GGM, welke zoveel mogelijk 'plug-and-play' en breed inzetbaar is. 
-Met deze tool wordt een technische uitwerking van het gehele proces geleverd (van ontsluiting van data
-tot transformatie naar het GGM) in Python-code, compatibel met diverse SQL-servers. Je hoeft
-hierdoor niet eerst een mapping naar het GGM uit te werken in jouw eigen ETL-tool; je kunt code van en voor deze tool code direct gebruiken.
+Met deze modules wordt een volledige technische uitwerking geleverd van het proces om data uit een applicatie te overbrengen naar het GGM.
+In tegenstelling tot het delen van alleen mapping-documenten (die je zelf nog moet implementeren in je eigen ETL-tool), kan code van en voor deze tool direct gebruikt worden. Inzet is om zoveel mogelijk
+'plug-and-play' functionaliteit te bieden die compatibel is met diverse SQL-server types, zodat deze tool breed inzetbaar is.
+Daarmee kan het GGM gemakkelijker geïmplementeerd worden en wordt verdergaande samenwerking tussen gemeenten mogelijk.
 
 > Specifiek bevat deze repository daarnaast SQL-queries om data uit de applicatie Centric Suite 4 Sociaal Domein (SSD)
 te transformeren naar het GGM. De modules kunnen echter geconfigureerd worden om gegevens uit elke andere applicatie
