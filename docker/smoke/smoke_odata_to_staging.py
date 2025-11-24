@@ -13,7 +13,7 @@ from odata_to_staging.functions.engine_loaders import (
 from odata_to_staging.functions.download_parquet_odata import (
     download_parquet_odata,
 )
-from source_to_staging.functions.upload_parquet import upload_parquet
+from sql_to_staging.functions.upload_parquet import upload_parquet
 
 
 NORTHWIND_V2 = "https://services.odata.org/V2/Northwind/Northwind.svc/"

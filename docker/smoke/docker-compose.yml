@@ -27,8 +27,8 @@ services:
       db:
         condition: service_healthy
     working_dir: /app
-    entrypoint: ["/app/.venv/bin/python", "docker/smoke/smoke_source_to_staging.py"]
-    command: ["--config", "/app/docker/config/source_to_staging.ini"]
+    entrypoint: ["/app/.venv/bin/python", "docker/smoke/smoke_sql_to_staging.py"]
+    command: ["--config", "/app/docker/config/sql_to_staging.ini"]
     environment:
       # Hint to runtime that it's inside Docker (used for host resolution)
       IN_DOCKER: "1"
@@ -51,8 +51,8 @@ services:
       db:
         condition: service_healthy
     working_dir: /app
-    entrypoint: ["/app/.venv/bin/python", "docker/smoke/smoke_source_to_staging_direct.py"]
-    command: ["--config", "/app/docker/config/source_to_staging.ini"]
+    entrypoint: ["/app/.venv/bin/python", "docker/smoke/smoke_sql_to_staging_direct.py"]
+    command: ["--config", "/app/docker/config/sql_to_staging.ini"]
     environment:
       IN_DOCKER: "1"
       PIPELINE: source-to-staging-direct
@@ -88,8 +88,8 @@ services:
       db:
         condition: service_healthy
     working_dir: /app
-    entrypoint: ["/app/.venv/bin/python", "docker/smoke/smoke_source_to_staging_cx.py"]
-    command: ["--config", "/app/docker/config/source_to_staging.ini"]
+    entrypoint: ["/app/.venv/bin/python", "docker/smoke/smoke_sql_to_staging_cx.py"]
+    command: ["--config", "/app/docker/config/sql_to_staging.ini"]
     environment:
       IN_DOCKER: "1"
       PIPELINE: source-to-staging-cx

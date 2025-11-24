@@ -28,7 +28,7 @@ def test_readme_one_liner_pipeline_postgres(tmp_path):
     1. Generate synthetic CSVs
     2. Load them into the source database (public schema) in a Postgres container
     3. Create destination database 'ggm' and schemas staging & silver
-    4. Run source_to_staging to copy tables source -> ggm.staging
+    4. Run sql_to_staging to copy tables source -> ggm.staging
     5. Run staging_to_silver to map ggm.staging -> ggm.silver using queries & DDL
 
     Assertions:
@@ -105,7 +105,7 @@ def test_readme_one_liner_pipeline_postgres(tmp_path):
         conn.execute(text("CREATE SCHEMA IF NOT EXISTS staging"))
         conn.execute(text("CREATE SCHEMA IF NOT EXISTS silver"))
 
-    # 4) Run source_to_staging (source -> ggm.staging) via INI
+    # 4) Run sql_to_staging (source -> ggm.staging) via INI
     ini_src = tmp_path / "src_to_staging.ini"
     ini_src.write_text(
         "\n".join(
@@ -137,7 +137,7 @@ def test_readme_one_liner_pipeline_postgres(tmp_path):
     )
 
     subprocess.run(
-        ["python", "-m", "source_to_staging.main", "--config", str(ini_src)],
+        ["python", "-m", "sql_to_staging.main", "--config", str(ini_src)],
         check=True,
         cwd=repo_root,
     )

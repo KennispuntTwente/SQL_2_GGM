@@ -6,7 +6,7 @@ in de structuur van het [Gemeentelijk Gegevensmodel (GGM)](https://www.gemeentel
 Dit bestaat proces bestaat uit twee stappen: 1) het ontsluiten van data uit een applicatie,
 en 2) het transformeren van die data naar de structuur van het GGM. 
 
-Voor stap 1) bevat dit project twee modules: 'source_to_staging' en 'odata_to_staging', welke respectievelijk
+Voor stap 1) bevat dit project twee modules: 'sql_to_staging' en 'odata_to_staging', welke respectievelijk
 data ontsluiten uit een SQL-server (diverse types) of een OData-API, en deze data plaatsen in een 'staging' database
 op een SQL-server (diverse types) waarop het GGM zal staan.
 
@@ -35,7 +35,7 @@ In mogelijke toekomstige releases wordt de set queries uitgebreid naar meer tabe
 
 Hieronder staat beschreven hoe data vanuit de applicatie wordt overgebracht naar het GGM.
 
-### Van applicatie naar staging ('source_to_staging'/'odata_to_staging')
+### Van applicatie naar staging ('sql_to_staging'/'odata_to_staging')
 
 Door de 'client' (d.w.z., machine waarop Python-code in dit project draait),
 wordt verbonden met de applicatie-SQL-server of OData-API waarin de data van de applicatie staat (voor SSD is dit een
@@ -52,7 +52,7 @@ Dit d.m.v. chunking van de data; chunks worden gestreamd in het werkgeheugen van
 tijdelijk worden gedumpt naar parquet-bestanden op de schijfruimte van de client. Zo kunnen grote hoeveelheden
 data worden verwerkt ondanks een beperkt werkgeheugen van de client.
 
-> Zie [source_to_staging/README.md](source_to_staging/README.md) 
+> Zie [sql_to_staging/README.md](sql_to_staging/README.md) 
 (ontsluiting uit SQL-server) en [odata_to_staging/README.md](odata_to_staging/README.md) (ontsluiting uit OData-API)
 voor meer informatie over deze stap.
 
@@ -85,7 +85,7 @@ Dit zou kunnen op een eigen machine, op een eigen server (on-premises), of bijvo
 Je zou bijvoorbeeld een scheduler (oftewel CRON-job) kunnen instellen welke het proces elke nacht draait.
 
 > Tip: wil je de code gemakkelijk uitproberen zonder te verbinden met een productie-database? Zie dan
-de demo-scripts: [source_to_staging/demo/README.md](source_to_staging/demo/README.md) en
+de demo-scripts: [sql_to_staging/demo/README.md](sql_to_staging/demo/README.md) en
 [staging_to_silver/demo/README.md](staging_to_silver/demo/README.md). Hierbij wordt synthetische data gegenereerd,
 geladen, en getransformeerd naar het GGM (in een ontwikkel-database in Docker/Podman; maar je kan de scripts ook aanpassen
 om een andere database te gebruiken).
@@ -135,16 +135,16 @@ Zie ook sectie 'Een eigen versie van dit project gebruiken').
 
 Vervolgens kan je de Python-scripts uitvoeren. Zie de voorbeelden hieronder:
 
-1. Run source_to_staging (geconfigureerd via environment variables)
+1. Run sql_to_staging (geconfigureerd via environment variables)
 
 ```
-python -m source_to_staging.main
+python -m sql_to_staging.main
 ```
 
-2. Run source_to_staging (geconfigureerd via .ini-bestand)
+2. Run sql_to_staging (geconfigureerd via .ini-bestand)
 
 ```
-python -m source_to_staging.main --config source_to_staging/config.ini
+python -m sql_to_staging.main --config sql_to_staging/config.ini
 ```
 
 3. Run staging_to_silver (geconfigurerd via environment variables)
@@ -170,25 +170,25 @@ Installeer eerst Docker (of alternatief: Podman) en zorg dat de Docker-daemon dr
 docker build -t ggmpilot:latest .
 ```
 
-2) Run source_to_staging met environment variables (in .env):
+2) Run sql_to_staging met environment variables (in .env):
 
 ```bash
 # gebruikt standaard PIPELINE=source-to-staging
 docker run --rm \
 	-v "$(pwd)/data:/app/data" \
-	-v "$(pwd)/source_to_staging:/app/source_to_staging" \
-	--env-file source_to_staging/.env  \
+	-v "$(pwd)/sql_to_staging:/app/sql_to_staging" \
+	--env-file sql_to_staging/.env  \
 	ggmpilot:latest
 ```
 
-3) Run source_to_staging met .ini-config:
+3) Run sql_to_staging met .ini-config:
 
 ```bash
 docker run --rm \
 	-v "$(pwd)/data:/app/data" \
-	-v "$(pwd)/source_to_staging:/app/source_to_staging" \
+	-v "$(pwd)/sql_to_staging:/app/sql_to_staging" \
 	ggmpilot:latest source-to-staging \
-		--config /app/source_to_staging/config.ini
+		--config /app/sql_to_staging/config.ini
 ```
 
 4) Run staging_to_silver met environment variables (in .env):
@@ -214,7 +214,7 @@ Tips/opmerkingen:
 (anders wordt geprobeerd om een SQL-server binnen de Docker-image te benaderen, wat dan mislukt)
 - Bestanden bewaren: parquet-dumps worden standaard in /app/data geschreven; mount die map lokaal met -v "$(pwd)/data:/app/data" als je de bestanden wil bewaren (en zet optie 'CLEANUP_PARQUET_FILES' uit)
 - SQL Server (pyodbc): deze image bevat unixODBC maar niet de Microsoft ODBC driver (msodbcsql17/msodbcsql18). Voeg deze zelf toe of maak een afgeleide image wanneer je mssql via ODBC gebruikt.
-- Oracle: de image gebruikt oracledb in thin‑mode. Voor thick‑mode (Instant Client) mount de client en zet de juiste pad‑variabele in je .env of .ini: SRC_ORACLE_CLIENT_PATH (bron, source_to_staging) of DST_ORACLE_CLIENT_PATH (doel, staging_to_silver).
+- Oracle: de image gebruikt oracledb in thin‑mode. Voor thick‑mode (Instant Client) mount de client en zet de juiste pad‑variabele in je .env of .ini: SRC_ORACLE_CLIENT_PATH (bron, sql_to_staging) of DST_ORACLE_CLIENT_PATH (doel, staging_to_silver).
 - Proxy/certificaten: plaats certificaten in een volume en exporteer de juiste env vars (bijv. REQUESTS_CA_BUNDLE) als je die nodig hebt.
 
 ## Informatie voor ontwikkelaars
@@ -223,7 +223,7 @@ Tips/opmerkingen:
 
 Wil je de code uitvoeren zonder dat je een applicatie-SQL-server hebt met data?
 Dan kan je synthetische data genereren met de module in de map `synthetic`.
-Zie de [source_to_staging/demo/README.md](source_to_staging/demo/README.md), [staging_to_silver/demo/README.md](staging_to_silver/demo/README.md),
+Zie de [sql_to_staging/demo/README.md](sql_to_staging/demo/README.md), [staging_to_silver/demo/README.md](staging_to_silver/demo/README.md),
 en [synthetic/README.md](synthetic/README.md) voor voorbeelden van demo-scripts die synthetische data genereren, laden, en verwerken.
 Ook [odata_to_staging/demo/README.md](odata_to_staging/demo/README.md) bevat een demo-script voor die module.
 

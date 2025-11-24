@@ -60,7 +60,7 @@ Het commando doet het volgende:
 1) genereert synthetische CSV's;
 2) start een Postgres‑container en laadt CSV's als tabellen in database `source` (schema: public);
 3) maakt database `ggm` aan, waarin `staging` en `silver` als schema's worden gebruikt;
-4) draait `source_to_staging` om data te verplaatsen van database `source` → `ggm` (schema `staging`);
+4) draait `sql_to_staging` om data te verplaatsen van database `source` → `ggm` (schema `staging`);
 5) draait `staging_to_silver` om data te verplaatsen van `staging` -> `silver` (beide in database `ggm`).
 Vooraf worden de doeltabellen naar het GGM-model in schema `silver` aangemaakt op basis van DDL's in `ggm_selectie`.
 

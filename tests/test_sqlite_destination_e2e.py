@@ -13,7 +13,7 @@ from sqlalchemy import (
     select,
 )
 from staging_to_silver.functions.query_loader import load_queries
-from source_to_staging.functions.direct_transfer import direct_transfer
+from sql_to_staging.functions.direct_transfer import direct_transfer
 
 
 def _mk_engine(tmp_path: Path, name: str):

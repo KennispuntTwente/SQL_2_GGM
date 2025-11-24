@@ -9,22 +9,22 @@ and only then run Python commands (e.g., `python -m ...`, `pip install ...`, `py
 
 ## Big picture
 - Two-step pipeline to the Gemeentelijk Gegevensmodel (GGM):
-  1) source_to_staging: copy source DB tables into a staging schema (streamed chunks or Parquet dump+load).
+  1) sql_to_staging: copy source DB tables into a staging schema (streamed chunks or Parquet dump+load).
   2) staging_to_silver: execute SQLAlchemy SELECTs on the DB to populate the GGM “silver” schema inside a single transaction (PostgreSQL defers FK constraints).
 - Scale & safety: all transfers are chunked/streamed; Parquet paths keep memory bounded; destination DB/schema auto-created for Postgres/MSSQL; staging columns are lowercased for consistency.
 
 ## Repo anchors
-- Entrypoints: `source_to_staging/main.py`, `staging_to_silver/main.py`.
-- I/O and copy: `source_to_staging/functions/{direct_transfer.py, download_parquet.py, upload_parquet.py}`.
+- Entrypoints: `sql_to_staging/main.py`, `staging_to_silver/main.py`.
+- I/O and copy: `sql_to_staging/functions/{direct_transfer.py, download_parquet.py, upload_parquet.py}`.
 - Silver query loader: `staging_to_silver/functions/query_loader.py`; queries live in `staging_to_silver/queries/*.py`.
 - Config helpers: `utils/config/{cli_ini_config.py, get_config_value.py}`; engines: `utils/database/{create_sqlalchemy_engine.py, create_connectorx_uri.py}`.
 - Logging: `utils/logging/setup_logging.py` (console always on; INI > ENV; handlers marked `_ggmpilot_managed`).
 - Smoke/CI: Docker Compose in `docker/smoke`; example INIs in `docker/config`.
 
 ## Configuration (single INIs; INI > ENV > defaults)
-- `source_to_staging`: one INI with sections `[database-source]`, `[database-destination]`, `[settings]`, `[logging]` (see `source_to_staging/config.ini.example`).
+- `sql_to_staging`: one INI with sections `[database-source]`, `[database-destination]`, `[settings]`, `[logging]` (see `sql_to_staging/config.ini.example`).
   - `[settings]`: `TRANSFER_MODE=SQLALCHEMY_DIRECT|CONNECTORX_DUMP|SQLALCHEMY_DUMP`, `SRC_TABLES`, `SRC_CHUNK_SIZE`, `CLEANUP_PARQUET_FILES`, `ASK_PASSWORD_IN_CLI`.
-  - Oracle: set `SRC_ORACLE_CLIENT_PATH` (source_to_staging) or `DST_ORACLE_CLIENT_PATH` (staging_to_silver) for thick‑mode (Instant Client). TNS alias supported via `SRC_ORACLE_TNS_ALIAS=True` / `DST_ORACLE_TNS_ALIAS=True`.
+  - Oracle: set `SRC_ORACLE_CLIENT_PATH` (sql_to_staging) or `DST_ORACLE_CLIENT_PATH` (staging_to_silver) for thick‑mode (Instant Client). TNS alias supported via `SRC_ORACLE_TNS_ALIAS=True` / `DST_ORACLE_TNS_ALIAS=True`.
 - `staging_to_silver`: one INI with sections `[database-destination]`, `[settings]`, optional `[logging]` (see `staging_to_silver/config.ini.example`).
   - `[settings]`: `SILVER_SCHEMA` (default silver), optional `SILVER_DB` (MSSQL cross‑database only), `TABLE_NAME_CASE` (default upper), `COLUMN_NAME_CASE` (optional), `ASK_PASSWORD_IN_CLI`.
 - Python: `pyproject.toml` targets Python ≥ 3.12.10; dependencies include SQLAlchemy 2.x, ConnectorX, polars/pyarrow, psycopg2, pyodbc, oracledb.
@@ -43,7 +43,7 @@ and only then run Python commands (e.g., `python -m ...`, `pip install ...`, `py
 
 ## Developer workflows
 - Run pipelines (Windows bash examples):
-  - `python -m source_to_staging.main --config source_to_staging/config.ini`
+  - `python -m sql_to_staging.main --config sql_to_staging/config.ini`
   - `python -m staging_to_silver.main --config staging_to_silver/config.ini`
 - Tests: `pytest` (fast by default). Set `RUN_SLOW_TESTS=1` to include Docker‑backed integration tests for multiple DBs. See markers in `pytest.ini`.
 - Smoke via Docker Compose: `bash docker/smoke/run_all.sh` runs staged services sequentially; INIs under `docker/config`.

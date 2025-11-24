@@ -454,7 +454,7 @@ def load_odata_client(cfg: Any):
 
 def load_destination_engine(cfg: Any):
     """Delegate to existing destination engine loader to avoid duplication."""
-    from source_to_staging.functions.engine_loaders import (
+    from sql_to_staging.functions.engine_loaders import (
         load_destination_engine as _load_dst,
     )
 

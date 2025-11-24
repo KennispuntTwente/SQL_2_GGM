@@ -3,7 +3,7 @@ set -eu
 
 # Simple dispatcher to run one of the two pipelines.
 # Usage:
-#   docker run ggmpilot                 # runs source_to_staging by default
+#   docker run ggmpilot                 # runs sql_to_staging by default
 #   docker run ggmpilot staging-to-silver -c /cfg.ini
 #   docker run -e PIPELINE=staging-to-silver ggmpilot -- -c /cfg.ini
 
@@ -26,7 +26,7 @@ fi
 
 case "$PIPELINE" in
   source-to-staging)
-    exec /app/.venv/bin/python -m source_to_staging.main "$@"
+    exec /app/.venv/bin/python -m sql_to_staging.main "$@"
     ;;
   staging-to-silver)
     exec /app/.venv/bin/python -m staging_to_silver.main "$@"

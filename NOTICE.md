@@ -14,7 +14,7 @@ This work includes:
 
 1) Project code and documentation
 
-The code and documentation authored for ggmpilot (e.g., `source_to_staging`, `staging_to_silver`, `utils`, `docker`, `tests`, and top-level docs) are licensed under the GNU Affero General Public License, version 3 (AGPL-3.0). See the `LICENSE.md` file at the repository root for the full text.
+The code and documentation authored for ggmpilot (e.g., `sql_to_staging`, `staging_to_silver`, `utils`, `docker`, `tests`, and top-level docs) are licensed under the GNU Affero General Public License, version 3 (AGPL-3.0). See the `LICENSE.md` file at the repository root for the full text.
 
 2) GGM artifacts from the Municipality of Delft
 

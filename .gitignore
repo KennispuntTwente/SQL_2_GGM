@@ -2,7 +2,7 @@
 *.pyo
 __pycache__/
 data/
-source_to_staging/.env
+sql_to_staging/.env
 silver_to_staging/.env
 /tmp_dump
 staging_to_silver/.env

@@ -11,5 +11,5 @@ source .venv/Scripts/activate
 bash staging_to_silver/demo/demo.sh
 ```
 
-> Let op: je moet eerst de `source_to_staging` demo hebben gedraaid om de benodigde stagingtabellen te vullen.
-Dan pas kun je deze `staging_to_silver` demo draaien. Zie: [source_to_staging/demo/README.md](source_to_staging/demo/README.md).
+> Let op: je moet eerst de `sql_to_staging` demo hebben gedraaid om de benodigde stagingtabellen te vullen.
+Dan pas kun je deze `staging_to_silver` demo draaien. Zie: [sql_to_staging/demo/README.md](sql_to_staging/demo/README.md).

@@ -15,10 +15,10 @@ Benefit: Reduces maintenance burden. If you need to change how databases are cre
 
 * 2. Fix Cross-Module Dependencies (High Priority)
 Issue:
-The odata_to_staging pipeline imports core functions directly from source_to_staging:
-from source_to_staging.functions.engine_loaders import load_destination_engine
-from source_to_staging.functions.upload_parquet import upload_parquet
-This creates a "tight coupling" where changes to the source_to_staging module could unexpectedly break the odata_to_staging pipeline.
+The odata_to_staging pipeline imports core functions directly from sql_to_staging:
+from sql_to_staging.functions.engine_loaders import load_destination_engine
+from sql_to_staging.functions.upload_parquet import upload_parquet
+This creates a "tight coupling" where changes to the sql_to_staging module could unexpectedly break the odata_to_staging pipeline.
 Recommendation:
 Move shared functionality to a common location.
 Move upload_parquet.py to utils/parquet/ or a shared functions/ package.
@@ -33,6 +33,6 @@ Make this configurable via your INI settings or environment variables (e.g., MSS
 
 * 5. Standardize "Engine Loader" Naming (Low Priority)
 Issue:
-engine_loaders.py contains load_destination_engine, which is generic, and load_source_connection, which is specific to source_to_staging.
+engine_loaders.py contains load_destination_engine, which is generic, and load_source_connection, which is specific to sql_to_staging.
 Recommendation:
 Split these. Keep source-specific loaders in their respective module folders, but move generic destination loaders to database.

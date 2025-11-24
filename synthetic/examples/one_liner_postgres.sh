@@ -53,7 +53,7 @@ engine = get_connection(db_type="postgres", db_name="ggm", user="sa", password=P
 execute_sql_folder(engine, "ggm_selectie", suffix_filter=True, schema="silver")
 PY
 
-# 5) source_to_staging: source -> staging schema in DB ggm
+# 5) sql_to_staging: source -> staging schema in DB ggm
 printf "%s\n" \
   "[database-source]" \
   "SRC_DRIVER = postgresql+psycopg2" \
@@ -77,7 +77,7 @@ printf "%s\n" \
   "SRC_TABLES = szclient,wvbesl,wvind_b,szregel,wvdos,abc_refcod,szukhis,szwerker" \
   "ASK_PASSWORD_IN_CLI = False" \
 > ./src_to_staging.ini
-python -m source_to_staging.main --config ./src_to_staging.ini
+python -m sql_to_staging.main --config ./src_to_staging.ini
 
 # 6) staging_to_silver in DB ggm (read from staging, write to silver)
 #    We already created tables and trigger; skip INIT step

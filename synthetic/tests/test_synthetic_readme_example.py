@@ -65,9 +65,7 @@ def test_synthetic_readme_one_liner_script_runs(tmp_path):
         """)
             )
         }
-        assert staging_tables, (
-            "No tables found in staging schema after source_to_staging"
-        )
+        assert staging_tables, "No tables found in staging schema after sql_to_staging"
 
         silver_tables = {
             r[0]

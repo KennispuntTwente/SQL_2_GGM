@@ -2,8 +2,8 @@ import os
 from sqlalchemy import text
 
 from dev_sql_server.get_connection import get_connection
-from source_to_staging.functions.download_parquet import download_parquet
-from source_to_staging.functions.upload_parquet import upload_parquet
+from sql_to_staging.functions.download_parquet import download_parquet
+from sql_to_staging.functions.upload_parquet import upload_parquet
 
 
 def main():
@@ -29,8 +29,12 @@ def main():
     )
     with src_engine.begin() as conn:
         conn.execute(text("DROP TABLE IF EXISTS demotable"))
-        conn.execute(text("CREATE TABLE demotable (id INT PRIMARY KEY, val VARCHAR(50))"))
-        conn.execute(text("INSERT INTO demotable (id, val) VALUES (1, 'foo'), (2, 'bar')"))
+        conn.execute(
+            text("CREATE TABLE demotable (id INT PRIMARY KEY, val VARCHAR(50))")
+        )
+        conn.execute(
+            text("INSERT INTO demotable (id, val) VALUES (1, 'foo'), (2, 'bar')")
+        )
 
     # Dump to parquet
     download_parquet(src_engine, ["demotable"], output_dir=dump_dir)

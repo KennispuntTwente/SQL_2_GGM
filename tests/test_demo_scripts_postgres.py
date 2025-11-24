@@ -22,12 +22,18 @@ SOURCE_TABLES = [
 
 @pytest.mark.slow
 @pytest.mark.postgres
-@pytest.mark.skipif(not slow_tests_enabled(), reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.")
-@pytest.mark.skipif(not docker_running(), reason="Docker is not available/running; required for this integration test.")
-def test_demo_source_to_staging_then_staging_to_silver_postgres():
+@pytest.mark.skipif(
+    not slow_tests_enabled(),
+    reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.",
+)
+@pytest.mark.skipif(
+    not docker_running(),
+    reason="Docker is not available/running; required for this integration test.",
+)
+def test_demo_sql_to_staging_then_staging_to_silver_postgres():
     """Runs both demo scripts and verifies staging and silver effects on Postgres.
 
-    - Runs `bash source_to_staging/demo/demo.sh` to generate and load synthetic data
+    - Runs `bash sql_to_staging/demo/demo.sh` to generate and load synthetic data
     - Runs `bash staging_to_silver/demo/demo.sh` to initialize silver and map from staging
     - Asserts all SOURCE_TABLES exist in `staging` and at least two have rows
     - Asserts known silver tables exist in `silver` and that silver has tables
@@ -35,8 +41,10 @@ def test_demo_source_to_staging_then_staging_to_silver_postgres():
     repo_root = pathlib.Path(__file__).resolve().parents[1]
 
     # Execute the demo scripts from repository root
-    subprocess.run(["bash", "source_to_staging/demo/demo.sh"], check=True, cwd=repo_root)
-    subprocess.run(["bash", "staging_to_silver/demo/demo.sh"], check=True, cwd=repo_root)
+    subprocess.run(["bash", "sql_to_staging/demo/demo.sh"], check=True, cwd=repo_root)
+    subprocess.run(
+        ["bash", "staging_to_silver/demo/demo.sh"], check=True, cwd=repo_root
+    )
 
     # Connect to the Postgres dev DB used by demos (port 55432)
     engine = get_connection(
@@ -67,7 +75,9 @@ def test_demo_source_to_staging_then_staging_to_silver_postgres():
             cnt = conn.execute(text(f"SELECT COUNT(*) FROM staging.{t}")).scalar()
             if cnt and int(cnt) > 0:
                 non_empty += 1
-        assert non_empty >= 2, f"Expected at least two non-empty staging tables, got {non_empty}"
+        assert non_empty >= 2, (
+            f"Expected at least two non-empty staging tables, got {non_empty}"
+        )
 
         # Verify silver schema is initialized with tables and known names exist
         silver_tables = conn.execute(
@@ -80,13 +90,21 @@ def test_demo_source_to_staging_then_staging_to_silver_postgres():
         silver_set = {r[0].lower() for r in silver_tables}
         # From ggm_selectie DDL (unquoted identifiers -> lowercased in Postgres)
         assert "client" in silver_set, "Expected table 'client' in silver schema"
-        assert "declaratieregel" in silver_set, "Expected table 'declaratieregel' in silver schema"
+        assert "declaratieregel" in silver_set, (
+            "Expected table 'declaratieregel' in silver schema"
+        )
 
 
 @pytest.mark.slow
 @pytest.mark.postgres
-@pytest.mark.skipif(not slow_tests_enabled(), reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.")
-@pytest.mark.skipif(not docker_running(), reason="Docker is not available/running; required for this integration test.")
+@pytest.mark.skipif(
+    not slow_tests_enabled(),
+    reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.",
+)
+@pytest.mark.skipif(
+    not docker_running(),
+    reason="Docker is not available/running; required for this integration test.",
+)
 def test_demo_odata_to_staging_postgres(tmp_path):
     """Runs the odata_to_staging demo and verifies OData tables are loaded in Postgres.
 
@@ -125,7 +143,9 @@ def test_demo_odata_to_staging_postgres(tmp_path):
 
     try:
         # Run the demo script which ensures the Postgres dev DB is running
-        subprocess.run(["bash", "odata_to_staging/demo/demo.sh"], check=True, cwd=repo_root)
+        subprocess.run(
+            ["bash", "odata_to_staging/demo/demo.sh"], check=True, cwd=repo_root
+        )
 
         # Connect and verify the odata_staging schema has expected tables with rows
         engine = get_connection(
@@ -147,8 +167,12 @@ def test_demo_odata_to_staging_postgres(tmp_path):
                 )
             ).fetchall()
             tset = {r[0].lower() for r in tables}
-            assert "categories" in tset, "Expected 'categories' table in odata_staging schema"
-            cnt = conn.execute(text("SELECT COUNT(*) FROM odata_staging.categories")).scalar()
+            assert "categories" in tset, (
+                "Expected 'categories' table in odata_staging schema"
+            )
+            cnt = conn.execute(
+                text("SELECT COUNT(*) FROM odata_staging.categories")
+            ).scalar()
             assert cnt and int(cnt) > 0, "Expected rows in odata_staging.categories"
     finally:
         # Restore any original .env content (best effort)

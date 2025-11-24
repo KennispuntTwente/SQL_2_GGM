@@ -18,5 +18,5 @@
 /tmp_dump
 
 # Ignore local .env by default; mount explicitly if needed
-source_to_staging/.env
+sql_to_staging/.env
 staging_to_silver/.env
