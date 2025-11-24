@@ -38,24 +38,13 @@ def build_beschikte_voorziening(engine, source_schema=None):
 
     return (
         select(
-            # Timestamp zonder timezone (aanname is UTC-timezone; TODO: check of dit klopt) ->
-            # UTC-timezone op zetten; dan omzetten naar Amsterdam-tijdzone ->
-            # dan casten naar Date
             _local_date_amsterdam(col(wvind_b, "dd_eind"), engine).label("datumeinde"),
             _local_date_amsterdam(col(wvind_b, "dd_begin"), engine).label("datumstart"),
-            # Alternatief:
-            # cast(wvind_b.c.dd_eind.op("AT TIME ZONE")("UTC").op("AT TIME ZONE")("Europe/Amsterdam"), Date).label("datumeinde"),
-            # cast(wvind_b.c.dd_begin.op("AT TIME ZONE")("UTC").op("AT TIME ZONE")("Europe/Amsterdam"), Date).label("datumstart"),
-            # Of misschien:
-            # cast(func.to_timestamp(wvind_b.c.dd_eind ).op("AT TIME ZONE")("Europe/Amsterdam"), Date).label("datumeinde"),
-            # cast(func.to_timestamp(wvind_b.c.dd_begin).op("AT TIME ZONE")("Europe/Amsterdam"), Date).label("datumstart"),
             col(wvind_b, "volume").label("omvang"),
             col(wvind_b, "status_indicatie").label("status"),
             func.concat(col(wvind_b, "besluitnr"), col(wvind_b, "volgnr_ind")).label(
                 "beschikte_voorziening_id"
             ),
-            # 'redeneinde' lijkt date te zijn in target? (Is tekst in bron, wat logisch lijkt)
-            # abc_refcod.c.omschrijving.label("redeneinde"),
             literal(None).label("redeneinde"),
             # Add missing columns as cast(null)
             literal(None).label("code"),
