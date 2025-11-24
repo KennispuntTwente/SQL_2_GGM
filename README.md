@@ -1,51 +1,60 @@
 # SQL_2_GGM
 
-Deze repository bevat code om gegevens uit diverse SQL-servers te ontsluiten en onder te brengen
+Deze repository bevat code om gegevens te ontsluiten en onder te brengen
 in de structuur van het [Gemeentelijk Gegevensmodel (GGM)](https://www.gemeentelijkgegevensmodel.nl/v2.4.0/).
 
-Specifiek bevat deze repository een ontsluiting van data uit de applicatie Centric Suite 4 Sociaal Domein (SSD),
-naar tabellen van het GGM over beschikkingen en voorzieningen in het sociaal domein. De modules kunnen echter
-geconfigureerd worden om gegevens uit elke andere applicatie met een SQL-server te onsluiten en te modelleren
-naar het GGM. 
+Dit bestaat proces bestaat uit twee stappen: 1) het ontsluiten van data uit een applicatie,
+en 2) het transformeren van die data naar de structuur van het GGM. 
 
-Omdat deze tool geheel open-source is, kan elke gemeente deze toepassen. Voor gemeenten die dezelfde data
-uit SSD willen ontsluiten, is deze tool zo veel als mogelijk 'plug-and-play' gemaakt (d.w.z., niet alleen de mapping wordt
-geleverd; ook de technische uitwerking van de mapping in Python-code).
-Je hoeft de mapping hiermee dus niet zelf uit te werken in jouw ETL-tool; je kunt deze code direct gebruiken.
+Voor stap 1) bevat dit project twee modules: 'source_to_staging' en 'odata_to_staging', welke respectievelijk
+data ontsluiten uit een SQL-server (diverse types) of een OData-API, en deze data plaatsen in een 'staging' database
+op een SQL-server (diverse types) waarop het GGM zal staan.
+
+Voor stap 2) bevat dit project de module 'staging_to_silver', welke de applicatie-data via SQL-queries transformeert
+naar het GGM. Deze SQL-queries worden in SQLAlchemy geschreven, zodat verschillende typen SQL-servers
+ondersteund worden als target (bijv., Oracle, Postgres, Microsoft SQL Server, MySQL, etc.).
+
+Dit is dus een open-source tool voor data ontsluiting & -transformatie
+naar het GGM, welke zoveel mogelijk 'plug-and-play' en breed inzetbaar is. 
+Met deze tool wordt een technische uitwerking van het gehele proces geleverd (van ontsluiting van data
+tot transformatie naar het GGM) in Python-code, compatibel met diverse SQL-servers. Je hoeft
+hierdoor niet eerst een mapping naar het GGM uit te werken in jouw eigen ETL-tool; je kunt code van en voor deze tool code direct gebruiken.
+
+> Specifiek bevat deze repository daarnaast SQL-queries om data uit de applicatie Centric Suite 4 Sociaal Domein (SSD)
+te transformeren naar het GGM. De modules kunnen echter geconfigureerd worden om gegevens uit elke andere applicatie
+met een SQL-server/OData-API te onsluiten en/of te modelleren naar het GGM.
 
 ---
 
-**Status van dit project (28/10/2025)**: *dit project is nabij afronding maar nog in ontwikkeling.
-Enkele queries in 'staging_to_silver' vereisen bijvoorbeeld mogelijk nog wijzigingen.
+> **Status van dit project (28/10/2025)**: *dit project is nabij afronding maar nog in ontwikkeling.
+Enkele queries voor de transformatie van SSD-data in 'staging_to_silver' vereisen bijvoorbeeld mogelijk nog wijzigingen.
 Een GitHub-release zal binnenkort worden uitgegeven wanneer bevestigd is dat alle huidige queries functioneren.
-In mogelijke toekomstige releases wordt de set queries uitgebreid naar meer tabellen die voorkomen in het GGM en ontsloten kunnen worden uit SSD.*
+In mogelijke toekomstige releases wordt de set queries uitgebreid naar meer tabellen die voorkomen in het GGM en ontsloten kunnen worden uit SSD dan wel andere applicaties.*
 
 ## Overzicht
 
 Hieronder staat beschreven hoe data vanuit de applicatie wordt overgebracht naar het GGM.
 
-### Van applicatie naar staging ('source_to_staging')
+### Van applicatie naar staging ('source_to_staging'/'odata_to_staging')
 
 Door de 'client' (d.w.z., machine waarop Python-code in dit project draait),
-wordt verbonden met de applicatie-SQL-server waarin de data van de applicatie staat (in dit geval een 
-Oracle-database; zou ook een ander type database kunnen zijn).
+wordt verbonden met de applicatie-SQL-server of OData-API waarin de data van de applicatie staat (voor SSD is dit een
+Oracle-database; zou ook een ander type kunnen zijn).
 
-De client downloadt de relevante tabellen van de applicatie-SQL-server (is in principe een OracleDB;
-maar kan ook een ander type zijn) en uploadt deze tabellen naar de target-SQL-server. De target-SQL-server
-is de SQL-server waarop het GGM zal staan (kan verschillende types zijn, bijv., Postgres, Microsft SQL Server,
+De client downloadt de relevante tabellen uit de applicatie
+en uploadt deze naar de target-SQL-server waarop het GGM zal staan.
+(kan verschillende types zijn, bijv., Postgres, Microsft SQL Server,
 MySQL, etc.). De upload vindt plaats naar een 'staging' (oftewel 'brons') database
-binnen de target-SQL-server. Wanneer deze stap is afgerond staat dus de data uit de
-applicatie-SQL-server, nog in de originele structuur, nu op de target-SQL-server.
+binnen de target-SQL-server. Wanneer deze stap is afgerond staat dus de data uit de applicatie, nog in de originele structuur, nu op de target-SQL-server.
 
 Bij de download & upload wordt er voor gezorgd dat 'larger-than-memory' data ook verwerkt kan worden.
 Dit d.m.v. chunking van de data; chunks worden gestreamd in het werkgeheugen van de client of kunnen
 tijdelijk worden gedumpt naar parquet-bestanden op de schijfruimte van de client. Zo kunnen grote hoeveelheden
 data worden verwerkt ondanks een beperkt werkgeheugen van de client.
 
-> Zie [source_to_staging/README.md](source_to_staging/README.md) voor meer informatie over deze stap.
-
-> Een variant op deze module is [odata_to_staging](odata_to_staging/README.md).
-Hierbij wordt data uit een OData-API gedownload in plaats van een SQL-server.
+> Zie [source_to_staging/README.md](source_to_staging/README.md) 
+(ontsluiting uit SQL-server) en [odata_to_staging/README.md](odata_to_staging/README.md) (ontsluiting uit OData-API)
+voor meer informatie over deze stap.
 
 ### Van staging naar het GGM ('staging_to_silver')
 
@@ -60,7 +69,7 @@ in SQLAlchemy; dit is Python-code die erg lijkt op SQL, die vertaald kan worden
 naar de verschillende SQL-dialecten die er zijn (bijv., Postgres heeft een net andere
 versie van SQL dan bijv. Microsoft SQL Server; door de queries met SQLAlchemy te schrijven
 kunnen we gemakkelijk werken met diverse SQL-server-types) 
-(voor de queries, zie map: staging_to_silver/queries).
+(voor de queries voor SSD, zie map: staging_to_silver/queries).
 
 Nadat de SQL-server de queries heeft verwerkt staat de data in het GGM!
 
