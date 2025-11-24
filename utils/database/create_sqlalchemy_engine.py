@@ -15,6 +15,7 @@ def create_sqlalchemy_engine(
     database: str | None,
     *,
     mssql_odbc_driver: str | None = None,
+    mssql_trust_server_certificate: bool | None = None,
     oracle_tns_alias: bool | None = None,
 ) -> Engine:
     """
@@ -88,6 +89,14 @@ def create_sqlalchemy_engine(
         # Allow overriding the ODBC driver via config (e.g., "ODBC Driver 17 for SQL Server")
         # Default remains Driver 18 if not provided.
         odbc_drv = mssql_odbc_driver or "ODBC Driver 18 for SQL Server"
+        # Backwards-compatible default: trust server certificate unless explicitly disabled.
+        trust_cert = (
+            "yes"
+            if (
+                mssql_trust_server_certificate is None or mssql_trust_server_certificate
+            )
+            else "no"
+        )
         return create_engine(
             URL.create(
                 drivername=driver,
@@ -97,8 +106,9 @@ def create_sqlalchemy_engine(
                 port=port,
                 database=database,
                 # TrustServerCertificate avoids local dev SSL chain issues; acceptable for dev/tests.
-                # In production, provide a proper certificate and remove this override if desired.
-                query={"driver": odbc_drv, "TrustServerCertificate": "yes"},
+                # In production, set MSSQL_TRUST_SERVER_CERTIFICATE to False (or equivalent setting)
+                # to enforce full certificate validation.
+                query={"driver": odbc_drv, "TrustServerCertificate": trust_cert},
             )
         )
 

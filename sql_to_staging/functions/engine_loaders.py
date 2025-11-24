@@ -106,6 +106,20 @@ def load_source_connection(cfg: Any, transfer_mode: str):
                 if "mssql" in src_driver.lower() or "sqlserver" in src_driver.lower()
                 else None
             ),
+            mssql_trust_server_certificate=(
+                cast(
+                    bool,
+                    get_config_value(
+                        "SRC_MSSQL_TRUST_SERVER_CERTIFICATE",
+                        section="database-source",
+                        cfg_parser=cfg,
+                        default=True,
+                        cast_type=bool,
+                    ),
+                )
+                if "mssql" in src_driver.lower() or "sqlserver" in src_driver.lower()
+                else None
+            ),
         )
     elif transfer_mode == "CONNECTORX_DUMP":
         # Use ConnectorX URI
@@ -165,6 +179,20 @@ def load_source_connection(cfg: Any, transfer_mode: str):
                         section="database-source",
                         cfg_parser=cfg,
                         default="ODBC Driver 18 for SQL Server",
+                    ),
+                )
+                if "mssql" in src_driver.lower() or "sqlserver" in src_driver.lower()
+                else None
+            ),
+            mssql_trust_server_certificate=(
+                cast(
+                    bool,
+                    get_config_value(
+                        "SRC_MSSQL_TRUST_SERVER_CERTIFICATE",
+                        section="database-source",
+                        cfg_parser=cfg,
+                        default=True,
+                        cast_type=bool,
                     ),
                 )
                 if "mssql" in src_driver.lower() or "sqlserver" in src_driver.lower()
@@ -257,6 +285,20 @@ def load_destination_engine(cfg: Any):
                     section="database-destination",
                     cfg_parser=cfg,
                     default="ODBC Driver 18 for SQL Server",
+                ),
+            )
+            if ("mssql" in dst_driver.lower() or "sqlserver" in dst_driver.lower())
+            else None
+        ),
+        mssql_trust_server_certificate=(
+            cast(
+                bool,
+                get_config_value(
+                    "DST_MSSQL_TRUST_SERVER_CERTIFICATE",
+                    section="database-destination",
+                    cfg_parser=cfg,
+                    default=True,
+                    cast_type=bool,
                 ),
             )
             if ("mssql" in dst_driver.lower() or "sqlserver" in dst_driver.lower())

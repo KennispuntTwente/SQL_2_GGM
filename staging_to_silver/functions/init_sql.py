@@ -169,6 +169,20 @@ def run_init_sql(
                     if ("mssql" in driver.lower() or "sqlserver" in driver.lower())
                     else None
                 ),
+                mssql_trust_server_certificate=(
+                    cast(
+                        bool,
+                        get_config_value(
+                            "DST_MSSQL_TRUST_SERVER_CERTIFICATE",
+                            section="database-destination",
+                            cfg_parser=cfg,
+                            default=True,
+                            cast_type=bool,
+                        ),
+                    )
+                    if ("mssql" in driver.lower() or "sqlserver" in driver.lower())
+                    else None
+                ),
             )
             log.info(
                 "INIT_SQL_FOLDER will run against MSSQL target database %s (separate from DST_DB=%s)",

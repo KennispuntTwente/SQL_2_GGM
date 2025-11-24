@@ -48,6 +48,10 @@ DST_SCHEMA = staging
 DST_USERNAME = sa
 DST_PASSWORD = YourStrong!Passw0rd
 DST_MSSQL_ODBC_DRIVER = ODBC Driver 18 for SQL Server
+# Optioneel (alleen voor Microsoft SQL Server via pyodbc): schakel TrustServerCertificate in/uit"
+# Standaard: True (ontwikkelvriendelijk; certificaatketen wordt niet gevalideerd)."
+# Zet op False in productie om volledige SSL-certificaatvalidatie af te dwingen."
+DST_MSSQL_TRUST_SERVER_CERTIFICATE = True
 # Optionele admin DB override voor automatisch aanmaken van DB (MSSQL/Postgres)
 # DST_ADMIN_DB = master
 # (Optioneel) Wanneer je met een OracleDB schrijft kan thick‑mode nodig zijn.

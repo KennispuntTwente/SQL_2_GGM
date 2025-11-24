@@ -100,4 +100,18 @@ def load_destination_engine(cfg: Any):
             if ("mssql" in driver.lower() or "sqlserver" in driver.lower())
             else None
         ),
+        mssql_trust_server_certificate=(
+            cast(
+                bool,
+                get_config_value(
+                    "DST_MSSQL_TRUST_SERVER_CERTIFICATE",
+                    section="database-destination",
+                    cfg_parser=cfg,
+                    default=True,
+                    cast_type=bool,
+                ),
+            )
+            if ("mssql" in driver.lower() or "sqlserver" in driver.lower())
+            else None
+        ),
     )
