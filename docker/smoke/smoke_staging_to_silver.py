@@ -5,7 +5,7 @@ from sqlalchemy import text
 
 from utils.config.cli_ini_config import load_single_ini_config
 from utils.config.get_config_value import get_config_value
-from staging_to_silver.functions.engine_loaders import load_destination_engine
+from utils.database.destination_engine import load_destination_engine
 from staging_to_silver.functions.query_loader import load_queries
 
 

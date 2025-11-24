@@ -10,7 +10,7 @@ import pytest
 
 from dev_sql_server.get_connection import get_connection
 from sql_to_staging.functions.download_parquet import download_parquet
-from sql_to_staging.functions.upload_parquet import upload_parquet
+from utils.parquet.upload_parquet import upload_parquet
 from utils.database.create_connectorx_uri import create_connectorx_uri
 from utils.database.initialize_oracle_client import try_init_oracle_client
 from tests.integration_utils import (

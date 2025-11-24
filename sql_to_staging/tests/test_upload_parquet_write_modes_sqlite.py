@@ -2,7 +2,7 @@ from pathlib import Path
 from sqlalchemy import create_engine, text
 
 from sql_to_staging.functions.download_parquet import download_parquet
-from sql_to_staging.functions.upload_parquet import upload_parquet
+from utils.parquet.upload_parquet import upload_parquet
 
 
 def _prepare_source_sqlite(tmp_path: Path):

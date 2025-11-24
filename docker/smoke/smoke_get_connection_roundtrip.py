@@ -3,7 +3,7 @@ from sqlalchemy import text
 
 from dev_sql_server.get_connection import get_connection
 from sql_to_staging.functions.download_parquet import download_parquet
-from sql_to_staging.functions.upload_parquet import upload_parquet
+from utils.parquet.upload_parquet import upload_parquet
 
 
 def main():

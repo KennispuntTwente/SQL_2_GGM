@@ -63,7 +63,7 @@ def main():
 
     # Step 2: upload into destination
     print("[smoke] Upload parquet…")
-    from sql_to_staging.functions.upload_parquet import upload_parquet
+    from utils.parquet.upload_parquet import upload_parquet
 
     upload_parquet(
         dest_engine,

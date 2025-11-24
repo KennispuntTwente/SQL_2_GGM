@@ -187,7 +187,7 @@ else:
     )
 
     # Step 2/2: Upload parquet files into destination database
-    from sql_to_staging.functions.upload_parquet import upload_parquet
+    from utils.parquet.upload_parquet import upload_parquet
 
     # Configure destination write mode for parquet upload as well
     write_mode = cast(

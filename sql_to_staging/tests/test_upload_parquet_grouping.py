@@ -7,31 +7,10 @@ from pathlib import Path
 import pytest
 from dotenv import load_dotenv
 
-from sql_to_staging.functions.upload_parquet import (
-    _parse_parquet_base_name,
-    group_parquet_files,
-)
+from utils.parquet.upload_parquet import group_parquet_files
 
 
 load_dotenv("tests/.env")
-
-
-def test_parse_parquet_base_name_simple():
-    assert _parse_parquet_base_name("client.parquet") == "client"
-
-
-def test_parse_parquet_base_name_chunked():
-    assert _parse_parquet_base_name("client_part0000.parquet") == "client"
-    assert _parse_parquet_base_name("client_part0012.parquet") == "client"
-
-
-def test_parse_parquet_base_name_embedded_part():
-    # Should not strip _part in the middle
-    assert _parse_parquet_base_name("user_partitions.parquet") == "user_partitions"
-    assert (
-        _parse_parquet_base_name("user_partitions_part0001.parquet")
-        == "user_partitions"
-    )
 
 
 @pytest.mark.parametrize(

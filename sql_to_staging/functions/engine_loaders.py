@@ -201,31 +201,4 @@ def load_source_connection(cfg: Any, transfer_mode: str):
         )
 
 
-def load_destination_engine(cfg: Any):
-    """Create the destination SQLAlchemy engine using [database-destination] settings.
-
-    Also initializes Oracle Instant Client when configured.
-    """
-    # Initialize Oracle client for DESTINATION if configured
-    try:
-        if get_config_value(
-            "DST_ORACLE_CLIENT_PATH",
-            section="database-destination",
-            cfg_parser=cfg,
-            default=None,
-        ):
-            initialize_oracle_client("DST_ORACLE_CLIENT_PATH", cfg_parser=cfg)
-    except Exception as e:
-        logging.getLogger(__name__).warning(
-            "Oracle client init failed for destination: %s", e
-        )
-
-    from utils.database.destination_engine import load_destination_engine  # shared generic destination loader
-    dst_driver = cast(
-        str,
-        get_config_value("DST_DRIVER", section="database-destination", cfg_parser=cfg),
-    )
-    return load_destination_engine(cfg)  # Use the shared load_destination_engine
-    "load_destination_engine",
-    # plus existing source-loader helpers above
-]
+__all__ = ["load_source_connection"]

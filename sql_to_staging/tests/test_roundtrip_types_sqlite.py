@@ -13,7 +13,7 @@ from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 
 from sql_to_staging.functions.download_parquet import download_parquet
-from sql_to_staging.functions.upload_parquet import upload_parquet
+from utils.parquet.upload_parquet import upload_parquet
 
 
 load_dotenv("tests/.env")
