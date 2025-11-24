@@ -6,13 +6,6 @@ configparser: This is part of the Python standard library (since Python 3.0) and
 pandas: Only used in load_csvs_to_db.py (test data generation), not in the main pipelines.
 docker: Only used in tests and dev_sql_server.
 
-* 1. Refactor & Deduplicate Database Creation Logic (High Priority)
-Issue:
-There is significant code duplication between direct_transfer.py (function _ensure_database_and_schema) and upload_parquet.py (lines 140-200+). Both contain nearly identical logic for connecting to an admin database (like postgres or master) to create the target database if it doesn't exist.
-Recommendation:
-Extract this logic into a shared utility function, for example in utils/database/ensure_db.py.
-Benefit: Reduces maintenance burden. If you need to change how databases are created (e.g., adding retry logic), you only do it in one place.
-
 * 2. Fix Cross-Module Dependencies (High Priority)
 Issue:
 The odata_to_staging pipeline imports core functions directly from sql_to_staging:

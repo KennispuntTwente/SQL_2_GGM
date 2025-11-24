@@ -17,6 +17,7 @@ from utils.database.identifiers import (
     mssql_bracket_escape,
     quote_truncate_target,
 )
+from utils.database.ensure_db import ensure_database_and_schema
 
 logger = logging.getLogger("sql_to_staging.upload_parquet")
 
@@ -182,106 +183,8 @@ def upload_parquet(
                     input_dir,
                 )
 
-    # 1) Determine and create target database if needed
-    db_name = engine.url.database
-    if db_name:
-        if dialect == "postgresql":
-            admin_db = admin_database or "postgres"
-            try:
-                admin_url = engine.url.set(database=admin_db)
-                admin_eng = create_engine(admin_url)
-                try:
-                    with admin_eng.connect() as conn:
-                        conn = conn.execution_options(isolation_level="AUTOCOMMIT")
-                        exists = conn.execute(
-                            text("SELECT 1 FROM pg_database WHERE datname = :db"),
-                            {"db": db_name},
-                        ).scalar()
-                        if not exists:
-                            qdb = quote_ident(engine, db_name)
-                            conn.execute(text(f"CREATE DATABASE {qdb}"))
-                finally:
-                    admin_eng.dispose()
-            except Exception as e:
-                logger.warning(
-                    "Skipping database auto-creation; failed to connect to admin database %r: %s",
-                    admin_db,
-                    e,
-                )
-
-        elif dialect in ("mssql", "sql server"):
-            admin_db = admin_database or "master"
-            try:
-                admin_url = engine.url.set(database=admin_db)
-                admin_eng = create_engine(admin_url)
-                try:
-                    with admin_eng.connect() as conn:
-                        # Ensure CREATE DATABASE runs outside an explicit transaction
-                        conn = conn.execution_options(isolation_level="AUTOCOMMIT")
-                        qdb = quote_ident(engine, db_name)
-                        conn.execute(
-                            text(
-                                f"""
-                        IF DB_ID(:db) IS NULL
-                        BEGIN
-                            CREATE DATABASE {qdb};
-                        END
-                    """
-                            ),
-                            {"db": db_name},
-                        )
-                finally:
-                    admin_eng.dispose()
-            except Exception as e:
-                logger.warning(
-                    "Skipping database auto-creation; failed to connect to admin database %r: %s",
-                    admin_db,
-                    e,
-                )
-
-    # 2) Ensure the schema exists
-    if schema:
-        with engine.begin() as conn:
-            if dialect == "postgresql":
-                qschema = quote_ident(engine, schema)
-                conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {qschema}"))
-            elif dialect in ("mssql", "sql server"):
-                esc = mssql_bracket_escape(schema)
-                conn.execute(
-                    text(
-                        f"""
-                    IF SCHEMA_ID(N'{schema}') IS NULL
-                    BEGIN
-                        EXEC(N'CREATE SCHEMA [{esc}]');
-                    END
-                """
-                    )
-                )
-            elif dialect == "oracle":
-                # Oracle maps schemas to users; creation typically requires user management
-                logger.info(
-                    "Skipping schema creation on Oracle (schema=%s). Schemas map to users; ensure the target user/schema exists and has privileges.",
-                    schema,
-                )
-            elif dialect in ("mysql", "mariadb"):
-                # MySQL doesn't support schemas other than databases
-                logger.info(
-                    "Skipping schema creation on %s (schema=%s). MySQL/MariaDB do not have separate schemas; use the database name instead.",
-                    dialect,
-                    schema,
-                )
-            elif dialect == "sqlite":
-                # SQLite has no schema namespace; skip
-                logger.info(
-                    "Skipping schema creation on SQLite (schema=%s). SQLite has no schema namespaces; using the main database.",
-                    schema,
-                )
-            else:
-                try:
-                    conn.execute(CreateSchema(schema))
-                except ProgrammingError as e:
-                    if "already exists" not in str(e).lower():
-                        raise
+    # 1) Determine and create target database and schema if needed
+    ensure_database_and_schema(engine, schema, admin_database=admin_database)
 
     # 3) Group Parquet files by table base name (robust to names containing "_part").
     # If a manifest is provided, only consider files from this run.

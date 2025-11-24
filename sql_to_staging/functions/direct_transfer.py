@@ -8,6 +8,7 @@ from sqlalchemy import types as satypes
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import ProgrammingError, DBAPIError
 from sqlalchemy.schema import CreateSchema
+from utils.database.ensure_db import ensure_database_and_schema
 from utils.database.identifiers import (
     quote_ident,
     quote_truncate_target,
@@ -15,127 +16,6 @@ from utils.database.identifiers import (
 )
 
 logger = logging.getLogger("sql_to_staging.direct_transfer")
-
-
-def _ensure_database_and_schema(
-    engine: Engine,
-    schema: str | None,
-    *,
-    admin_database: str | None = None,
-) -> None:
-    """
-    Ensure destination database (where applicable) and schema exist.
-    Mirrors behavior used in upload_parquet for Postgres and MSSQL.
-    """
-    dialect = engine.dialect.name.lower()
-
-    # 1) Ensure database exists (Postgres/MSSQL)
-    db_name = engine.url.database
-    if db_name:
-        if dialect == "postgresql":
-            from sqlalchemy import create_engine
-
-            # Allow overriding the admin DB name; default to vendor default.
-            admin_db = admin_database or "postgres"
-            try:
-                admin_url = engine.url.set(database=admin_db)
-                admin_eng = create_engine(admin_url)
-                try:
-                    with admin_eng.connect() as conn:
-                        conn = conn.execution_options(isolation_level="AUTOCOMMIT")
-                        exists = conn.execute(
-                            text("SELECT 1 FROM pg_database WHERE datname = :db"),
-                            {"db": db_name},
-                        ).scalar()
-                        if not exists:
-                            qdb = quote_ident(engine, db_name)
-                            conn.execute(text(f"CREATE DATABASE {qdb}"))
-                finally:
-                    admin_eng.dispose()
-            except Exception as e:
-                # On managed services, access to the admin DB can be blocked; skip gracefully.
-                logger.warning(
-                    "Skipping database auto-creation; failed to connect to admin database %r: %s",
-                    admin_db,
-                    e,
-                )
-        elif dialect in ("mssql", "sql server"):
-            from sqlalchemy import create_engine
-
-            admin_db = admin_database or "master"
-            try:
-                admin_url = engine.url.set(database=admin_db)
-                admin_eng = create_engine(admin_url)
-                try:
-                    with admin_eng.connect() as conn:
-                        # Ensure CREATE DATABASE runs outside an explicit transaction
-                        # to avoid pyodbc error: "CREATE DATABASE not allowed within a transaction".
-                        conn = conn.execution_options(isolation_level="AUTOCOMMIT")
-                        # Prefer parameter for DB_ID input and safely quoted identifier for CREATE DATABASE
-                        qdb = quote_ident(engine, db_name)
-                        conn.execute(
-                            text(
-                                f"""
-                        IF DB_ID(:db) IS NULL
-                        BEGIN
-                            CREATE DATABASE {qdb};
-                        END
-                        """
-                            ),
-                            {"db": db_name},
-                        )
-                finally:
-                    admin_eng.dispose()
-            except Exception as e:
-                logger.warning(
-                    "Skipping database auto-creation; failed to connect to admin database %r: %s",
-                    admin_db,
-                    e,
-                )
-
-    # 2) Ensure schema exists
-    if schema:
-        with engine.begin() as conn:
-            if dialect == "postgresql":
-                qschema = quote_ident(engine, schema)
-                conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {qschema}"))
-            elif dialect in ("mssql", "sql server"):
-                esc = mssql_bracket_escape(schema)
-                conn.execute(
-                    text(
-                        f"""
-                    IF SCHEMA_ID(N'{schema}') IS NULL
-                    BEGIN
-                        EXEC(N'CREATE SCHEMA [{esc}]');
-                    END
-                    """
-                    )
-                )
-            elif dialect == "oracle":
-                # Oracle uses users as schemas; assume exists / has perms
-                logger.info(
-                    "Skipping schema creation on Oracle (schema=%s). Schemas map to users; ensure the target user/schema exists and has privileges.",
-                    schema,
-                )
-            elif dialect in ("mysql", "mariadb"):
-                # MySQL doesn't support schemas outside of databases
-                logger.info(
-                    "Skipping schema creation on %s (schema=%s). MySQL/MariaDB do not have separate schemas; use the database name instead.",
-                    dialect,
-                    schema,
-                )
-            elif dialect == "sqlite":
-                # SQLite has no schema namespace; skip
-                logger.info(
-                    "Skipping schema creation on SQLite (schema=%s). SQLite has no schema namespaces; using the main database.",
-                    schema,
-                )
-            else:
-                try:
-                    conn.execute(CreateSchema(schema))
-                except ProgrammingError as e:
-                    if "already exists" not in str(e).lower():
-                        raise
 
 
 def _coerce_generic_type(
@@ -374,7 +254,7 @@ def direct_transfer(
     if write_mode not in {"replace", "truncate", "append"}:
         raise ValueError("write_mode must be one of: replace|truncate|append")
 
-    _ensure_database_and_schema(dest_engine, dest_schema, admin_database=admin_database)
+    ensure_database_and_schema(dest_engine, dest_schema, admin_database=admin_database)
 
     dest_dialect = dest_engine.dialect.name.lower()
 
