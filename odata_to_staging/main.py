@@ -8,12 +8,10 @@ from utils.config.cli_ini_config import load_single_ini_config
 from utils.config.get_config_value import get_config_value
 from utils.logging.setup_logging import setup_logging
 
-# Reuse destination engine loader and parquet uploader from sql_to_staging
-from odata_to_staging.functions.engine_loaders import (
-    load_destination_engine,
-    load_odata_client,
-)
-from sql_to_staging.functions.upload_parquet import upload_parquet
+# Reuse shared destination engine loader and parquet uploader
+from odata_to_staging.functions.engine_loaders import load_odata_client
+from utils.database.destination_engine import load_destination_engine
+from utils.parquet.upload_parquet import upload_parquet
 
 from odata_to_staging.functions.download_parquet_odata import (
     download_parquet_odata,

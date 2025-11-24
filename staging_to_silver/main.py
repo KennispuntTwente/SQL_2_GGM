@@ -9,7 +9,7 @@ from utils.database.identifiers import quote_truncate_target
 from utils.config.cli_ini_config import load_single_ini_config
 from utils.config.get_config_value import get_config_value
 
-from staging_to_silver.functions.engine_loaders import load_destination_engine
+from utils.database.destination_engine import load_destination_engine
 from staging_to_silver.functions.init_sql import run_init_sql
 
 from staging_to_silver.functions.queries_setup import prepare_queries

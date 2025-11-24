@@ -220,88 +220,12 @@ def load_destination_engine(cfg: Any):
             "Oracle client init failed for destination: %s", e
         )
 
+    from utils.database.destination_engine import load_destination_engine  # shared generic destination loader
     dst_driver = cast(
         str,
         get_config_value("DST_DRIVER", section="database-destination", cfg_parser=cfg),
     )
-    return create_sqlalchemy_engine(
-        driver=dst_driver,
-        username=cast(
-            str,
-            get_config_value(
-                "DST_USERNAME",
-                section="database-destination",
-                cfg_parser=cfg,
-                cast_type=str,
-            ),
-        ),
-        password=cast(
-            str,
-            get_config_value(
-                "DST_PASSWORD",
-                section="database-destination",
-                cfg_parser=cfg,
-                print_value=False,
-                ask_in_command_line=get_config_value(
-                    "ASK_PASSWORD_IN_CLI",
-                    section="settings",
-                    cfg_parser=cfg,
-                    default=False,
-                    cast_type=bool,
-                ),
-                cast_type=str,
-            ),
-        ),
-        host=cast(
-            str,
-            get_config_value(
-                "DST_HOST", section="database-destination", cfg_parser=cfg
-            ),
-        ),
-        # Allow DST_PORT to be unset/empty (e.g., Oracle TNS alias scenarios)
-        port=get_config_value(
-            "DST_PORT",
-            section="database-destination",
-            cfg_parser=cfg,
-            cast_type=int,
-            allow_none_if_cast_fails=True,
-        ),
-        database=cast(
-            str,
-            get_config_value("DST_DB", section="database-destination", cfg_parser=cfg),
-        ),
-        oracle_tns_alias=get_config_value(
-            "DST_ORACLE_TNS_ALIAS",
-            section="database-destination",
-            cfg_parser=cfg,
-            default=False,
-            cast_type=bool,
-        ),
-        mssql_odbc_driver=(
-            cast(
-                str,
-                get_config_value(
-                    "DST_MSSQL_ODBC_DRIVER",
-                    section="database-destination",
-                    cfg_parser=cfg,
-                    default="ODBC Driver 18 for SQL Server",
-                ),
-            )
-            if ("mssql" in dst_driver.lower() or "sqlserver" in dst_driver.lower())
-            else None
-        ),
-        mssql_trust_server_certificate=(
-            cast(
-                bool,
-                get_config_value(
-                    "DST_MSSQL_TRUST_SERVER_CERTIFICATE",
-                    section="database-destination",
-                    cfg_parser=cfg,
-                    default=True,
-                    cast_type=bool,
-                ),
-            )
-            if ("mssql" in dst_driver.lower() or "sqlserver" in dst_driver.lower())
-            else None
-        ),
-    )
+    return load_destination_engine(cfg)  # Use the shared load_destination_engine
+    "load_destination_engine",
+    # plus existing source-loader helpers above
+]
