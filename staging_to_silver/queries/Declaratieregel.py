@@ -36,10 +36,10 @@ def build_declaratieregel(engine, source_schema=None):
         isouter=False,  # inner join
     )
 
-    # 2) WVDOS ⋈ SZUKHIS op SZUKHIS.UNIEKWVDOS == WVDOS.UNIEK
+    # 2) WVDOS ⋈ SZUKHIS op SZUKHIS.UNIEKWVDOS == WVDOS.UNIEK (robust across int/text)
     full_join = join_wvindb_wvdos.join(
         szukhis,
-        col(szukhis, "uniekwvdos") == col(wvdos, "uniek"),
+        cast(col(szukhis, "uniekwvdos"), String) == cast(col(wvdos, "uniek"), String),
         isouter=False,  # inner join
     )
 
