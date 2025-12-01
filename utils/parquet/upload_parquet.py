@@ -47,6 +47,15 @@ def group_parquet_files(
 ) -> dict[str, list[str]]:
     """Scan input_dir and group parquet files by logical table base name."""
 
+    input_path = Path(input_dir)
+    if not input_path.exists():
+        raise RuntimeError(
+            "Parquet input directory is missing; run the download/export step first or point --input-dir/manifest to an existing folder."
+            f" Missing path: {input_path}"
+        )
+    if not input_path.is_dir():
+        raise RuntimeError(f"Parquet input path is not a directory: {input_path}")
+
     grouped: dict[str, list[str]] = defaultdict(list)
     if only_files is not None:
         for fname in only_files:

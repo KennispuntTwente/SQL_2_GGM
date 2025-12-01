@@ -56,3 +56,10 @@ def test_group_parquet_files(tmp_path: Path, names, expected):
     assert set(grouped.keys()) == set(expected.keys())
     for k, v in expected.items():
         assert grouped[k] == v
+
+
+def test_group_parquet_files_missing_dir(tmp_path: Path):
+    missing_dir = tmp_path / "not_created_yet"
+
+    with pytest.raises(RuntimeError, match="Missing path"):
+        group_parquet_files(str(missing_dir))
