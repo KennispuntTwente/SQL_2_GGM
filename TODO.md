@@ -1,1 +1,1 @@
-* Optional row counts are fatal in one path: sql_to_staging/functions/download_parquet.py (lines 205-220) raises RuntimeError if SELECT COUNT(*) fails when using SQLAlchemy, while the ConnectorX path only warns. On sources that disallow COUNT or where it’s expensive, an optional preflight aborts the export. Mirror the warning-only behavior or make the count opt-in.
+
