@@ -17,6 +17,17 @@ from utils.config.get_config_value import get_config_value
 log = logging.getLogger("odata_to_staging.engine_loaders")
 
 
+def _require_non_empty_secret(
+    value: Optional[str], setting: str, auth_mode: str
+) -> str:
+    """Ensure required auth inputs are present so we fail fast with a clear error."""
+    if value is None:
+        raise ValueError(f"{setting} must be set when ODATA_AUTH_MODE={auth_mode}")
+    if isinstance(value, str) and value.strip() == "":
+        raise ValueError(f"{setting} cannot be blank when ODATA_AUTH_MODE={auth_mode}")
+    return value
+
+
 def load_odata_client(cfg: Any):
     """Create and return a pyodata Client based on [odata-source] settings.
 
@@ -129,8 +140,8 @@ def load_odata_client(cfg: Any):
         sess.headers.update(headers)
 
     if auth_mode == "BASIC":
-        username = cast(
-            str,
+        username_opt = cast(
+            Optional[str],
             get_config_value(
                 "ODATA_USERNAME",
                 section="odata-connection",
@@ -148,8 +159,8 @@ def load_odata_client(cfg: Any):
                 allow_none_if_cast_fails=True,
             ),
         )
-        password = cast(
-            str,
+        password_opt = cast(
+            Optional[str],
             (
                 get_config_value(
                     "ODATA_PASSWORD",
@@ -185,10 +196,12 @@ def load_odata_client(cfg: Any):
                 )
             ),
         )
+        username = _require_non_empty_secret(username_opt, "ODATA_USERNAME", auth_mode)
+        password = _require_non_empty_secret(password_opt, "ODATA_PASSWORD", auth_mode)
         sess.auth = (username, password)
     elif auth_mode == "BEARER":
-        token = cast(
-            str,
+        token_opt = cast(
+            Optional[str],
             get_config_value(
                 "ODATA_BEARER_TOKEN",
                 section="odata-connection",
@@ -208,6 +221,7 @@ def load_odata_client(cfg: Any):
                 allow_none_if_cast_fails=True,
             ),
         )
+        token = _require_non_empty_secret(token_opt, "ODATA_BEARER_TOKEN", auth_mode)
         sess.headers.setdefault("Authorization", f"Bearer {token}")
     elif auth_mode == "NONE":
         pass

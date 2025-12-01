@@ -3,6 +3,7 @@ import sys
 from types import SimpleNamespace, ModuleType
 
 import polars as pl
+import pytest
 
 from odata_to_staging.functions.download_parquet_odata import download_parquet_odata
 from odata_to_staging.functions.engine_loaders import load_odata_client
@@ -104,6 +105,37 @@ class _Cfg:
         return self._mapping.get(section, {}).get(option, fallback)
 
 
+def _install_fake_pyodata(monkeypatch):
+    captured = {}
+
+    class _Client:
+        def __init__(self, service_url, session, config=None):
+            captured["service_url"] = service_url
+            captured["session"] = session
+            captured["config"] = config
+
+    class _Config:
+        def __init__(self, retain_null):
+            self.retain_null = retain_null
+
+    mod_pyodata = ModuleType("pyodata")
+    mod_pyodata.__path__ = []
+    mod_pyodata_v2 = ModuleType("pyodata.v2")
+    mod_pyodata_v2.__path__ = []
+    mod_pyodata_v2_model = ModuleType("pyodata.v2.model")
+    setattr(mod_pyodata_v2_model, "Config", _Config)
+
+    setattr(mod_pyodata, "Client", _Client)
+    setattr(mod_pyodata, "v2", mod_pyodata_v2)
+    setattr(mod_pyodata_v2, "model", mod_pyodata_v2_model)
+
+    monkeypatch.setitem(sys.modules, "pyodata", mod_pyodata)
+    monkeypatch.setitem(sys.modules, "pyodata.v2", mod_pyodata_v2)
+    monkeypatch.setitem(sys.modules, "pyodata.v2.model", mod_pyodata_v2_model)
+
+    return captured, _Client
+
+
 def test_download_empty_entity_set(tmp_path):
     # Schema: Employees(ID key, Name prop)
     et = _EntityType(keys=["ID"], props=["Name"])
@@ -161,7 +193,7 @@ def test_download_simple_two_rows(tmp_path):
 def test_load_odata_client_basic_auth(monkeypatch):
     """load_odata_client wires BASIC auth and retain_null config."""
 
-    captured = {}
+    captured, client_cls = _install_fake_pyodata(monkeypatch)
 
     class _Session:
         def __init__(self):
@@ -169,44 +201,9 @@ def test_load_odata_client_basic_auth(monkeypatch):
             self.headers = {}
             self.auth = None
 
-    class _PyodataClient:
-        def __init__(self, service_url, session, config=None):
-            captured["service_url"] = service_url
-            captured["session"] = session
-            captured["config"] = config
-
-    class _Config:
-        def __init__(self, retain_null):
-            self.retain_null = retain_null
-
-    # Build a synthetic pyodata package with submodules so that
-    # `import pyodata.v2.model` works and `pyodata.Client(...)` is available.
-    mod_pyodata = ModuleType("pyodata")
-    mod_pyodata.__path__ = []  # mark as package
-
-    mod_pyodata_v2 = ModuleType("pyodata.v2")
-    mod_pyodata_v2.__path__ = []  # mark as package
-
-    mod_pyodata_v2_model = ModuleType("pyodata.v2.model")
-    setattr(mod_pyodata_v2_model, "Config", _Config)
-
-    # Wire package attributes for attribute access pyodata.v2.model
-    setattr(mod_pyodata, "v2", mod_pyodata_v2)
-    setattr(mod_pyodata_v2, "model", mod_pyodata_v2_model)
-
-    # Provide Client factory on top-level pyodata package
-    def _client_factory(service_url, session, config=None):
-        return _PyodataClient(service_url, session, config=config)
-
-    setattr(mod_pyodata, "Client", _client_factory)
-
-    # Patch requests.Session and register our synthetic modules in sys.modules
     monkeypatch.setattr(
         "odata_to_staging.functions.engine_loaders.requests.Session", _Session
     )
-    monkeypatch.setitem(sys.modules, "pyodata", mod_pyodata)
-    monkeypatch.setitem(sys.modules, "pyodata.v2", mod_pyodata_v2)
-    monkeypatch.setitem(sys.modules, "pyodata.v2.model", mod_pyodata_v2_model)
 
     cfg = _Cfg(
         {
@@ -222,7 +219,7 @@ def test_load_odata_client_basic_auth(monkeypatch):
     )
 
     client = load_odata_client(cfg)
-    assert isinstance(client, _PyodataClient)
+    assert isinstance(client, client_cls)
     assert captured["service_url"] == "https://example.test/odata"
     sess = captured["session"]
     assert isinstance(sess, _Session)
@@ -230,3 +227,52 @@ def test_load_odata_client_basic_auth(monkeypatch):
     assert sess.auth == ("user1", "secret")
     # retain_null=True propagated into pyodata config
     assert captured["config"].retain_null is True
+
+
+def test_load_odata_client_basic_auth_missing_username(monkeypatch):
+    _install_fake_pyodata(monkeypatch)
+    cfg = _Cfg(
+        {
+            "odata-source": {
+                "ODATA_URL": "https://example.test/odata",
+                "ODATA_AUTH_MODE": "BASIC",
+                "ODATA_PASSWORD": "secret",
+            },
+            "settings": {"ASK_PASSWORD_IN_CLI": "False"},
+        }
+    )
+
+    with pytest.raises(ValueError, match="ODATA_USERNAME.*BASIC"):
+        load_odata_client(cfg)
+
+
+def test_load_odata_client_basic_auth_missing_password(monkeypatch):
+    _install_fake_pyodata(monkeypatch)
+    cfg = _Cfg(
+        {
+            "odata-source": {
+                "ODATA_URL": "https://example.test/odata",
+                "ODATA_AUTH_MODE": "BASIC",
+                "ODATA_USERNAME": "user1",
+            },
+            "settings": {"ASK_PASSWORD_IN_CLI": "False"},
+        }
+    )
+
+    with pytest.raises(ValueError, match="ODATA_PASSWORD.*BASIC"):
+        load_odata_client(cfg)
+
+
+def test_load_odata_client_bearer_missing_token(monkeypatch):
+    _install_fake_pyodata(monkeypatch)
+    cfg = _Cfg(
+        {
+            "odata-source": {
+                "ODATA_URL": "https://example.test/odata",
+                "ODATA_AUTH_MODE": "BEARER",
+            }
+        }
+    )
+
+    with pytest.raises(ValueError, match="ODATA_BEARER_TOKEN.*BEARER"):
+        load_odata_client(cfg)
