@@ -3,7 +3,7 @@ import logging
 from typing import cast
 from dotenv import load_dotenv
 from sqlalchemy import MetaData, Table, text
-from sqlalchemy.exc import NoSuchTableError
+from sqlalchemy.exc import NoSuchTableError, SQLAlchemyError
 from utils.database.identifiers import quote_truncate_target
 
 from utils.config.cli_ini_config import load_single_ini_config
@@ -154,6 +154,8 @@ dev_row_limit = get_config_value(
 # Executing everything on the SQL server, we avoid issues with data volumes & performance
 # Executing everything in one transaction, we avoid issues with foreign key constraints
 
+skipped_mappings: list[tuple[str, str]] = []
+
 with engine.begin() as conn:  # single, atomic transaction
     # Optional but useful when FK dependencies exist (PostgreSQL only)
     if should_defer_constraints(engine):
@@ -163,11 +165,31 @@ with engine.begin() as conn:  # single, atomic transaction
         # 1) build the SELECT statement that extracts from the staging schema
         try:
             select_stmt = query_fn(engine, source_schema=staging_schema_for_sa)
-        except Exception as e:
-            # If a mapping cannot be constructed due to missing staging tables/columns,
-            # skip it and proceed with others. This enables partial loads in minimal setups.
-            log.warning("Skipping mapping %s: %s", name, e)
+        except (NoSuchTableError, KeyError) as e:
+            # Expected schema-mismatch issues: allow partial loads but track and warn clearly.
+            msg = f"{type(e).__name__}: {e}"
+            skipped_mappings.append((name, msg))
+            log.warning("Skipping mapping %s due to missing table/column: %s", name, e)
             continue
+        except SQLAlchemyError as e:
+            # SQLAlchemy-level failures at query construction time are treated as fatal
+            # to avoid silently dropping mappings with logic or join errors.
+            log.error(
+                "Error while constructing mapping %s; aborting pipeline: %s",
+                name,
+                e,
+                exc_info=True,
+            )
+            raise
+        except Exception as e:  # pragma: no cover - defensive catch-all
+            # For non-SQLAlchemy errors, fail fast rather than silently skipping.
+            log.error(
+                "Unexpected error while constructing mapping %s; aborting pipeline: %s",
+                name,
+                e,
+                exc_info=True,
+            )
+            raise
         if dev_row_limit and dev_row_limit > 0:
             try:
                 select_stmt = select_stmt.limit(dev_row_limit)
@@ -297,4 +319,11 @@ with engine.begin() as conn:  # single, atomic transaction
         else:
             raise ValueError(f"Unsupported write‑mode '{mode}' for {full_name}")
 
-    log.info("✔︎ All queries executed successfully")
+    if skipped_mappings:
+        log.warning(
+            "%d mappings were skipped due to schema issues:", len(skipped_mappings)
+        )
+        for tbl, reason in skipped_mappings:
+            log.warning(" - %s: %s", tbl, reason)
+    else:
+        log.info("✔︎ All queries executed successfully")
