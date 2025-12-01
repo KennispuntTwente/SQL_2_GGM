@@ -1,6 +1,5 @@
 import os
 import logging
-from pathlib import Path
 from typing import cast
 
 from dotenv import load_dotenv
@@ -9,6 +8,7 @@ from sqlalchemy.exc import NoSuchTableError, SQLAlchemyError
 
 from utils.config.cli_ini_config import load_single_ini_config
 from utils.config.get_config_value import get_config_value
+from utils.config.env_loader import find_dotenv_path
 from utils.database.destination_engine import load_destination_engine
 from utils.database.identifiers import quote_truncate_target
 from utils.logging.setup_logging import setup_logging
@@ -25,9 +25,8 @@ from staging_to_silver.functions.write_modes import load_write_modes
 
 def main() -> None:
     # ─── Load .env & .ini from command line ────────────────────────────────────────
-    module_dir = Path(__file__).resolve().parent
-    env_path = module_dir / ".env"
-    if env_path.exists():
+    env_path = find_dotenv_path(__file__)
+    if env_path:
         load_dotenv(dotenv_path=env_path)
         logging.getLogger(__name__).info(
             "Loaded environment variables from %s", env_path
