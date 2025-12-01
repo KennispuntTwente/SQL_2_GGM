@@ -1,5 +1,5 @@
-import os
 import logging
+from pathlib import Path
 from typing import Any, Dict, List, Optional, cast
 
 from dotenv import load_dotenv
@@ -16,22 +16,6 @@ from utils.parquet.upload_parquet import upload_parquet
 from odata_to_staging.functions.download_parquet_odata import (
     download_parquet_odata,
 )
-
-
-# Load environment variables from .env file if present
-if os.path.exists("odata_to_staging/.env"):
-    load_dotenv(dotenv_path="odata_to_staging/.env")
-    logging.getLogger(__name__).info(
-        "Loaded environment variables from odata_to_staging/.env"
-    )
-
-
-# Load single INI config
-args, cfg = load_single_ini_config(prog_desc="Run OData → staging data migration")
-
-# Configure logging
-setup_logging(app_name="odata_to_staging", cfg_parsers=[cfg])
-log = logging.getLogger("odata_to_staging")
 
 
 def _collect_entity_options(cfg: Any, entities: List[str]) -> Dict[str, Dict[str, str]]:
@@ -104,7 +88,19 @@ def _collect_entity_options(cfg: Any, entities: List[str]) -> Dict[str, Dict[str
     return per_entity
 
 
-def main():
+def main() -> None:
+    module_dir = Path(__file__).resolve().parent
+    env_path = module_dir / ".env"
+    if env_path.exists():
+        load_dotenv(dotenv_path=env_path)
+        logging.getLogger(__name__).info(
+            "Loaded environment variables from %s", env_path
+        )
+
+    args, cfg = load_single_ini_config(prog_desc="Run OData to staging data migration")
+
+    setup_logging(app_name="odata_to_staging", cfg_parsers=[cfg])
+    log = logging.getLogger("odata_to_staging")
     # Read source entity sets
     entities_str = cast(
         Optional[str],
@@ -234,5 +230,5 @@ def main():
     )
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover - CLI entrypoint
     main()

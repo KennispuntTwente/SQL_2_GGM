@@ -1,10 +1,3 @@
-* Refactor entry modules to be import-safe
-Wrap pipeline orchestration in a dedicated main() function and guard execution with if __name__ == "__main__": so that importing the modules doesn’t parse args or hit databases. This will enable testing and reuse without side effects.
-Wrap pipeline entrypoints in a __main__ guard to avoid side effects on import. Both sql_to_staging/main.py and staging_to_silver/main.py execute full ETL flows at module import time, which makes it risky to import helper functions for testing or reuse (the pipelines will immediately run). Moving the execution into a main() function behind an if __name__ == "__main__": guard would make the modules safer to import while preserving CLI behavior
-
-* Isolate configuration/loading side effects
-In odata_to_staging.main, move environment loading, argparse setup, and logging configuration inside main() (or another initializer) to avoid mutating global state at import and to prevent errors when the module is imported without CLI context.
-
 * Resolve .env paths relative to module location
 Use Path(__file__).parent (or similar) when loading .env files so they are found regardless of the current working directory, ensuring consistent configuration whether run from the repo root, an installed package, or a scheduler working dir.
 Make .env loading robust to working directory. Both pipelines only load .env when the current working directory is the repo root. Running python -m sql_to_staging.main from elsewhere skips env loading, which can silently ignore critical configuration. Resolve by constructing the .env path relative to the module file (e.g., Path(__file__).resolve().parent / ".env").
