@@ -2,7 +2,16 @@
 
 Korte demo om de module snel uit te proberen met de meegeleverde synthetische data en een lokale Postgres dev database.
 
-## Command
+## Optie 1: Draaien in Docker (geen lokale Python nodig)
+
+```bash
+bash docker/demo/run_demo.sh
+```
+
+Dit draait de volledige pipeline (inclusief `sql_to_staging` EN `staging_to_silver`) in Docker containers.
+Zie [docker/demo/README.md](../../docker/demo/README.md) voor meer opties.
+
+## Optie 2: Lokaal draaien (vereist Python)
 
 Voer in de projectroot uit, met Docker/Podman geïnstalleerd & actief:
 

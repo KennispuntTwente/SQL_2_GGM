@@ -87,6 +87,17 @@ de demo-scripts: [sql_to_staging/demo/README.md](sql_to_staging/demo/README.md) 
 geladen, en getransformeerd naar het GGM (in een ontwikkel-database in Docker/Podman; maar je kan de scripts ook aanpassen
 om een andere database te gebruiken).
 
+### Snel starten met Docker (geen lokale Python nodig)
+
+De snelste manier om de volledige pipeline uit te proberen zonder Python lokaal te installeren:
+
+```bash
+bash docker/demo/run_demo.sh
+```
+
+Dit start een PostgreSQL database, genereert synthetische data, en draait zowel `sql_to_staging` als `staging_to_silver`.
+Zie [docker/demo/README.md](docker/demo/README.md) voor configuratie-opties (bijv. verbinden met je eigen database).
+
 ### Vanuit eigen Python-omgeving
 
 #### Installatie

@@ -1,0 +1,107 @@
+name: ggmpilot-demo
+
+# Docker Compose configuration for running the full ggmpilot demo in containers.
+# This allows users without a local Python installation to run the complete pipeline.
+#
+# Usage:
+#   bash docker/demo/run_demo.sh              # Run full demo with bundled Postgres
+#   bash docker/demo/run_demo.sh --db-only    # Only start the database
+#
+# Advanced: To connect to your own database, set environment variables or mount a custom config.
+
+services:
+  # PostgreSQL database for the demo (source + destination)
+  demo-db:
+    image: postgres:16
+    container_name: ggmpilot-demo-db
+    environment:
+      POSTGRES_USER: ${DEMO_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DEMO_DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DEMO_DB_NAME:-demo}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DEMO_DB_USER:-postgres} -d ${DEMO_DB_NAME:-demo}"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    ports:
+      # Expose to host for inspection; can be overridden with DEMO_DB_PORT
+      - "${DEMO_DB_PORT:-55432}:5432"
+    volumes:
+      # Persist data across runs (optional)
+      - demo-db-data:/var/lib/postgresql/data
+
+  # Main demo runner: generates synthetic data, runs both pipelines
+  demo-app:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    image: ggmpilot:demo
+    container_name: ggmpilot-demo-app
+    depends_on:
+      demo-db:
+        condition: service_healthy
+    working_dir: /app
+    entrypoint: ["/bin/bash", "/app/docker/demo/demo_entrypoint.sh"]
+    environment:
+      IN_DOCKER: "1"
+      PYTHONPATH: "/app"
+      # Database connection - uses internal container port (5432), not host port
+      DEMO_DB_HOST: ${DEMO_DB_HOST:-demo-db}
+      DEMO_DB_PORT: "5432"  # Internal container port, not host port
+      DEMO_DB_USER: ${DEMO_DB_USER:-postgres}
+      DEMO_DB_PASSWORD: ${DEMO_DB_PASSWORD:-postgres}
+      DEMO_DB_NAME: ${DEMO_DB_NAME:-demo}
+      DEMO_DB_DRIVER: ${DEMO_DB_DRIVER:-postgresql+psycopg2}
+      # Demo configuration
+      DEMO_ROWS: ${DEMO_ROWS:-10}
+      DEMO_SEED: ${DEMO_SEED:-123}
+      # Skip steps (for partial runs)
+      SKIP_GENERATE: ${SKIP_GENERATE:-0}
+      SKIP_LOAD: ${SKIP_LOAD:-0}
+      SKIP_SQL_TO_STAGING: ${SKIP_SQL_TO_STAGING:-0}
+      SKIP_STAGING_TO_SILVER: ${SKIP_STAGING_TO_SILVER:-0}
+    volumes:
+      # Mount data dir for inspection / parquet dumps
+      - type: bind
+        source: ../../data
+        target: /app/data
+      # Optionally mount custom config
+      # - ./my-config.ini:/app/docker/demo/config/custom.ini:ro
+
+  # Alternative: Run demo against external database (no demo-db dependency)
+  demo-app-external:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    image: ggmpilot:demo
+    container_name: ggmpilot-demo-app-external
+    profiles:
+      - external
+    working_dir: /app
+    entrypoint: ["/bin/bash", "/app/docker/demo/demo_entrypoint.sh"]
+    environment:
+      IN_DOCKER: "1"
+      PYTHONPATH: "/app"
+      # User must provide these for external DB
+      DEMO_DB_HOST: ${DEMO_DB_HOST:-host.docker.internal}
+      DEMO_DB_PORT: ${DEMO_DB_PORT:-5432}
+      DEMO_DB_USER: ${DEMO_DB_USER:-postgres}
+      DEMO_DB_PASSWORD: ${DEMO_DB_PASSWORD:-postgres}
+      DEMO_DB_NAME: ${DEMO_DB_NAME:-demo}
+      DEMO_DB_DRIVER: ${DEMO_DB_DRIVER:-postgresql+psycopg2}
+      DEMO_ROWS: ${DEMO_ROWS:-10}
+      DEMO_SEED: ${DEMO_SEED:-123}
+      SKIP_GENERATE: ${SKIP_GENERATE:-0}
+      SKIP_LOAD: ${SKIP_LOAD:-0}
+      SKIP_SQL_TO_STAGING: ${SKIP_SQL_TO_STAGING:-0}
+      SKIP_STAGING_TO_SILVER: ${SKIP_STAGING_TO_SILVER:-0}
+    extra_hosts:
+      # Allow connecting to host machine databases
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - type: bind
+        source: ../../data
+        target: /app/data
+
+volumes:
+  demo-db-data:
