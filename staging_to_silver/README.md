@@ -85,7 +85,7 @@ Samengevat:
 
 ### Queries selecteren
 
-Je kan bepalen van waar queries worden geladen met de settings `QUERY_PATHS`. Standaard is dit `staging_to_silver/queries/`.
+Je kan bepalen van waar queries worden geladen met de settings `QUERY_PATHS`. Standaard is dit `staging_to_silver/queries/cssd/`.
 Als je een eigen/extra map met queries wil gebruiken, kun je die hier toevoegen (komma-gescheiden lijst van paden).
 
 Als je bepaalde queries wel/niet wil draaien, kan je verder nog gebruik maken van `QUERY_ALLOWLIST`/`QUERY_DENYLIST` om alleen
@@ -117,13 +117,13 @@ We gebruiken enkele custom functies bovenop SQLAlchemy om bijvoorbeeld te zorgen
 gematcht tussen verschillende SQL-server-types. Daarnaast moeten de queries in een bepaald format staan zodat
 ze goed kunnen worden ingeladen door deze module.
 
-Hieronder staat uitgelegd hoe je zelf je queries kan schrijven. Je kan ook naar de voorbeelden in de map `silver_to_staging/queries` kijken.
+Hieronder staat uitgelegd hoe je zelf je queries kan schrijven. Je kan ook naar de voorbeelden in de map `staging_to_silver/queries/cssd` kijken.
 
 ### Basis
 
 Het doel is dat je query bestandloos, case‑bestendig en dialect‑neutraal blijft, terwijl de loader alles netjes naar de doeltabellen projecteert.
 
-- Plaats je query in een bestand als `staging_to_silver/queries/YourTable.py`.
+- Plaats je query in een bestand als `staging_to_silver/queries/cssd/YourTable.py` (of in een eigen submap voor een andere applicatie).
 - Exporteer hierin een dict `__query_exports__ = {"DEST_TABLE": builder}`.
 	- `DEST_TABLE` is de doeltabelnaam zoals in GGM. De loader normaliseert de sleutel met `SILVER_TABLE_NAME_CASE` (standaard `upper`).
 - `builder(engine, source_schema=None) -> sqlalchemy.sql.Select`

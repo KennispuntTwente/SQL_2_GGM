@@ -16,7 +16,7 @@ and only then run Python commands (e.g., `python -m ...`, `pip install ...`, `py
 ## Repo anchors
 - Entrypoints: `sql_to_staging/main.py`, `staging_to_silver/main.py`.
 - I/O and copy: `sql_to_staging/functions/{direct_transfer.py, download_parquet.py, upload_parquet.py}`.
-- Silver query loader: `staging_to_silver/functions/query_loader.py`; queries live in `staging_to_silver/queries/*.py`.
+- Silver query loader: `staging_to_silver/functions/query_loader.py`; queries live in `staging_to_silver/queries/cssd/*.py` by default.
 - Config helpers: `utils/config/{cli_ini_config.py, get_config_value.py}`; engines: `utils/database/{create_sqlalchemy_engine.py, create_connectorx_uri.py}`.
 - Logging: `utils/logging/setup_logging.py` (console always on; INI > ENV; handlers marked `_ggmpilot_managed`).
 - Smoke/CI: Docker Compose in `docker/smoke`; example INIs in `docker/config`.
@@ -36,7 +36,7 @@ and only then run Python commands (e.g., `python -m ...`, `pip install ...`, `py
 - Cross‑dialect typing: `direct_transfer._coerce_generic_type` and `upload_parquet` apply dialect‑aware types (e.g., Oracle NUMBER(1)→Boolean, MSSQL DATETIME2(6), Oracle TIMESTAMP/NUMBER for float/decimal).
 
 ## Staging → silver
-- Query contract: a module exports `__query_exports__ = {"DEST_TABLE": builder}` where `builder(engine, source_schema)` returns a SQLAlchemy `select` whose labels match the destination column names and order. Example: `staging_to_silver/queries/Client.py`.
+- Query contract: a module exports `__query_exports__ = {"DEST_TABLE": builder}` where `builder(engine, source_schema)` returns a SQLAlchemy `select` whose labels match the destination column names and order. Example: `staging_to_silver/queries/cssd/Client.py`.
 - Loader: `load_queries(table_name_case, column_name_case, extra_modules, scan_package)` normalizes destination table keys and can relabel projected column labels; rejects duplicate DEST_TABLE keys.
 - Runtime: one DB transaction; on PostgreSQL: `SET CONSTRAINTS ALL DEFERRED`. Destination tables are reflected and destination columns are matched case‑insensitively to the select’s label order.
 - Write modes: configured per table in `staging_to_silver/main.py` via `write_modes` (case‑insensitive keys). Supported: `append` (default), `overwrite`, `truncate`, `upsert` (PostgreSQL‑only via `on_conflict_do_update`).
@@ -53,4 +53,4 @@ and only then run Python commands (e.g., `python -m ...`, `pip install ...`, `py
 - Preserve streaming/chunking semantics and column‑lowercasing in all upload paths.
 - Keep `staging_to_silver` single‑transaction behavior and case‑insensitive dest‑column mapping; gate PostgreSQL‑only features (e.g., upsert).
 - Use structured logging (`setup_logging`), not print; keep console logging enabled by default; INI overrides ENV.
-- To add a silver mapping: create `staging_to_silver/queries/MyTable.py` with `__query_exports__` and return a `select` whose labels match the silver table’s columns.
+- To add a silver mapping: create `staging_to_silver/queries/<app>/MyTable.py` (default app: `cssd`) with `__query_exports__` and return a `select` whose labels match the silver table’s columns.

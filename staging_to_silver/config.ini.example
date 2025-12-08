@@ -73,7 +73,7 @@ SILVER_COLUMN_NAME_CASE =
 
 # (Optioneel) Paden voor queries (uitgewerkte mappings) opgeven via QUERY_PATHS.
 # Standaardgedrag:
-#   - Als QUERY_PATHS leeg is, worden queries geladen uit de standaard package 'staging_to_silver/queries'.
+#   - Als QUERY_PATHS leeg is, worden queries geladen uit de standaard package 'staging_to_silver/queries/cssd'.
 # Override-gedrag:
 #   - Als QUERY_PATHS is gezet, worden ALLEEN de opgegeven paden geladen. De standaard package
 #     wordt dan NIET geladen, tenzij je deze expliciet opneemt in QUERY_PATHS.
@@ -86,7 +86,7 @@ SILVER_COLUMN_NAME_CASE =
 #   # Alleen eigen mappings (geen standaard):
 #   QUERY_PATHS = extra_queries; C:\\project\\custom\\MyQuery.py
 #   # Standaard + eigen mappings samen:
-#   QUERY_PATHS = staging_to_silver/queries; extra_queries
+#   QUERY_PATHS = staging_to_silver/queries/cssd; extra_queries
 #   # Alleen alternatieve map i.p.v. standaard:
 #   QUERY_PATHS = staging_to_silver/queries_overrides
 # QUERY_PATHS =

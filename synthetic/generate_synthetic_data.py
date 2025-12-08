@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Generate a small, self‑contained synthetic dataset that matches the staging tables
-referenced by the silver mappings under staging_to_silver/queries.
+Generate a small, self-contained synthetic dataset that matches the staging tables
+referenced by the silver mappings under staging_to_silver/queries/cssd.
 
 Outputs a folder of CSV files with lowercased column names that can be loaded
 into any dev database (e.g., via scripts/synthetic/load_csvs_to_db.py) to try

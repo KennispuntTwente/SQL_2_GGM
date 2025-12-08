@@ -66,7 +66,7 @@ in SQLAlchemy; dit is Python-code die erg lijkt op SQL, die vertaald kan worden
 naar de verschillende SQL-dialecten die er zijn (bijv., Postgres heeft een net andere
 versie van SQL dan bijv. Microsoft SQL Server; door de queries met SQLAlchemy te schrijven
 kunnen we gemakkelijk werken met diverse SQL-server-types) 
-(voor de queries voor SSD, zie map: staging_to_silver/queries).
+(voor de queries voor SSD, zie map: staging_to_silver/queries/cssd).
 
 Nadat de SQL-server de queries heeft verwerkt staat de data in het GGM!
 
