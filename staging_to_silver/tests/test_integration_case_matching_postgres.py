@@ -10,7 +10,7 @@ from tests.integration_utils import (
     ports,
     docker_running,
     slow_tests_enabled,
-    cleanup_db_containers,
+    cleanup_db_container_by_port,
 )
 
 
@@ -31,7 +31,8 @@ def test_postgres_case_matching_auto_vs_strict(tmp_path):
     os.environ.pop("STAGING_COLUMN_NAME_CASE", None)
 
     # Clean up any stale containers before starting to ensure fresh state
-    cleanup_db_containers("postgres")
+    # Use port-specific cleanup to avoid interfering with other tests
+    cleanup_db_container_by_port("postgres", ports["postgres"])
 
     try:
         # Start Postgres and initialize silver schema from GGM DDL
@@ -143,4 +144,4 @@ def test_postgres_case_matching_auto_vs_strict(tmp_path):
             ).scalar_one()
         assert cnt_strict >= cnt_auto + 1
     finally:
-        cleanup_db_containers("postgres")
+        cleanup_db_container_by_port("postgres", ports["postgres"])

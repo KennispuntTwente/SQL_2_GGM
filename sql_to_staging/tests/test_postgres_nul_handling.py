@@ -10,7 +10,7 @@ from tests.integration_utils import (
     ports_dest,
     docker_running,
     slow_tests_enabled,
-    cleanup_db_containers,
+    cleanup_db_container_by_port,
 )
 
 load_dotenv("tests/.env")
@@ -45,7 +45,7 @@ def test_upload_parquet_sanitizes_nul_postgres(tmp_path):
     df.write_parquet(file_path)
 
     # 2. Ensure clean containers and spin up destination engine like other tests
-    cleanup_db_containers("postgres")
+    cleanup_db_container_by_port("postgres", ports_dest["postgres"])
     username = "sa"
     password = "S3cureP@ssw0rd!23243"
     engine = get_connection(
@@ -95,7 +95,7 @@ def test_upload_parquet_sanitizes_nul_postgres(tmp_path):
 
         # Ensure Postgres test containers + volumes are removed like other tests
         try:
-            cleanup_db_containers("postgres")
+            cleanup_db_container_by_port("postgres", ports_dest["postgres"])
         except Exception:
             pass
 
@@ -144,7 +144,7 @@ def test_direct_transfer_sanitizes_nul_postgres(tmp_path):
         )
 
     # 2) Start a clean Postgres destination
-    cleanup_db_containers("postgres")
+    cleanup_db_container_by_port("postgres", ports_dest["postgres"])
     username = "sa"
     password = "S3cureP@ssw0rd!23243"
     dst_engine = get_connection(
@@ -188,7 +188,7 @@ def test_direct_transfer_sanitizes_nul_postgres(tmp_path):
         except Exception:
             pass
         try:
-            cleanup_db_containers("postgres")
+            cleanup_db_container_by_port("postgres", ports_dest["postgres"])
         except Exception:
             pass
 
@@ -216,7 +216,7 @@ def test_upload_parquet_without_sanitizing_nul_postgres_raises(tmp_path):
     df.write_parquet(file_path)
 
     # Fresh destination for this repro as well
-    cleanup_db_containers("postgres")
+    cleanup_db_container_by_port("postgres", ports_dest["postgres"])
     username = "sa"
     password = "S3cureP@ssw0rd!23243"
     engine = get_connection(
@@ -269,6 +269,6 @@ def test_upload_parquet_without_sanitizing_nul_postgres_raises(tmp_path):
             pass
 
         try:
-            cleanup_db_containers("postgres")
+            cleanup_db_container_by_port("postgres", ports_dest["postgres"])
         except Exception:
             pass

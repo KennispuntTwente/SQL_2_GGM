@@ -8,6 +8,7 @@ from utils.database.execute_sql_folder import execute_sql_folder, drop_schema_ob
 from tests.integration_utils import (
     docker_running,
     slow_tests_enabled,
+    cleanup_db_container_by_port,
     cleanup_db_containers,
 )
 
@@ -92,7 +93,7 @@ def test_execute_sql_and_delete_schema_postgres(tmp_path: Path):
             ).scalar_one()
             assert exists == 0
     finally:
-        cleanup_db_containers("postgres")
+        cleanup_db_container_by_port("postgres", 5433)
 
 
 @pytest.mark.slow

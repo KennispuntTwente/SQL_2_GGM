@@ -57,33 +57,44 @@ def slow_tests_enabled() -> bool:
     return os.getenv("RUN_SLOW_TESTS", "0").lower() in {"1", "true", "yes", "on"}
 
 
+def cleanup_db_container_by_port(db_type: str, port: int):
+    """Stop and remove a specific container and volume for a db_type and port.
+
+    Use this for tests that want targeted cleanup without affecting
+    containers on other ports.
+    """
+    client = docker.from_env()
+    name = f"{db_type}-docker-db-{port}"
+    try:
+        c = client.containers.get(name)
+        try:
+            c.stop()
+        except Exception:
+            pass
+        try:
+            c.remove()
+        except Exception:
+            pass
+    except Exception:
+        pass
+    # Remove volume as well
+    vol_name = f"{name}_data"
+    try:
+        v = client.volumes.get(vol_name)
+        v.remove(force=True)
+    except Exception:
+        pass
+
+
 def cleanup_db_containers(db_type: str):
     """Stop and remove the containers and volumes created by tests for a db_type.
 
     Tests name containers like "{db}-docker-db-{port}".
+    WARNING: This removes containers on BOTH source and dest ports. Use
+    cleanup_db_container_by_port() for targeted cleanup of a single port.
     """
-    client = docker.from_env()
-    names = [f"{db_type}-docker-db-{ports[db_type]}", f"{db_type}-docker-db-{ports_dest[db_type]}"]
-    for name in names:
-        try:
-            c = client.containers.get(name)
-            try:
-                c.stop()
-            except Exception:
-                pass
-            try:
-                c.remove()
-            except Exception:
-                pass
-        except Exception:
-            pass
-        # Remove volume as well
-        vol_name = f"{name}_data"
-        try:
-            v = client.volumes.get(vol_name)
-            v.remove(force=True)
-        except Exception:
-            pass
+    cleanup_db_container_by_port(db_type, ports[db_type])
+    cleanup_db_container_by_port(db_type, ports_dest[db_type])
 
 
 def cleanup_many(db_types: Iterable[str]):
