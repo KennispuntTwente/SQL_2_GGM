@@ -31,7 +31,7 @@ def main() -> None:
     log = logging.getLogger("sql_to_staging")
 
     # Determine transfer mode
-    transfer_mode = cast(
+    transfer_mode_raw = cast(
         str,
         get_config_value(
             "TRANSFER_MODE",
@@ -40,6 +40,7 @@ def main() -> None:
             default="SQLALCHEMY_DIRECT",
         ),
     )
+    transfer_mode = transfer_mode_raw.upper()
 
     valid_modes = {"SQLALCHEMY_DIRECT", "CONNECTORX_DUMP", "SQLALCHEMY_DUMP"}
     if transfer_mode not in valid_modes:
