@@ -24,6 +24,7 @@ import pandas as pd
 from sqlalchemy import text
 
 from dev_sql_server.get_connection import get_connection
+from utils.database.ensure_db import quote_ident
 
 
 def _normalize_schema(schema: str | None, db_type: str) -> str | None:
@@ -44,19 +45,28 @@ def ensure_schema(engine, schema: str | None, db_type: str) -> None:
         return
     ddl = None
     if db_type == "postgres":
-        ddl = f'CREATE SCHEMA IF NOT EXISTS "{schema}"'
+        qschema = quote_ident(engine, schema)
+        ddl = f"CREATE SCHEMA IF NOT EXISTS {qschema}"
     elif db_type == "mssql":
-        ddl = f"IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = '{schema}') EXEC('CREATE SCHEMA {schema}')"
+        from utils.database.ensure_db import mssql_bracket_escape
+
+        esc = mssql_bracket_escape(schema)
+        ddl = (
+            "IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = :schema) "
+            "BEGIN EXEC('CREATE SCHEMA [" + esc + "]'); END"
+        )
     elif db_type in ("mysql", "mariadb"):
         # MySQL treats schema as database; assume current DB and create no-op
         ddl = None
     elif db_type == "oracle":
         # Oracle uses users as schema; skip
         ddl = None
-
     if ddl:
         with engine.begin() as conn:
-            conn.execute(text(ddl))
+            if db_type == "mssql":
+                conn.execute(text(ddl), {"schema": schema})
+            else:
+                conn.execute(text(ddl))
 
 
 def load_csvs(engine, csv_dir: Path, schema: str | None) -> None:

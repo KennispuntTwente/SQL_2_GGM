@@ -94,10 +94,11 @@ def ensure_database_and_schema(
                 conn.execute(_text(f"CREATE SCHEMA IF NOT EXISTS {qschema}"))
             elif dialect in ("mssql", "sql server"):
                 esc = mssql_bracket_escape(schema)
+                safe_schema = schema.replace("'", "''")
                 conn.execute(
                     _text(
                         f"""
-                    IF SCHEMA_ID(N'{schema}') IS NULL
+                    IF SCHEMA_ID(N'{safe_schema}') IS NULL
                     BEGIN
                         EXEC(N'CREATE SCHEMA [{esc}]');
                     END
