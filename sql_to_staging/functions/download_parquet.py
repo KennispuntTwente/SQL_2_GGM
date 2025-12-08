@@ -204,20 +204,27 @@ def download_parquet(
             logger.info("📥 Dumping table via SQLAlchemy: %s", qualified)
             with engine.connect() as conn:
                 if log_row_count:
-                    try:
-                        qname = (
-                            quote_fqn(engine, [schema, table])
-                            if schema
-                            else quote_fqn(engine, [table])
+                    if row_limit and row_limit > 0:
+                        logger.info(
+                            "   (row count skipped; ROW_LIMIT is set – using limit instead)"
                         )
-                        row_count = conn.execute(
-                            text(f"SELECT COUNT(*) FROM {qname}")
-                        ).scalar()
-                        logger.info("   (total rows: %s)", f"{row_count:,}")
-                    except Exception as err:
-                        raise RuntimeError(
-                            f"Failed to count rows for {qualified}: {err}"
-                        ) from err
+                    else:
+                        try:
+                            qname = (
+                                quote_fqn(engine, [schema, table])
+                                if schema
+                                else quote_fqn(engine, [table])
+                            )
+                            row_count = conn.execute(
+                                text(f"SELECT COUNT(*) FROM {qname}")
+                            ).scalar()
+                            logger.info("   (total rows: %s)", f"{row_count:,}")
+                        except Exception as err:
+                            logger.warning(
+                                "Failed to COUNT(*) via SQLAlchemy for %s: %s",
+                                qualified,
+                                err,
+                            )
                 else:
                     logger.info("   (row count skipped; LOG_ROW_COUNT disabled)")
 
