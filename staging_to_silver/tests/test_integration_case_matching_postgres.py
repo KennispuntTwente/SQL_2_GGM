@@ -42,7 +42,7 @@ def test_postgres_case_matching_auto_vs_strict(tmp_path):
             password="S3cureP@ssw0rd!23243",
             port=ports["postgres"],
             force_refresh=True,
-            sql_folder="./ggm_selectie",
+            sql_folder="./ggm_selectie/cssd",
             sql_suffix_filter=True,
             sql_schema="silver",
             print_tables=False,

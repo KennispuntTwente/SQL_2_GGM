@@ -789,7 +789,7 @@ if __name__ == "__main__":
         db_name="ggm",
         user="sa",
         password="SecureP@ss1!24323482349",
-        sql_folder="./ggm_selectie",
+        sql_folder="./ggm_selectie/cssd",
         sql_suffix_filter=True,
         force_refresh=True,
     )

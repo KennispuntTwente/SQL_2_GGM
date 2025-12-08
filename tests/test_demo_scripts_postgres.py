@@ -88,7 +88,7 @@ def test_demo_sql_to_staging_then_staging_to_silver_postgres():
         ).fetchall()
         assert silver_tables, "No silver tables created by staging_to_silver demo"
         silver_set = {r[0].lower() for r in silver_tables}
-        # From ggm_selectie DDL (unquoted identifiers -> lowercased in Postgres)
+        # From ggm_selectie/cssd/ DDL (unquoted identifiers -> lowercased in Postgres)
         assert "client" in silver_set, "Expected table 'client' in silver schema"
         assert "declaratieregel" in silver_set, (
             "Expected table 'declaratieregel' in silver schema"

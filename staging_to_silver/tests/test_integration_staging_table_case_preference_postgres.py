@@ -11,7 +11,9 @@ from staging_to_silver.functions.queries_setup import prepare_queries
 
 def _docker_running() -> bool:
     try:
-        res = subprocess.run(["docker", "info"], capture_output=True, text=True, timeout=5)
+        res = subprocess.run(
+            ["docker", "info"], capture_output=True, text=True, timeout=5
+        )
         return res.returncode == 0
     except Exception:
         return False
@@ -48,7 +50,7 @@ def test_postgres_staging_table_name_case_preference(tmp_path):
         password="S3cureP@ssw0rd!23243",
         port=5434,
         force_refresh=True,
-        sql_folder="./ggm_selectie",
+        sql_folder="./ggm_selectie/cssd",
         sql_suffix_filter=True,
         sql_schema="silver",
         print_tables=False,
@@ -59,12 +61,28 @@ def test_postgres_staging_table_name_case_preference(tmp_path):
         conn.execute(text('CREATE SCHEMA IF NOT EXISTS "staging"'))
         # UPPER quoted variant
         conn.execute(text('DROP TABLE IF EXISTS staging."WVBESL" CASCADE;'))
-        conn.execute(text('CREATE TABLE staging."WVBESL" ("BESLUITNR" VARCHAR(50), "CLIENTNR" VARCHAR(50));'))
-        conn.execute(text('INSERT INTO staging."WVBESL" ("BESLUITNR", "CLIENTNR") VALUES (\'U100\', \'UCLIENT\');'))
+        conn.execute(
+            text(
+                'CREATE TABLE staging."WVBESL" ("BESLUITNR" VARCHAR(50), "CLIENTNR" VARCHAR(50));'
+            )
+        )
+        conn.execute(
+            text(
+                'INSERT INTO staging."WVBESL" ("BESLUITNR", "CLIENTNR") VALUES (\'U100\', \'UCLIENT\');'
+            )
+        )
         # lower (unquoted) variant
-        conn.execute(text('DROP TABLE IF EXISTS staging.wvbesl CASCADE;'))
-        conn.execute(text('CREATE TABLE staging.wvbesl (besluitnr VARCHAR(50), clientnr VARCHAR(50));'))
-        conn.execute(text("INSERT INTO staging.wvbesl (besluitnr, clientnr) VALUES ('l100', 'lclient');"))
+        conn.execute(text("DROP TABLE IF EXISTS staging.wvbesl CASCADE;"))
+        conn.execute(
+            text(
+                "CREATE TABLE staging.wvbesl (besluitnr VARCHAR(50), clientnr VARCHAR(50));"
+            )
+        )
+        conn.execute(
+            text(
+                "INSERT INTO staging.wvbesl (besluitnr, clientnr) VALUES ('l100', 'lclient');"
+            )
+        )
 
     # Load queries with default SILVER_TABLE_NAME_CASE=upper
     cfg = configparser.ConfigParser()
@@ -76,9 +94,21 @@ def test_postgres_staging_table_name_case_preference(tmp_path):
     def _insert_from_select(select_name, select_stmt):
         md = MetaData()
         try:
-            dest = Table(select_name, md, schema="silver", autoload_with=engine, extend_existing=True)
+            dest = Table(
+                select_name,
+                md,
+                schema="silver",
+                autoload_with=engine,
+                extend_existing=True,
+            )
         except Exception:
-            dest = Table(select_name.lower(), md, schema="silver", autoload_with=engine, extend_existing=True)
+            dest = Table(
+                select_name.lower(),
+                md,
+                schema="silver",
+                autoload_with=engine,
+                extend_existing=True,
+            )
         select_cols = [c.name for c in select_stmt.selected_columns]
         dest_map = {c.name.lower(): c for c in dest.columns}
         ordered = []
@@ -88,9 +118,12 @@ def test_postgres_staging_table_name_case_preference(tmp_path):
             except KeyError:
                 ci = dest_map.get(c.lower())
                 if ci is None:
-                    raise KeyError(f"Destination column '{c}' not found in {dest.fullname}")
+                    raise KeyError(
+                        f"Destination column '{c}' not found in {dest.fullname}"
+                    )
                 ordered.append(ci)
         from sqlalchemy.dialects.postgresql import insert as pg_insert  # type: ignore
+
         pk_cols = [c.name for c in dest.primary_key.columns] or None
         insert_stmt = pg_insert(dest).from_select(ordered, select_stmt)
         if pk_cols:
@@ -107,7 +140,9 @@ def test_postgres_staging_table_name_case_preference(tmp_path):
     _insert_from_select("BESCHIKKING", stmt_upper_pref)
 
     with engine.connect() as conn:
-        rows = conn.execute(text("SELECT CLIENT_ID FROM silver.beschikking ORDER BY CLIENT_ID")).fetchall()
+        rows = conn.execute(
+            text("SELECT CLIENT_ID FROM silver.beschikking ORDER BY CLIENT_ID")
+        ).fetchall()
     # Should include only the row from the UPPER table variant
     assert ("UCLIENT",) in rows
     assert ("lclient",) not in rows
@@ -122,6 +157,8 @@ def test_postgres_staging_table_name_case_preference(tmp_path):
     _insert_from_select("BESCHIKKING", stmt_lower_pref)
 
     with engine.connect() as conn:
-        rows2 = conn.execute(text("SELECT CLIENT_ID FROM silver.beschikking ORDER BY CLIENT_ID")).fetchall()
+        rows2 = conn.execute(
+            text("SELECT CLIENT_ID FROM silver.beschikking ORDER BY CLIENT_ID")
+        ).fetchall()
     assert ("lclient",) in rows2
     assert ("UCLIENT",) not in rows2

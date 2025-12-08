@@ -1,0 +1,10 @@
+# k2b_brp
+
+Dit zijn queries voor het vullen van GGM-tabellen, plus enkele extra tabellen,
+voor extractie van de BRP uit Centric Key2Burgerzaken. 
+
+Queries zijn op basis van mapping van Maarten-Jan Kampen (gemeente Delft) van Key2Burgerzaken BRP naar GGM.
+
+Deze queries vullen de tabellen die gedefinieerd zijn in de DDL in `ggm_selectie/k2b_brp/BRP_selectie.sql`
+(hierin zitten tussen tabellen uit originele GGM DDL ook enkele extra tabelllen die zijn gedefinieerd in de
+mapping van Maarten-Jan Kampen).

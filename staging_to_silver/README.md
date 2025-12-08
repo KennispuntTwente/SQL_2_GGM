@@ -8,10 +8,10 @@ Deze queries zijn gedefinieerd in SQLAlchemy zodat ze op verschillende typen SQL
 De SQL-queries zijn in feite de GGM-mappings, direct ook in de vorm van uitvoerbare code.
 
 Van belang is dat dus sql_to_staging reeds is uitgevoerd, en ook dat er een database is waar de (lege) tabellen
-van het gemeentelijk gegevensmodel op staan (zie map: ggm_selectie). Deze module kan eventueel ook de SQL-code uitvoeren
+van het gemeentelijk gegevensmodel op staan (zie map: ggm_selectie/cssd). Deze module kan eventueel ook de SQL-code uitvoeren
 om GGM-tabellen aan te maken (zie sectie: "GGM-tabellen automatisch aanmaken").
 
-> Tip: de GGM-DDL (SQL-code om de tabellen aan te maken) is te vinden in de map `ggm_selectie/`. Je kan deze aanpassen naar
+> Tip: de GGM-DDL (SQL-code om de tabellen aan te maken) is te vinden in de map `ggm_selectie/cssd`. Je kan deze aanpassen naar
 wens, bijv., door bepaalde tabellen of kolommen te verwijderen die je niet nodig hebt. In ons project hebben we er met name
 voor gekozen om constraints te verwijderen, zodat data geladen kan worden zonder dat deze per se aan alle constraints hoeft te voldoen.
 In de stap richting een 'gold' laag kunnen deze constraints eventueel alsnog worden afgedwongen.
@@ -98,7 +98,7 @@ Deze limiet wordt toegepast op elke mapping (`SELECT … LIMIT n` of equivalent 
 
 ### GGM‑tabellen automatisch aanmaken (vooraf SQL-code uitvoeren)
 
-Je kunt vóór het uitvoeren van de mappings de GGM‑doeltabellen aanmaken door een map met `.sql`‑bestanden uit te voeren (bijv. de bestanden in `ggm_selectie/`). 
+Je kunt vóór het uitvoeren van de mappings de GGM‑doeltabellen aanmaken door een map met `.sql`‑bestanden uit te voeren (bijv. de bestanden in `ggm_selectie/cssd/`). 
 Hiermee kan de module ook de GGM-tabellen aanmaken, als ze nog niet bestaan op je server.
 
 Instellingen hiervoor (sectie `[settings]`):
