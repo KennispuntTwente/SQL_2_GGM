@@ -215,8 +215,9 @@ def download_parquet_odata(
             "🧾 Manifest written: %s (%s files)", manifest_path, len(created_files)
         )
     except Exception as e:
-        logger.warning("Failed to write manifest %s: %s", manifest_path, e)
-        manifest_path = None
+        raise RuntimeError(
+            f"Failed to write OData parquet manifest {manifest_path}: {e}. Aborting to avoid stale file uploads."
+        ) from e
 
     logger.info("🎉 OData export complete – all entity sets written")
     return manifest_path

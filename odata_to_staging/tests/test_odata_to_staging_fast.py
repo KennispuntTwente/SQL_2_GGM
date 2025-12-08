@@ -190,6 +190,38 @@ def test_download_simple_two_rows(tmp_path):
     assert len(df) == 2
 
 
+def test_download_manifest_write_failure_raises(tmp_path, monkeypatch):
+    et = _EntityType(keys=["ID"], props=["Name"])
+    schema = _Schema({"Employees": et})
+
+    class E:
+        def __init__(self, ID, Name):
+            self.ID = ID
+            self.Name = Name
+
+    page1 = [E(1, "Alice"), E(2, "Bob")]
+    es_proxy = SimpleNamespace(
+        Employees=_EntitySetProxy("Employees", pages=[page1], total=2)
+    )
+    client = _Client(schema=schema, entity_sets=es_proxy)
+
+    out_dir = tmp_path / "data"
+
+    def _broken_open(*args, **kwargs):  # pragma: no cover - simple stub
+        raise OSError("disk full")
+
+    monkeypatch.setattr("builtins.open", _broken_open)
+
+    with pytest.raises(RuntimeError, match="Failed to write OData parquet manifest"):
+        download_parquet_odata(
+            client,
+            entity_sets=["Employees"],
+            output_dir=str(out_dir),
+            page_size=10,
+            log_row_count=True,
+        )
+
+
 def test_load_odata_client_basic_auth(monkeypatch):
     """load_odata_client wires BASIC auth and retain_null config."""
 
