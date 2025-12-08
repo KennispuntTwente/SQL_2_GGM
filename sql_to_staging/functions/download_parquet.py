@@ -154,14 +154,25 @@ def download_parquet(
 
                 iterator = _ReaderIter(reader)
 
-            # Optional row count upfront for connectorx path (may be costly)
+            # Optional row count upfront for connectorx path (may be costly).
+            #
+            # NOTE: This path historically depended on pandas, which is only
+            # included in the dev extra. To avoid raising ImportError in
+            # production installs, we guard the pandas dependency and fall back
+            # to a best-effort COUNT(*) when pandas is unavailable.
             if log_row_count:
                 try:
+                    import pandas as _pd  # type: ignore[import-not-found]
+
                     cnt_select = f"SELECT COUNT(*) FROM {quoted_target}"
-                    # Use pandas return type for broad compatibility; avoids Polars/PyArrow API differences
                     cnt_df = cx.read_sql(uri, cnt_select, return_type="pandas")
                     cnt_value_repr = str(cnt_df.iloc[0, 0])
                     logger.info("   (total rows: %s)", cnt_value_repr)
+                except ImportError:
+                    logger.info(
+                        "   (row count skipped; pandas not installed – "
+                        "install the dev extra or set LOG_ROW_COUNT=False)"
+                    )
                 except Exception as e:
                     logger.warning(
                         "Failed to COUNT(*) via ConnectorX for %s: %s", qualified, e

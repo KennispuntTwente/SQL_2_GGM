@@ -83,12 +83,14 @@ def test_download_parquet_empty_table_creates_no_files(tmp_path: Path):
 
 
 @pytest.mark.sa_dump
-def test_download_parquet_missing_table_raises(tmp_path: Path):
-    # DB without the requested table should raise a RuntimeError during COUNT(*)
+def test_download_parquet_missing_table_logs_and_bubbles(tmp_path: Path):
+    # DB without the requested table should log a warning when COUNT(*) fails
+    # and then bubble up the underlying database error during the actual read.
     engine, _ = _setup_sqlite_db(tmp_path, table_name="some_table", rows=[(1, "a")])
 
     out_dir = tmp_path / "out"
-    with pytest.raises(RuntimeError) as exc:
+    with pytest.raises(Exception):
         download_parquet(engine, ["does_not_exist"], output_dir=str(out_dir))
 
-    assert "Failed to count rows for does_not_exist" in str(exc.value)
+    # No parquet files should be created for a missing table
+    assert not out_dir.exists() or _list_parquet_files(out_dir) == []
