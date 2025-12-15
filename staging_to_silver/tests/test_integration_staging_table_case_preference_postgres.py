@@ -1,5 +1,4 @@
 import os
-import subprocess
 import configparser
 
 import pytest
@@ -7,30 +6,17 @@ from sqlalchemy import MetaData, Table, text
 
 from dev_sql_server.get_connection import get_connection
 from staging_to_silver.functions.queries_setup import prepare_queries
-
-
-def _docker_running() -> bool:
-    try:
-        res = subprocess.run(
-            ["docker", "info"], capture_output=True, text=True, timeout=5
-        )
-        return res.returncode == 0
-    except Exception:
-        return False
-
-
-def _slow_tests_enabled() -> bool:
-    return os.getenv("RUN_SLOW_TESTS", "0").lower() in {"1", "true", "yes", "on"}
+from tests.integration_utils import docker_running, ports_dest, slow_tests_enabled
 
 
 @pytest.mark.slow
 @pytest.mark.postgres
 @pytest.mark.skipif(
-    not _slow_tests_enabled(),
+    not slow_tests_enabled(),
     reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.",
 )
 @pytest.mark.skipif(
-    not _docker_running(),
+    not docker_running(),
     reason="Docker is not available/running; required for this integration test.",
 )
 def test_postgres_staging_table_name_case_preference(tmp_path):
@@ -48,7 +34,7 @@ def test_postgres_staging_table_name_case_preference(tmp_path):
         db_name="ggm_case_pref",
         user="sa",
         password="S3cureP@ssw0rd!23243",
-        port=5434,
+        port=ports_dest["postgres"],
         force_refresh=True,
         sql_folder="./ggm_selectie/cssd",
         sql_suffix_filter=True,

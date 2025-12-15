@@ -7,52 +7,31 @@ from sqlalchemy import MetaData, Table, text
 
 from dev_sql_server.get_connection import get_connection
 from staging_to_silver.functions.schema_qualifier import qualify_schema
-
-
-def _docker_running() -> bool:
-    import subprocess
-
-    try:
-        res = subprocess.run(
-            ["docker", "info"], capture_output=True, text=True, timeout=5
-        )
-        return res.returncode == 0
-    except Exception:
-        return False
-
-
-def _slow_tests_enabled() -> bool:
-    import os
-
-    return os.getenv("RUN_SLOW_TESTS", "0").lower() in {"1", "true", "yes", "on"}
-
-
-def _mssql_driver_available() -> bool:
-    try:
-        import pyodbc  # noqa: F401
-
-        return any("ODBC Driver 18 for SQL Server" in d for d in pyodbc.drivers())
-    except Exception:
-        return False
+from tests.integration_utils import (
+    docker_running,
+    mssql_driver_available,
+    slow_tests_enabled,
+)
+from tests.integration_utils import port_for_worker
 
 
 @pytest.mark.slow
 @pytest.mark.mssql
 @pytest.mark.skipif(
-    not _slow_tests_enabled(),
+    not slow_tests_enabled(),
     reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.",
 )
 @pytest.mark.skipif(
-    not _docker_running(),
+    not docker_running(),
     reason="Docker is not available/running; required for this integration test.",
 )
 @pytest.mark.skipif(
-    not _mssql_driver_available(),
+    not mssql_driver_available(),
     reason="ODBC Driver 18 for SQL Server not installed; required for MSSQL test.",
 )
 def test_mssql_crossdb_init_and_load(tmp_path: Path):
     # Use one SQL Server container (single instance) and create two databases in it
-    port = 1437
+    port = port_for_worker(1437)
     user = "sa"
     password = "S3cureP@ssw0rd!23243"
 

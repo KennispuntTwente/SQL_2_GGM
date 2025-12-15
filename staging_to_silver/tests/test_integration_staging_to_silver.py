@@ -3,90 +3,34 @@
 # This ensures end-to-end functionality of staging_to_silver queries against real databases
 
 import os
-import subprocess
 
 import pytest
-from sqlalchemy import MetaData, Table, text
+from sqlalchemy import text
 from dotenv import load_dotenv
 
 from dev_sql_server.get_connection import get_connection
 import configparser
 from staging_to_silver.functions.queries_setup import prepare_queries
+from tests.integration_utils import (
+    docker_running,
+    insert_from_select_case_insensitive,
+    mssql_driver_available,
+    ports,
+    slow_tests_enabled,
+)
 
 
 load_dotenv("tests/.env")
 
 
-def _docker_running() -> bool:
-    try:
-        res = subprocess.run(
-            ["docker", "info"], capture_output=True, text=True, timeout=5
-        )
-        return res.returncode == 0
-    except Exception:
-        return False
-
-
-def _slow_tests_enabled() -> bool:
-    return os.getenv("RUN_SLOW_TESTS", "0").lower() in {"1", "true", "yes", "on"}
-
-
-def _mssql_driver_available() -> bool:
-    try:
-        import pyodbc  # noqa
-
-        return any("ODBC Driver 18 for SQL Server" in d for d in pyodbc.drivers())
-    except Exception:
-        return False
-
-
-def _insert_from_select(engine, target_schema: str, select_name: str, select_stmt):
-    # Reflect destination and perform column-order match in a case-insensitive way
-    md = MetaData()
-    try:
-        dest_table = Table(
-            select_name,
-            md,
-            schema=target_schema,
-            autoload_with=engine,
-            extend_existing=True,
-        )
-    except Exception:
-        # Retry with lowercased name to handle Postgres' unquoted lowercasing
-        dest_table = Table(
-            select_name.lower(),
-            md,
-            schema=target_schema,
-            autoload_with=engine,
-            extend_existing=True,
-        )
-
-    select_col_order = [c.name for c in select_stmt.selected_columns]
-    dest_cols_map_ci = {c.name.lower(): c for c in dest_table.columns}
-    dest_cols = []
-    for col_name in select_col_order:
-        try:
-            dest_cols.append(dest_table.columns[col_name])
-        except KeyError:
-            ci = dest_cols_map_ci.get(col_name.lower())
-            if ci is None:
-                raise KeyError(
-                    f"Destination column '{col_name}' not found in table {dest_table.fullname}."
-                )
-            dest_cols.append(ci)
-
-    with engine.begin() as conn:
-        conn.execute(dest_table.insert().from_select(dest_cols, select_stmt))
-
-
 @pytest.mark.slow
 @pytest.mark.postgres
 @pytest.mark.skipif(
-    not _slow_tests_enabled(),
+    not slow_tests_enabled(),
     reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.",
 )
 @pytest.mark.skipif(
-    not _docker_running(),
+    not docker_running(),
     reason="Docker is not available/running; required for this integration test.",
 )
 def test_staging_to_silver_postgres(tmp_path):
@@ -96,7 +40,7 @@ def test_staging_to_silver_postgres(tmp_path):
         db_name="ggm_staging_to_silver",
         user="sa",
         password="S3cureP@ssw0rd!23243",
-        port=5433,
+        port=ports["postgres"],
         force_refresh=True,
         sql_folder="./ggm_selectie/cssd",
         sql_suffix_filter=True,
@@ -180,17 +124,20 @@ def test_staging_to_silver_postgres(tmp_path):
 
     # Run BESCHIKTE_VOORZIENING (lowercase source tables) → into silver
     stmt_bv = queries["BESCHIKTE_VOORZIENING"](engine, source_schema="staging")
-    _insert_from_select(
+    insert_from_select_case_insensitive(
         engine,
         target_schema="silver",
-        select_name="BESCHIKTE_VOORZIENING",
+        dest_table_name="BESCHIKTE_VOORZIENING",
         select_stmt=stmt_bv,
     )
 
     # Run BESCHIKKING (uppercase source table name) → into silver
     stmt_b = queries["BESCHIKKING"](engine, source_schema="staging")
-    _insert_from_select(
-        engine, target_schema="silver", select_name="BESCHIKKING", select_stmt=stmt_b
+    insert_from_select_case_insensitive(
+        engine,
+        target_schema="silver",
+        dest_table_name="BESCHIKKING",
+        select_stmt=stmt_b,
     )
 
     # Validate inserted rows
@@ -208,15 +155,15 @@ def test_staging_to_silver_postgres(tmp_path):
 @pytest.mark.slow
 @pytest.mark.mssql
 @pytest.mark.skipif(
-    not _slow_tests_enabled(),
+    not slow_tests_enabled(),
     reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.",
 )
 @pytest.mark.skipif(
-    not _docker_running(),
+    not docker_running(),
     reason="Docker is not available/running; required for this integration test.",
 )
 @pytest.mark.skipif(
-    not _mssql_driver_available(),
+    not mssql_driver_available(),
     reason="ODBC Driver 18 for SQL Server not installed; required for MSSQL test.",
 )
 def test_staging_to_silver_mssql(tmp_path):
@@ -226,7 +173,7 @@ def test_staging_to_silver_mssql(tmp_path):
         db_name="ggm_staging_to_silver",
         user="sa",
         password="S3cureP@ssw0rd!23243",
-        port=1434,
+        port=ports["mssql"],
         force_refresh=True,
         sql_folder="./ggm_selectie/cssd",
         sql_suffix_filter=True,
@@ -300,14 +247,14 @@ def test_staging_to_silver_mssql(tmp_path):
 
     # BESCHIKKING
     stmt_b = queries["BESCHIKKING"](engine, source_schema="dbo")
-    _insert_from_select(
-        engine, target_schema="dbo", select_name="BESCHIKKING", select_stmt=stmt_b
+    insert_from_select_case_insensitive(
+        engine, target_schema="dbo", dest_table_name="BESCHIKKING", select_stmt=stmt_b
     )
 
     # CLIENT
     stmt_client = queries["CLIENT"](engine, source_schema="dbo")
-    _insert_from_select(
-        engine, target_schema="dbo", select_name="CLIENT", select_stmt=stmt_client
+    insert_from_select_case_insensitive(
+        engine, target_schema="dbo", dest_table_name="CLIENT", select_stmt=stmt_client
     )
 
     # Validate inserted rows
