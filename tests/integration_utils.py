@@ -15,12 +15,13 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import re
 from datetime import date, datetime, time
 from typing import Iterable
 
 import pytest
 import docker
-from sqlalchemy import text
+from sqlalchemy import MetaData, Table, text
 
 from dev_sql_server.get_connection import get_connection
 
@@ -43,11 +44,46 @@ ports_dest = {
 }
 
 
+def _xdist_worker_index() -> int:
+    """Return the pytest-xdist worker index (gw0 -> 0), or 0 if not running under xdist."""
+    wid = os.getenv("PYTEST_XDIST_WORKER", "").strip()
+    if not wid:
+        return 0
+    m = re.match(r"^gw(\d+)$", wid)
+    if not m:
+        return 0
+    try:
+        return int(m.group(1))
+    except Exception:
+        return 0
+
+
+def port_for_worker(base_port: int) -> int:
+    """Shift a base port by worker index to avoid collisions under parallel runs.
+
+    Controlled by env var `GGMPILOT_TEST_PORT_STRIDE` (default 50).
+    """
+    stride = int(os.getenv("GGMPILOT_TEST_PORT_STRIDE", "50"))
+    return int(base_port) + _xdist_worker_index() * stride
+
+
+# Rebind the exported port maps to worker-specific values.
+ports = {k: port_for_worker(v) for k, v in ports.items()}
+ports_dest = {k: port_for_worker(v) for k, v in ports_dest.items()}
+
+
+_TEST_CONTAINER_NAME_RE = re.compile(
+    r"^(mariadb|mysql|postgres|oracle|mssql)-docker-db-\d+$"
+)
+
+
 def docker_running() -> bool:
     if not shutil.which("docker"):
         return False
     try:
-        res = subprocess.run(["docker", "info"], capture_output=True, text=True, timeout=5)
+        res = subprocess.run(
+            ["docker", "info"], capture_output=True, text=True, timeout=5
+        )
         return res.returncode == 0
     except Exception:
         return False
@@ -55,6 +91,21 @@ def docker_running() -> bool:
 
 def slow_tests_enabled() -> bool:
     return os.getenv("RUN_SLOW_TESTS", "0").lower() in {"1", "true", "yes", "on"}
+
+
+def mssql_driver_available(
+    required_driver: str = "ODBC Driver 18 for SQL Server",
+) -> bool:
+    """Return True if the required SQL Server ODBC driver is installed.
+
+    Kept here so MSSQL integration tests can share the same skip logic.
+    """
+    try:
+        import pyodbc  # type: ignore
+
+        return any(required_driver in d for d in pyodbc.drivers())
+    except Exception:
+        return False
 
 
 def cleanup_db_container_by_port(db_type: str, port: int):
@@ -102,6 +153,38 @@ def cleanup_many(db_types: Iterable[str]):
         cleanup_db_containers(t)
 
 
+def cleanup_all_test_db_containers() -> None:
+    """Best-effort cleanup of all DB containers created by test/dev helpers.
+
+    Targets containers named like "{db_type}-docker-db-{port}" and their associated
+    volumes "{container_name}_data".
+
+    This is primarily to keep CI clean and avoid port allocation conflicts across runs.
+    """
+    client = docker.from_env()
+
+    for c in client.containers.list(all=True):
+        name = (getattr(c, "name", None) or "").strip()
+        if not _TEST_CONTAINER_NAME_RE.match(name):
+            continue
+
+        try:
+            c.stop(timeout=10)
+        except Exception:
+            pass
+        try:
+            c.remove(force=True)
+        except Exception:
+            pass
+
+        vol_name = f"{name}_data"
+        try:
+            v = client.volumes.get(vol_name)
+            v.remove(force=True)
+        except Exception:
+            pass
+
+
 def schemas_for(db_type: str):
     if db_type == "oracle":
         return None, "sa"  # source_schema, dest_schema
@@ -140,7 +223,9 @@ def create_table_and_data(conn, db_type: str, table: str):
         )
         """
     elif db_type == "mssql":
-        conn.execute(text(f"IF OBJECT_ID(N'{table}', N'U') IS NOT NULL DROP TABLE {table}"))
+        conn.execute(
+            text(f"IF OBJECT_ID(N'{table}', N'U') IS NOT NULL DROP TABLE {table}")
+        )
         ddl = f"""
         CREATE TABLE {table} (
             id INT PRIMARY KEY,
@@ -350,6 +435,54 @@ def normalize_rows(rows):
 
 def host_for_docker() -> str:
     return "host.docker.internal" if os.getenv("IN_DOCKER", "0") == "1" else "localhost"
+
+
+def insert_from_select_case_insensitive(
+    engine,
+    target_schema: str,
+    dest_table_name: str,
+    select_stmt,
+):
+    """Insert rows from a SQLAlchemy select into an existing table.
+
+    - Reflects the destination table from the database.
+    - Matches destination columns to the select's labeled column order.
+    - Matches destination columns case-insensitively for cross-dialect stability.
+    """
+    md = MetaData()
+    try:
+        dest_table = Table(
+            dest_table_name,
+            md,
+            schema=target_schema,
+            autoload_with=engine,
+            extend_existing=True,
+        )
+    except Exception:
+        dest_table = Table(
+            dest_table_name.lower(),
+            md,
+            schema=target_schema,
+            autoload_with=engine,
+            extend_existing=True,
+        )
+
+    select_col_order = [c.name for c in select_stmt.selected_columns]
+    dest_cols_map_ci = {c.name.lower(): c for c in dest_table.columns}
+    dest_cols = []
+    for col_name in select_col_order:
+        try:
+            dest_cols.append(dest_table.columns[col_name])
+        except KeyError:
+            ci = dest_cols_map_ci.get(col_name.lower())
+            if ci is None:
+                raise KeyError(
+                    f"Destination column '{col_name}' not found in table {dest_table.fullname}."
+                )
+            dest_cols.append(ci)
+
+    with engine.begin() as conn:
+        conn.execute(dest_table.insert().from_select(dest_cols, select_stmt))
 
 
 @pytest.fixture(scope="session")

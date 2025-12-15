@@ -29,7 +29,13 @@ from dev_sql_server.preprocess_sql import preprocess_sql
 # Driver‑specific helpers
 # ────────────────────────────────────────────────────────────────────────────────
 def _connect_postgres(cfg: Dict[str, Any]):
-    return psycopg2.connect(**cfg)
+    # psycopg2 can block for a while on connect() if no connect_timeout is set.
+    # In CI (and especially under parallel starts) we want fast retries.
+    cfg2 = dict(cfg)
+    cfg2.setdefault(
+        "connect_timeout", int(os.getenv("GGMPILOT_DB_CONNECT_TIMEOUT", "5"))
+    )
+    return psycopg2.connect(**cfg2)
 
 
 def _connect_oracle(cfg: Dict[str, Any]):
@@ -44,11 +50,17 @@ SQL_SERVER_DRIVER = "ODBC Driver 18 for SQL Server"  # Ensure this is installed
 
 
 def _connect_mssql(cfg: Dict[str, Any]):
+    # Keep individual connection attempts short so _wait_for_db_ready can retry.
+    # ODBC driver 18 defaults to Encrypt=yes; TrustServerCertificate is required
+    # for local/dev containers with self-signed certs.
+    connect_timeout = int(os.getenv("GGMPILOT_DB_CONNECT_TIMEOUT", "5"))
     conn_str = (
         f"DRIVER={{{SQL_SERVER_DRIVER}}};"
         f"SERVER={cfg['host']},{cfg['port']};"
         f"DATABASE={cfg['dbname']};"
         f"UID={cfg['user']};PWD={cfg['password']};"
+        f"Connection Timeout={connect_timeout};"
+        "Encrypt=yes;"
         "TrustServerCertificate=yes;"
     )
     return pyodbc.connect(conn_str)
@@ -164,6 +176,77 @@ def _ensure_container_running(
     # (docker.from_env handles DOCKER_HOST/DOCKER_TLS_VERIFY vars automatically)
     client = docker.from_env()
 
+    def _resolve_bound_host_port(
+        container_obj,
+        requested_host_port: int,
+        *,
+        timeout_seconds: float = 15.0,
+    ) -> int:
+        """Resolve the host port bound to the DB container port.
+
+        Docker can briefly report incomplete port mappings right after `run()`.
+        Under CI load, that can cause us to keep trying the *requested* port even
+        if Docker actually bound a different (random) port. Poll briefly until a
+        binding is visible, and fail fast if the container exits.
+        """
+
+        cport = cfg.get("container_port", cfg["default_port"])
+        key = f"{cport}/tcp"
+        deadline = time.time() + timeout_seconds
+        last_status = None
+
+        while time.time() < deadline:
+            try:
+                container_obj.reload()
+            except Exception:
+                time.sleep(0.5)
+                continue
+
+            last_status = (getattr(container_obj, "status", None) or "").lower()
+            if last_status in {"exited", "dead"}:
+                try:
+                    logs = container_obj.logs(tail=200)
+                    if isinstance(logs, (bytes, bytearray)):
+                        logs = logs.decode("utf-8", errors="replace")
+                except Exception:
+                    logs = None
+                raise RuntimeError(
+                    f"{db_type} container '{container_name}' exited during startup; "
+                    f"requested host port {requested_host_port}. "
+                    + (
+                        f"Last logs:\n{logs}"
+                        if logs
+                        else "(No container logs available)"
+                    )
+                )
+
+            # NetworkSettings is generally the most reliable source once the container is running.
+            ports_map = (
+                container_obj.attrs.get("NetworkSettings", {}).get("Ports", {}) or {}
+            )
+            bd = ports_map.get(key)
+            if bd and isinstance(bd, list) and bd:
+                port_str = bd[0].get("HostPort")
+                if port_str:
+                    return int(port_str)
+
+            # Fallback: HostConfig.PortBindings
+            port_bindings = (
+                container_obj.attrs.get("HostConfig", {}).get("PortBindings", {}) or {}
+            )
+            hb = port_bindings.get(key)
+            if hb and isinstance(hb, list) and hb:
+                port_str = hb[0].get("HostPort")
+                if port_str:
+                    return int(port_str)
+
+            time.sleep(0.5)
+
+        raise TimeoutError(
+            f"Could not resolve bound host port for {db_type} container '{container_name}' "
+            f"within {timeout_seconds:.0f}s (requested {requested_host_port}; last status={last_status})."
+        )
+
     if force_refresh:
         # blow away everything and start from scratch
         try:
@@ -177,6 +260,9 @@ def _ensure_container_running(
             vol.remove(force=True)
         except docker_errors.NotFound:
             pass
+
+    requested_port = port
+    used_random_host_port = False
 
     try:
         container = client.containers.get(container_name)
@@ -283,23 +369,23 @@ def _ensure_container_running(
         except Exception as e:
             if "port is already allocated" in str(e).lower():
                 # Use random host port
+                used_random_host_port = True
                 container = _run_with_port_mapping(None)
             else:
                 raise
         was_created = True
-    # Determine the effective host port by inspecting the container's port bindings
-    try:
-        container.reload()
-        cport = cfg.get("container_port", cfg["default_port"])
-        key = f"{cport}/tcp"
-        bindings = container.attrs.get("NetworkSettings", {}).get("Ports", {}) or {}
-        bd = bindings.get(key)
-        if bd and isinstance(bd, list) and bd:
-            port_str = bd[0].get("HostPort")
-            if port_str:
-                port = int(port_str)
-    except Exception:
-        pass
+
+    # Determine the effective host port by polling Docker until a binding is visible.
+    port = _resolve_bound_host_port(container, requested_port)
+
+    if used_random_host_port:
+        logging.getLogger(__name__).warning(
+            "Port %s was already allocated for %s; using randomly assigned host port %s (container name stays %s).",
+            requested_port,
+            db_type,
+            port,
+            container_name,
+        )
 
     return cfg, port, was_created
 
@@ -500,11 +586,19 @@ def get_connection(
     container_name = container_name or f"{db_type}-docker-db-{port_effective}"
     volume_name = volume_name or f"{container_name}_data"
 
+    user_supplied_max_wait = max_wait_seconds is not None
+
     if max_wait_seconds is None:
+        # Defaults are intentionally conservative for CI stability.
+        # Callers can always override via max_wait_seconds.
         if db_type == "oracle":
             max_wait_seconds = 600
         elif db_type in ("mysql", "mariadb"):
             max_wait_seconds = 180
+        elif db_type == "postgres":
+            max_wait_seconds = 180
+        elif db_type == "mssql":
+            max_wait_seconds = 360
         else:
             max_wait_seconds = 120
 
@@ -527,6 +621,24 @@ def get_connection(
         container_force_refresh,
     )
 
+    # If the container was newly created, DB initialization can take
+    # substantially longer on cold CI runners (esp. MSSQL). Only adjust
+    # when the caller didn't explicitly choose a timeout.
+    if (not user_supplied_max_wait) and was_created:
+        if db_type == "postgres":
+            max_wait_seconds = max(max_wait_seconds, 240)
+        elif db_type == "mssql":
+            max_wait_seconds = max(max_wait_seconds, 480)
+
+    # CI runners can be slower (image pulls, constrained IO). Allow opt-in
+    # override while keeping local runs reasonable.
+    if not user_supplied_max_wait:
+        if os.getenv("CI", "").strip().lower() in {"1", "true", "yes", "on"}:
+            if db_type == "postgres":
+                max_wait_seconds = max(max_wait_seconds, 240)
+            elif db_type == "mssql":
+                max_wait_seconds = max(max_wait_seconds, 480)
+
     # Prepare configs for master and target DB
     # When running inside Docker, localhost refers to the container itself.
     # Prefer host.docker.internal; if not resolvable on Linux, fall back to Docker bridge gateway.
@@ -537,7 +649,9 @@ def get_connection(
         except Exception:
             host_addr = os.getenv("HOST_GATEWAY_IP", "172.17.0.1")
     else:
-        host_addr = "localhost"
+        # Prefer IPv4 loopback to avoid occasional localhost/IPv6 resolution
+        # differences across CI runners.
+        host_addr = "127.0.0.1"
 
     # Choose appropriate admin DB/user per backend
     if db_type == "postgres":

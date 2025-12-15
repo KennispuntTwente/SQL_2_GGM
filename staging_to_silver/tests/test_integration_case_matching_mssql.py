@@ -1,5 +1,4 @@
 import os
-import subprocess
 from pathlib import Path
 
 import pytest
@@ -9,40 +8,26 @@ from dev_sql_server.get_connection import get_connection
 from staging_to_silver.functions.queries_setup import prepare_queries
 from staging_to_silver.functions.schema_qualifier import qualify_schema
 import configparser
-
-
-def _docker_running() -> bool:
-    try:
-        res = subprocess.run(["docker", "info"], capture_output=True, text=True, timeout=5)
-        return res.returncode == 0
-    except Exception:
-        return False
-
-
-def _slow_tests_enabled() -> bool:
-    return os.getenv("RUN_SLOW_TESTS", "0").lower() in {"1", "true", "yes", "on"}
-
-
-def _mssql_driver_available() -> bool:
-    try:
-        import pyodbc  # noqa: F401
-        return any("ODBC Driver 18 for SQL Server" in d for d in pyodbc.drivers())
-    except Exception:
-        return False
+from tests.integration_utils import (
+    docker_running,
+    mssql_driver_available,
+    port_for_worker,
+    slow_tests_enabled,
+)
 
 
 @pytest.mark.slow
 @pytest.mark.mssql
 @pytest.mark.skipif(
-    not _slow_tests_enabled(),
+    not slow_tests_enabled(),
     reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.",
 )
 @pytest.mark.skipif(
-    not _docker_running(),
+    not docker_running(),
     reason="Docker is not available/running; required for this integration test.",
 )
 @pytest.mark.skipif(
-    not _mssql_driver_available(),
+    not mssql_driver_available(),
     reason="ODBC Driver 18 for SQL Server not installed; required for MSSQL test.",
 )
 def test_mssql_case_matching_with_crossdb_source(tmp_path: Path):
@@ -52,7 +37,7 @@ def test_mssql_case_matching_with_crossdb_source(tmp_path: Path):
     os.environ.pop("STAGING_COLUMN_NAME_CASE", None)
 
     # Start a SQL Server container and create a source database
-    port = 1436
+    port = port_for_worker(1436)
     src_db = "src_case"
     engine = get_connection(
         db_type="mssql",
@@ -69,9 +54,14 @@ def test_mssql_case_matching_with_crossdb_source(tmp_path: Path):
 
     # Create a minimal destination table (dbo.BESCHIKKING) in the same DB for easy validation
     with engine.begin() as conn:
-        conn.execute(text("IF OBJECT_ID(N'dbo.BESCHIKKING', N'U') IS NOT NULL DROP TABLE dbo.BESCHIKKING;"))
-        conn.execute(text(
-            """
+        conn.execute(
+            text(
+                "IF OBJECT_ID(N'dbo.BESCHIKKING', N'U') IS NOT NULL DROP TABLE dbo.BESCHIKKING;"
+            )
+        )
+        conn.execute(
+            text(
+                """
             CREATE TABLE dbo.BESCHIKKING (
                 BESCHIKKING_ID NVARCHAR(50),
                 CLIENT_ID NVARCHAR(50),
@@ -83,11 +73,20 @@ def test_mssql_case_matching_with_crossdb_source(tmp_path: Path):
                 WET NVARCHAR(255)
             )
             """
-        ))
+            )
+        )
         # Prepare uppercase-quoted source table WVBESL with uppercase columns
-        conn.execute(text("IF OBJECT_ID(N'dbo.WVBESL', N'U') IS NOT NULL DROP TABLE dbo.WVBESL;"))
-        conn.execute(text("CREATE TABLE dbo.WVBESL (BESLUITNR NVARCHAR(50), CLIENTNR NVARCHAR(50));"))
-        conn.execute(text("INSERT INTO dbo.WVBESL (BESLUITNR, CLIENTNR) VALUES ('B200','C200');"))
+        conn.execute(
+            text("IF OBJECT_ID(N'dbo.WVBESL', N'U') IS NOT NULL DROP TABLE dbo.WVBESL;")
+        )
+        conn.execute(
+            text(
+                "CREATE TABLE dbo.WVBESL (BESLUITNR NVARCHAR(50), CLIENTNR NVARCHAR(50));"
+            )
+        )
+        conn.execute(
+            text("INSERT INTO dbo.WVBESL (BESLUITNR, CLIENTNR) VALUES ('B200','C200');")
+        )
 
     # Load queries
     cfg = configparser.ConfigParser()
@@ -98,7 +97,9 @@ def test_mssql_case_matching_with_crossdb_source(tmp_path: Path):
     # Helper to insert
     def _insert_from_select(select_name, select_stmt):
         md = MetaData()
-        dest = Table(select_name, md, schema="dbo", autoload_with=engine, extend_existing=True)
+        dest = Table(
+            select_name, md, schema="dbo", autoload_with=engine, extend_existing=True
+        )
         select_cols = [c.name for c in select_stmt.selected_columns]
         dest_map = {c.name.lower(): c for c in dest.columns}
         ordered = []
@@ -108,7 +109,9 @@ def test_mssql_case_matching_with_crossdb_source(tmp_path: Path):
             except KeyError:
                 ci = dest_map.get(c.lower())
                 if ci is None:
-                    raise KeyError(f"Destination column '{c}' not found in {dest.fullname}")
+                    raise KeyError(
+                        f"Destination column '{c}' not found in {dest.fullname}"
+                    )
                 ordered.append(ci)
         with engine.begin() as conn:
             conn.execute(dest.insert().from_select(ordered, select_stmt))
@@ -123,17 +126,23 @@ def test_mssql_case_matching_with_crossdb_source(tmp_path: Path):
     _insert_from_select("BESCHIKKING", stmt_auto)
 
     with engine.connect() as conn:
-        cnt_auto = conn.execute(text("SELECT COUNT(*) FROM dbo.BESCHIKKING")).scalar_one()
+        cnt_auto = conn.execute(
+            text("SELECT COUNT(*) FROM dbo.BESCHIKKING")
+        ).scalar_one()
     assert cnt_auto >= 1
 
     # Case B: strict mode with UPPER column preference
     os.environ["STAGING_NAME_MATCHING"] = "strict"
     os.environ["STAGING_COLUMN_NAME_CASE"] = "upper"
     with engine.begin() as conn:
-        conn.execute(text("INSERT INTO dbo.WVBESL (BESLUITNR, CLIENTNR) VALUES ('B201','C201');"))
+        conn.execute(
+            text("INSERT INTO dbo.WVBESL (BESLUITNR, CLIENTNR) VALUES ('B201','C201');")
+        )
     stmt_strict = queries["BESCHIKKING"](engine, source_schema=source_schema_3part)
     _insert_from_select("BESCHIKKING", stmt_strict)
 
     with engine.connect() as conn:
-        cnt_strict = conn.execute(text("SELECT COUNT(*) FROM dbo.BESCHIKKING")).scalar_one()
+        cnt_strict = conn.execute(
+            text("SELECT COUNT(*) FROM dbo.BESCHIKKING")
+        ).scalar_one()
     assert cnt_strict >= cnt_auto + 1
