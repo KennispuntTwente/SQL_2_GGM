@@ -1,5 +1,10 @@
-#!/bin/bash
-set -euo pipefail
+#!/usr/bin/env bash
+
+set -euo errexit
+
+# Some minimal environments don't support `pipefail` (or may run under `sh`).
+# Best effort: enable it when available.
+set -o pipefail 2>/dev/null || true
 
 # ============================================================================
 # ggmpilot Demo Entrypoint
