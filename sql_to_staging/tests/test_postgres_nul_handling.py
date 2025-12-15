@@ -16,6 +16,36 @@ from tests.integration_utils import (
 load_dotenv("tests/.env")
 
 
+# Module-level fixture: spin up a single Postgres container for all tests in this file.
+# This avoids repeated container create/destroy cycles which can cause race conditions
+# and port-release timing issues in CI.
+@pytest.fixture(scope="module")
+def postgres_dest_engine():
+    """Shared Postgres destination engine for all NUL-handling tests."""
+    if not slow_tests_enabled() or not docker_running():
+        pytest.skip("Slow tests or Docker not available")
+
+    port = ports_dest["postgres"]
+    cleanup_db_container_by_port("postgres", port)
+    username = "sa"
+    password = "S3cureP@ssw0rd!23243"
+    engine = get_connection(
+        db_type="postgres",
+        db_name="nul_test_db",
+        user=username,
+        password=password,
+        port=port,
+        force_refresh=True,
+        print_tables=False,
+    )
+    yield engine
+    # Teardown: remove the container after all tests in this module complete
+    try:
+        cleanup_db_container_by_port("postgres", port)
+    except Exception:
+        pass
+
+
 @pytest.mark.slow
 @pytest.mark.skipif(
     not slow_tests_enabled(),
@@ -23,7 +53,7 @@ load_dotenv("tests/.env")
 )
 @pytest.mark.postgres
 @pytest.mark.skipif(not docker_running(), reason="Docker/DB required")
-def test_upload_parquet_sanitizes_nul_postgres(tmp_path):
+def test_upload_parquet_sanitizes_nul_postgres(tmp_path, postgres_dest_engine):
     """
     Verifies that upload_parquet automatically strips NUL (0x00) characters
     from string columns when uploading to PostgreSQL, preventing ValueError.
@@ -44,19 +74,8 @@ def test_upload_parquet_sanitizes_nul_postgres(tmp_path):
     file_path = parquet_dir / "nul_test.parquet"
     df.write_parquet(file_path)
 
-    # 2. Ensure clean containers and spin up destination engine like other tests
-    cleanup_db_container_by_port("postgres", ports_dest["postgres"])
-    username = "sa"
-    password = "S3cureP@ssw0rd!23243"
-    engine = get_connection(
-        db_type="postgres",
-        db_name="nul_dst_pg",
-        user=username,
-        password=password,
-        port=ports_dest["postgres"],
-        force_refresh=True,
-        print_tables=False,
-    )
+    # 2. Use the shared engine from the fixture
+    engine = postgres_dest_engine
 
     # 3. Upload
     schema = "test_nul_handling"
@@ -86,16 +105,10 @@ def test_upload_parquet_sanitizes_nul_postgres(tmp_path):
             assert other_val == "alsobad", f"Expected 'alsobad', got {other_val!r}"
 
     finally:
-        # Cleanup schema and associated Docker containers
+        # Cleanup schema only (container cleanup handled by fixture)
         try:
             with engine.begin() as conn:
                 conn.execute(text(f"DROP SCHEMA IF EXISTS {schema} CASCADE"))
-        except Exception:
-            pass
-
-        # Ensure Postgres test containers + volumes are removed like other tests
-        try:
-            cleanup_db_container_by_port("postgres", ports_dest["postgres"])
         except Exception:
             pass
 
@@ -107,7 +120,7 @@ def test_upload_parquet_sanitizes_nul_postgres(tmp_path):
 )
 @pytest.mark.postgres
 @pytest.mark.skipif(not docker_running(), reason="Docker/DB required")
-def test_direct_transfer_sanitizes_nul_postgres(tmp_path):
+def test_direct_transfer_sanitizes_nul_postgres(tmp_path, postgres_dest_engine):
     """
     Verifies that direct_transfer automatically strips NUL (0x00) characters
     from string values when inserting into PostgreSQL.
@@ -143,19 +156,8 @@ def test_direct_transfer_sanitizes_nul_postgres(tmp_path):
             {"t2": "contains\x00nul", "o2": "also\x00bad"},
         )
 
-    # 2) Start a clean Postgres destination
-    cleanup_db_container_by_port("postgres", ports_dest["postgres"])
-    username = "sa"
-    password = "S3cureP@ssw0rd!23243"
-    dst_engine = get_connection(
-        db_type="postgres",
-        db_name="nul_dst_pg3",
-        user=username,
-        password=password,
-        port=ports_dest["postgres"],
-        force_refresh=True,
-        print_tables=False,
-    )
+    # 2) Use the shared Postgres destination from fixture
+    dst_engine = postgres_dest_engine
 
     schema = "test_nul_handling_direct"
 
@@ -187,10 +189,6 @@ def test_direct_transfer_sanitizes_nul_postgres(tmp_path):
                 conn.execute(text(f"DROP SCHEMA IF EXISTS {schema} CASCADE"))
         except Exception:
             pass
-        try:
-            cleanup_db_container_by_port("postgres", ports_dest["postgres"])
-        except Exception:
-            pass
 
 
 @pytest.mark.slow
@@ -200,7 +198,9 @@ def test_direct_transfer_sanitizes_nul_postgres(tmp_path):
 )
 @pytest.mark.postgres
 @pytest.mark.skipif(not docker_running(), reason="Docker/DB required")
-def test_upload_parquet_without_sanitizing_nul_postgres_raises(tmp_path):
+def test_upload_parquet_without_sanitizing_nul_postgres_raises(
+    tmp_path, postgres_dest_engine
+):
     """Reproduce the original PostgreSQL NUL-byte error with sanitization disabled."""
 
     df = pl.DataFrame(
@@ -215,19 +215,8 @@ def test_upload_parquet_without_sanitizing_nul_postgres_raises(tmp_path):
     file_path = parquet_dir / "nul_test.parquet"
     df.write_parquet(file_path)
 
-    # Fresh destination for this repro as well
-    cleanup_db_container_by_port("postgres", ports_dest["postgres"])
-    username = "sa"
-    password = "S3cureP@ssw0rd!23243"
-    engine = get_connection(
-        db_type="postgres",
-        db_name="nul_dst_pg2",
-        user=username,
-        password=password,
-        port=ports_dest["postgres"],
-        force_refresh=True,
-        print_tables=False,
-    )
+    # Use the shared engine from fixture
+    engine = postgres_dest_engine
     schema = "test_nul_handling_no_sanitize"
 
     # Preflight: ensure the destination Postgres is accepting connections to avoid
@@ -265,10 +254,5 @@ def test_upload_parquet_without_sanitizing_nul_postgres_raises(tmp_path):
         try:
             with engine.begin() as conn:
                 conn.execute(text(f"DROP SCHEMA IF EXISTS {schema} CASCADE"))
-        except Exception:
-            pass
-
-        try:
-            cleanup_db_container_by_port("postgres", ports_dest["postgres"])
         except Exception:
             pass
