@@ -13,7 +13,7 @@ def prepare_queries(cfg) -> Dict[str, Callable]:
 
     Steps:
     - Read SILVER_TABLE_NAME_CASE and SILVER_COLUMN_NAME_CASE
-    - Load queries from staging_to_silver.queries.cssd using the case preferences
+    - Load queries from staging_to_silver.queries.CSSD using the case preferences
     - Parse QUERY_ALLOWLIST / QUERY_DENYLIST and filter accordingly
     - Log skipped queries
     Returns the selected queries dict keyed by destination table name.
@@ -58,7 +58,7 @@ def prepare_queries(cfg) -> Dict[str, Callable]:
     extra_paths = parse_extra_query_paths(raw_paths) if raw_paths.strip() else []
 
     queries = load_queries(
-        package="staging_to_silver.queries.cssd",
+        package="staging_to_silver.queries.CSSD",
         table_name_case=cast(str, table_name_case)
         or "upper",  # default historical behavior
         column_name_case=cast(str | None, column_name_case),

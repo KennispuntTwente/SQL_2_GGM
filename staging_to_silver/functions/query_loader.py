@@ -234,7 +234,7 @@ def _load_queries_cached(
 
 
 def load_queries(
-    package: str = "staging_to_silver.queries.cssd",
+    package: str = "staging_to_silver.queries.CSSD",
     normalize: Optional[str] = None,  # deprecated alias for table_name_case
     table_name_case: Optional[str] = None,
     column_name_case: Optional[str] = None,
