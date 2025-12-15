@@ -64,7 +64,7 @@ services:
       demo-db:
         condition: service_healthy
     working_dir: /app
-    entrypoint: ["/bin/bash", "-lc", "sed -i 's/\r$//' /app/docker/demo/demo_entrypoint.sh && /app/docker/demo/demo_entrypoint.sh"]
+    entrypoint: ["/bin/bash", "-lc", "sed -i 's/\r$//' /app/docker/demo/demo_entrypoint.sh && chmod +x /app/docker/demo/demo_entrypoint.sh && /app/docker/demo/demo_entrypoint.sh"]
     environment:
       IN_DOCKER: "1"
       PYTHONPATH: "/app"
@@ -101,7 +101,7 @@ services:
     profiles:
       - external
     working_dir: /app
-    entrypoint: ["/bin/bash", "-lc", "sed -i 's/\r$//' /app/docker/demo/demo_entrypoint.sh && /app/docker/demo/demo_entrypoint.sh"]
+    entrypoint: ["/bin/bash", "-lc", "sed -i 's/\r$//' /app/docker/demo/demo_entrypoint.sh && chmod +x /app/docker/demo/demo_entrypoint.sh && /app/docker/demo/demo_entrypoint.sh"]
     environment:
       IN_DOCKER: "1"
       PYTHONPATH: "/app"

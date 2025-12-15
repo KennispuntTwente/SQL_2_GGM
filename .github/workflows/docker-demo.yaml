@@ -43,27 +43,34 @@ jobs:
           docker info
           docker compose version || true
 
-      - name: Run docker demo (Docker Compose)
+      - name: Run docker demo (Compose; keep DB running)
         shell: bash
         run: |
           set -euo pipefail
-          DEMO_APP_IMAGE=ggmpilot:demo-ci \
-            docker compose -f docker/demo/docker-compose.yml up --abort-on-container-exit
+          export DEMO_APP_IMAGE=ggmpilot:demo-ci
+          docker compose -f docker/demo/docker-compose.yml up -d demo-db
+          docker compose -f docker/demo/docker-compose.yml run --rm demo-run
 
       - name: Validate demo output (tables exist)
         if: always()
         shell: bash
         run: |
           set -euo pipefail
-          # The runner container exits; the DB container may still exist.
           # Verify a few expected tables in silver schema.
+          docker ps -a
           docker exec ggmpilot-demo-db psql -U postgres -d demo -v ON_ERROR_STOP=1 -c "\
             SELECT table_schema, table_name\
             FROM information_schema.tables\
             WHERE table_schema IN ('source','staging','silver')\
             ORDER BY 1,2;\
           "
-          docker exec ggmpilot-demo-db psql -U postgres -d demo -v ON_ERROR_STOP=1 -c "SELECT count(*) AS client_rows FROM silver.\"CLIENT\";"
+          # Table casing can differ depending on init SQL and naming config.
+          # Prefer unquoted (lowercase) first, then quoted (uppercase).
+          docker exec ggmpilot-demo-db bash -lc "\
+            set -euo pipefail;\
+            psql -U postgres -d demo -v ON_ERROR_STOP=1 -c 'SELECT count(*) AS client_rows FROM silver.client;' \
+              || psql -U postgres -d demo -v ON_ERROR_STOP=1 -c 'SELECT count(*) AS client_rows FROM silver."CLIENT";';\
+          "
 
       - name: Dump logs (on failure)
         if: failure()
