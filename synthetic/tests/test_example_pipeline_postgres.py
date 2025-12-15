@@ -158,7 +158,7 @@ def test_readme_one_liner_pipeline_postgres(tmp_path):
                 "",
                 "[settings]",
                 "SILVER_SCHEMA = silver",
-                "INIT_SQL_FOLDER = ggm_selectie/CSSD",
+                "INIT_SQL_FOLDER = ggm_selectie/cssd",
                 "INIT_SQL_SUFFIX_FILTER = True",
                 "DELETE_EXISTING_SCHEMA = True",
             ]

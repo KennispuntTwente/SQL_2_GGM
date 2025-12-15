@@ -50,7 +50,7 @@ PASSWORD = os.environ.get('PASSWORD', 'SecureP@ss1!24323482349')
 engine = get_connection(db_type="postgres", db_name="ggm", user="sa", password=PASSWORD, port=PORT, force_refresh=False, print_tables=False)
 
 # 4a) Execute the standard GGM DDL scripts into schema "silver"
-execute_sql_folder(engine, "ggm_selectie/CSSD", suffix_filter=True, schema="silver")
+execute_sql_folder(engine, "ggm_selectie/cssd", suffix_filter=True, schema="silver")
 PY
 
 # 5) sql_to_staging: source -> staging schema in DB ggm

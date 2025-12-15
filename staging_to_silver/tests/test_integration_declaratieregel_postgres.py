@@ -78,7 +78,7 @@ def test_declaratieregel_postgres_insertion(tmp_path):
         password="S3cureP@ssw0rd!23243",
         port=5433,
         force_refresh=True,
-        sql_folder="./ggm_selectie/CSSD",
+        sql_folder="./ggm_selectie/cssd",
         sql_suffix_filter=True,
         sql_schema="silver",
         print_tables=False,

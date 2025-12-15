@@ -62,7 +62,7 @@ Het commando doet het volgende:
 3) maakt database `ggm` aan, waarin `staging` en `silver` als schema's worden gebruikt;
 4) draait `sql_to_staging` om data te verplaatsen van database `source` → `ggm` (schema `staging`);
 5) draait `staging_to_silver` om data te verplaatsen van `staging` -> `silver` (beide in database `ggm`).
-Vooraf worden de doeltabellen naar het GGM-model in schema `silver` aangemaakt op basis van DDL's in `ggm_selectie/CSSD/`.
+Vooraf worden de doeltabellen naar het GGM-model in schema `silver` aangemaakt op basis van DDL's in `ggm_selectie/cssd/`.
 
 We gebruiken in dit voorbeeld dus één Postgres‑container (poort 55432) en twee databases (`source`, `ggm`).
 In de praktijk zou `source` op één SQL-server staan (bijv. van de applicatie; Oracle DB) en `ggm` met `staging`/`silver` samen in een andere (datawarehouse,

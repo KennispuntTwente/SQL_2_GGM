@@ -98,7 +98,7 @@ def test_staging_to_silver_postgres(tmp_path):
         password="S3cureP@ssw0rd!23243",
         port=5433,
         force_refresh=True,
-        sql_folder="./ggm_selectie/CSSD",
+        sql_folder="./ggm_selectie/cssd",
         sql_suffix_filter=True,
         sql_schema="silver",
         print_tables=False,
@@ -228,7 +228,7 @@ def test_staging_to_silver_mssql(tmp_path):
         password="S3cureP@ssw0rd!23243",
         port=1434,
         force_refresh=True,
-        sql_folder="./ggm_selectie/CSSD",
+        sql_folder="./ggm_selectie/cssd",
         sql_suffix_filter=True,
         sql_schema=None,  # use default schema (dbo) for sa to avoid ALTER USER
         print_tables=False,
