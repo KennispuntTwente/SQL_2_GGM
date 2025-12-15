@@ -8,7 +8,7 @@ Hierdoor is geen lokale Python installatie nodig om de demo te draaien; enkel Do
 Vanuit de projectroot:
 
 ```bash
-docker compose -f docker/demo/docker-compose.yml up --build --abort-on-container-exit
+docker compose -f docker/demo/docker-compose.yml up --build
 ```
 
 Dit doet het volgende:
@@ -23,13 +23,13 @@ Je kunt de demo met verschillende opties draaien via Docker Compose:
 
 ```bash
 # Volledige demo met meegeleverde Postgres (standaard)
-docker compose -f docker/demo/docker-compose.yml up --build --abort-on-container-exit
+docker compose -f docker/demo/docker-compose.yml up --build
 
 # Start alleen de database (handig voor ontwikkeling)
 docker compose -f docker/demo/docker-compose.yml --profile db-only up -d
 
 # Gebruik externe database (zie hieronder)
-docker compose -f docker/demo/docker-compose.yml --profile external up --build --abort-on-container-exit
+docker compose -f docker/demo/docker-compose.yml --profile external up --build
 
 # Ruim containers en volumes op
 docker compose -f docker/demo/docker-compose.yml down -v
