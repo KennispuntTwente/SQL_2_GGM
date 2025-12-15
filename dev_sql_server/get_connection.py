@@ -29,7 +29,13 @@ from dev_sql_server.preprocess_sql import preprocess_sql
 # Driver‑specific helpers
 # ────────────────────────────────────────────────────────────────────────────────
 def _connect_postgres(cfg: Dict[str, Any]):
-    return psycopg2.connect(**cfg)
+    # psycopg2 can block for a while on connect() if no connect_timeout is set.
+    # In CI (and especially under parallel starts) we want fast retries.
+    cfg2 = dict(cfg)
+    cfg2.setdefault(
+        "connect_timeout", int(os.getenv("GGMPILOT_DB_CONNECT_TIMEOUT", "5"))
+    )
+    return psycopg2.connect(**cfg2)
 
 
 def _connect_oracle(cfg: Dict[str, Any]):
@@ -44,11 +50,17 @@ SQL_SERVER_DRIVER = "ODBC Driver 18 for SQL Server"  # Ensure this is installed
 
 
 def _connect_mssql(cfg: Dict[str, Any]):
+    # Keep individual connection attempts short so _wait_for_db_ready can retry.
+    # ODBC driver 18 defaults to Encrypt=yes; TrustServerCertificate is required
+    # for local/dev containers with self-signed certs.
+    connect_timeout = int(os.getenv("GGMPILOT_DB_CONNECT_TIMEOUT", "5"))
     conn_str = (
         f"DRIVER={{{SQL_SERVER_DRIVER}}};"
         f"SERVER={cfg['host']},{cfg['port']};"
         f"DATABASE={cfg['dbname']};"
         f"UID={cfg['user']};PWD={cfg['password']};"
+        f"Connection Timeout={connect_timeout};"
+        "Encrypt=yes;"
         "TrustServerCertificate=yes;"
     )
     return pyodbc.connect(conn_str)
@@ -500,11 +512,19 @@ def get_connection(
     container_name = container_name or f"{db_type}-docker-db-{port_effective}"
     volume_name = volume_name or f"{container_name}_data"
 
+    user_supplied_max_wait = max_wait_seconds is not None
+
     if max_wait_seconds is None:
+        # Defaults are intentionally conservative for CI stability.
+        # Callers can always override via max_wait_seconds.
         if db_type == "oracle":
             max_wait_seconds = 600
         elif db_type in ("mysql", "mariadb"):
             max_wait_seconds = 180
+        elif db_type == "postgres":
+            max_wait_seconds = 180
+        elif db_type == "mssql":
+            max_wait_seconds = 360
         else:
             max_wait_seconds = 120
 
@@ -527,6 +547,24 @@ def get_connection(
         container_force_refresh,
     )
 
+    # If the container was newly created, DB initialization can take
+    # substantially longer on cold CI runners (esp. MSSQL). Only adjust
+    # when the caller didn't explicitly choose a timeout.
+    if (not user_supplied_max_wait) and was_created:
+        if db_type == "postgres":
+            max_wait_seconds = max(max_wait_seconds, 240)
+        elif db_type == "mssql":
+            max_wait_seconds = max(max_wait_seconds, 480)
+
+    # CI runners can be slower (image pulls, constrained IO). Allow opt-in
+    # override while keeping local runs reasonable.
+    if not user_supplied_max_wait:
+        if os.getenv("CI", "").strip().lower() in {"1", "true", "yes", "on"}:
+            if db_type == "postgres":
+                max_wait_seconds = max(max_wait_seconds, 240)
+            elif db_type == "mssql":
+                max_wait_seconds = max(max_wait_seconds, 480)
+
     # Prepare configs for master and target DB
     # When running inside Docker, localhost refers to the container itself.
     # Prefer host.docker.internal; if not resolvable on Linux, fall back to Docker bridge gateway.
@@ -537,7 +575,9 @@ def get_connection(
         except Exception:
             host_addr = os.getenv("HOST_GATEWAY_IP", "172.17.0.1")
     else:
-        host_addr = "localhost"
+        # Prefer IPv4 loopback to avoid occasional localhost/IPv6 resolution
+        # differences across CI runners.
+        host_addr = "127.0.0.1"
 
     # Choose appropriate admin DB/user per backend
     if db_type == "postgres":
