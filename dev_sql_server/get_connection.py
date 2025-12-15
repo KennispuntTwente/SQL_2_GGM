@@ -176,6 +176,77 @@ def _ensure_container_running(
     # (docker.from_env handles DOCKER_HOST/DOCKER_TLS_VERIFY vars automatically)
     client = docker.from_env()
 
+    def _resolve_bound_host_port(
+        container_obj,
+        requested_host_port: int,
+        *,
+        timeout_seconds: float = 15.0,
+    ) -> int:
+        """Resolve the host port bound to the DB container port.
+
+        Docker can briefly report incomplete port mappings right after `run()`.
+        Under CI load, that can cause us to keep trying the *requested* port even
+        if Docker actually bound a different (random) port. Poll briefly until a
+        binding is visible, and fail fast if the container exits.
+        """
+
+        cport = cfg.get("container_port", cfg["default_port"])
+        key = f"{cport}/tcp"
+        deadline = time.time() + timeout_seconds
+        last_status = None
+
+        while time.time() < deadline:
+            try:
+                container_obj.reload()
+            except Exception:
+                time.sleep(0.5)
+                continue
+
+            last_status = (getattr(container_obj, "status", None) or "").lower()
+            if last_status in {"exited", "dead"}:
+                try:
+                    logs = container_obj.logs(tail=200)
+                    if isinstance(logs, (bytes, bytearray)):
+                        logs = logs.decode("utf-8", errors="replace")
+                except Exception:
+                    logs = None
+                raise RuntimeError(
+                    f"{db_type} container '{container_name}' exited during startup; "
+                    f"requested host port {requested_host_port}. "
+                    + (
+                        f"Last logs:\n{logs}"
+                        if logs
+                        else "(No container logs available)"
+                    )
+                )
+
+            # NetworkSettings is generally the most reliable source once the container is running.
+            ports_map = (
+                container_obj.attrs.get("NetworkSettings", {}).get("Ports", {}) or {}
+            )
+            bd = ports_map.get(key)
+            if bd and isinstance(bd, list) and bd:
+                port_str = bd[0].get("HostPort")
+                if port_str:
+                    return int(port_str)
+
+            # Fallback: HostConfig.PortBindings
+            port_bindings = (
+                container_obj.attrs.get("HostConfig", {}).get("PortBindings", {}) or {}
+            )
+            hb = port_bindings.get(key)
+            if hb and isinstance(hb, list) and hb:
+                port_str = hb[0].get("HostPort")
+                if port_str:
+                    return int(port_str)
+
+            time.sleep(0.5)
+
+        raise TimeoutError(
+            f"Could not resolve bound host port for {db_type} container '{container_name}' "
+            f"within {timeout_seconds:.0f}s (requested {requested_host_port}; last status={last_status})."
+        )
+
     if force_refresh:
         # blow away everything and start from scratch
         try:
@@ -189,6 +260,9 @@ def _ensure_container_running(
             vol.remove(force=True)
         except docker_errors.NotFound:
             pass
+
+    requested_port = port
+    used_random_host_port = False
 
     try:
         container = client.containers.get(container_name)
@@ -295,23 +369,23 @@ def _ensure_container_running(
         except Exception as e:
             if "port is already allocated" in str(e).lower():
                 # Use random host port
+                used_random_host_port = True
                 container = _run_with_port_mapping(None)
             else:
                 raise
         was_created = True
-    # Determine the effective host port by inspecting the container's port bindings
-    try:
-        container.reload()
-        cport = cfg.get("container_port", cfg["default_port"])
-        key = f"{cport}/tcp"
-        bindings = container.attrs.get("NetworkSettings", {}).get("Ports", {}) or {}
-        bd = bindings.get(key)
-        if bd and isinstance(bd, list) and bd:
-            port_str = bd[0].get("HostPort")
-            if port_str:
-                port = int(port_str)
-    except Exception:
-        pass
+
+    # Determine the effective host port by polling Docker until a binding is visible.
+    port = _resolve_bound_host_port(container, requested_port)
+
+    if used_random_host_port:
+        logging.getLogger(__name__).warning(
+            "Port %s was already allocated for %s; using randomly assigned host port %s (container name stays %s).",
+            requested_port,
+            db_type,
+            port,
+            container_name,
+        )
 
     return cfg, port, was_created
 
