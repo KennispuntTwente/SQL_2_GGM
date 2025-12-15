@@ -50,7 +50,7 @@ def test_postgres_staging_table_name_case_preference(tmp_path):
         password="S3cureP@ssw0rd!23243",
         port=5434,
         force_refresh=True,
-        sql_folder="./ggm_selectie/cssd",
+        sql_folder="./ggm_selectie/CSSD",
         sql_suffix_filter=True,
         sql_schema="silver",
         print_tables=False,
