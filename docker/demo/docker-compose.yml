@@ -55,10 +55,10 @@ services:
   # Main demo runner: generates synthetic data, runs both pipelines.
   # This is the default service to run for a fully containerized demo.
   demo-run:
+    image: ${DEMO_APP_IMAGE:-ggmpilot:demo}
     build:
       context: ../..
       dockerfile: Dockerfile
-    image: ggmpilot:demo
     container_name: ggmpilot-demo-run
     depends_on:
       demo-db:
@@ -93,10 +93,10 @@ services:
 
   # Alternative: run demo against external database (no bundled Postgres).
   demo-run-external:
+    image: ${DEMO_APP_IMAGE:-ggmpilot:demo}
     build:
       context: ../..
       dockerfile: Dockerfile
-    image: ggmpilot:demo
     container_name: ggmpilot-demo-run-external
     profiles:
       - external
