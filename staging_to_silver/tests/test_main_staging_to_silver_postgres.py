@@ -1,5 +1,4 @@
 import os
-import subprocess
 import sys
 import runpy
 import io
@@ -10,43 +9,32 @@ from sqlalchemy import text
 from dotenv import load_dotenv
 
 from dev_sql_server.get_connection import get_connection
+from tests.integration_utils import docker_running, slow_tests_enabled, ports_dest
 
 
 load_dotenv("tests/.env")
 
 
-def _docker_running() -> bool:
-    try:
-        res = subprocess.run(
-            ["docker", "info"], capture_output=True, text=True, timeout=5
-        )
-        return res.returncode == 0
-    except Exception:
-        return False
-
-
-def _slow_tests_enabled() -> bool:
-    return os.getenv("RUN_SLOW_TESTS", "0").lower() in {"1", "true", "yes", "on"}
-
-
 @pytest.mark.slow
 @pytest.mark.postgres
 @pytest.mark.skipif(
-    not _slow_tests_enabled(),
+    not slow_tests_enabled(),
     reason="RUN_SLOW_TESTS not enabled; set to 1 to run slow integration tests.",
 )
 @pytest.mark.skipif(
-    not _docker_running(),
+    not docker_running(),
     reason="Docker is not available/running; required for this integration test.",
 )
 def test_main_staging_to_silver_postgres(tmp_path):
+    dst_port = ports_dest["postgres"]
+
     # Start Postgres with silver schema initialized from GGM DDL
     engine = get_connection(
         db_type="postgres",
         db_name="ggm_main_staging_to_silver",
         user="sa",
         password="S3cureP@ssw0rd!23243",
-        port=5434,
+        port=dst_port,
         force_refresh=True,
         sql_folder="./ggm_selectie/cssd",
         sql_suffix_filter=True,
@@ -123,13 +111,13 @@ def test_main_staging_to_silver_postgres(tmp_path):
     # Create config for staging_to_silver.main
     cfg_path = tmp_path / "staging_to_silver.ini"
     cfg_path.write_text(
-        """
+        f"""
 [database-destination]
 DST_DRIVER=postgresql+psycopg2
 DST_USERNAME=sa
 DST_PASSWORD=S3cureP@ssw0rd!23243
 DST_HOST=localhost
-DST_PORT=5434
+DST_PORT={dst_port}
 DST_DB=ggm_main_staging_to_silver
 DST_SCHEMA=staging
 

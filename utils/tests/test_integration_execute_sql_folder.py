@@ -7,19 +7,11 @@ from dev_sql_server.get_connection import get_connection
 from utils.database.execute_sql_folder import execute_sql_folder, drop_schema_objects
 from tests.integration_utils import (
     docker_running,
+    mssql_driver_available,
     slow_tests_enabled,
     cleanup_db_container_by_port,
     cleanup_db_containers,
 )
-
-
-def _mssql_driver_available() -> bool:
-    try:
-        import pyodbc  # noqa
-
-        return any("ODBC Driver 18 for SQL Server" in d for d in pyodbc.drivers())
-    except Exception:
-        return False
 
 
 @pytest.mark.slow
@@ -106,7 +98,7 @@ def test_execute_sql_and_delete_schema_postgres(tmp_path: Path):
     reason="Docker is not available/running; required for this integration test.",
 )
 @pytest.mark.skipif(
-    not _mssql_driver_available(),
+    not mssql_driver_available(),
     reason="ODBC Driver 18 for SQL Server not installed; required for MSSQL test.",
 )
 @pytest.mark.mssql
