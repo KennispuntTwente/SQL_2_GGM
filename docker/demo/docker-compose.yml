@@ -1,13 +1,15 @@
 name: ggmpilot-demo
 
 # Docker Compose configuration for running the full ggmpilot demo in containers.
-# This allows users without a local Python installation to run the complete pipeline.
+# Goal: you can run the complete pipeline with Docker only (no host scripts).
 #
 # Usage:
-#   bash docker/demo/run_demo.sh              # Run full demo with bundled Postgres
-#   bash docker/demo/run_demo.sh --db-only    # Only start the database
+#   docker compose -f docker/demo/docker-compose.yml up --build --abort-on-container-exit
+#   docker compose -f docker/demo/docker-compose.yml down -v
 #
-# Advanced: To connect to your own database, set environment variables or mount a custom config.
+# Optional:
+#   docker compose -f docker/demo/docker-compose.yml --profile db-only up -d
+#   docker compose -f docker/demo/docker-compose.yml --profile external up --build --abort-on-container-exit
 
 services:
   # PostgreSQL database for the demo (source + destination)
@@ -30,18 +32,39 @@ services:
       # Persist data across runs (optional)
       - demo-db-data:/var/lib/postgresql/data
 
-  # Main demo runner: generates synthetic data, runs both pipelines
-  demo-app:
+  # Convenience profile: start only the database (handy for development)
+  demo-db-only:
+    image: postgres:16
+    container_name: ggmpilot-demo-db-only
+    profiles:
+      - db-only
+    environment:
+      POSTGRES_USER: ${DEMO_DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DEMO_DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DEMO_DB_NAME:-demo}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DEMO_DB_USER:-postgres} -d ${DEMO_DB_NAME:-demo}"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+    ports:
+      - "${DEMO_DB_PORT:-55432}:5432"
+    volumes:
+      - demo-db-data:/var/lib/postgresql/data
+
+  # Main demo runner: generates synthetic data, runs both pipelines.
+  # This is the default service to run for a fully containerized demo.
+  demo-run:
+    image: ${DEMO_APP_IMAGE:-ggmpilot:demo}
     build:
       context: ../..
       dockerfile: Dockerfile
-    image: ggmpilot:demo
-    container_name: ggmpilot-demo-app
+    container_name: ggmpilot-demo-run
     depends_on:
       demo-db:
         condition: service_healthy
     working_dir: /app
-    entrypoint: ["/bin/bash", "/app/docker/demo/demo_entrypoint.sh"]
+    entrypoint: ["/bin/bash", "-lc", "sed -i 's/\r$//' /app/docker/demo/demo_entrypoint.sh && chmod +x /app/docker/demo/demo_entrypoint.sh && /app/docker/demo/demo_entrypoint.sh"]
     environment:
       IN_DOCKER: "1"
       PYTHONPATH: "/app"
@@ -68,17 +91,17 @@ services:
       # Optionally mount custom config
       # - ./my-config.ini:/app/docker/demo/config/custom.ini:ro
 
-  # Alternative: Run demo against external database (no demo-db dependency)
-  demo-app-external:
+  # Alternative: run demo against external database (no bundled Postgres).
+  demo-run-external:
+    image: ${DEMO_APP_IMAGE:-ggmpilot:demo}
     build:
       context: ../..
       dockerfile: Dockerfile
-    image: ggmpilot:demo
-    container_name: ggmpilot-demo-app-external
+    container_name: ggmpilot-demo-run-external
     profiles:
       - external
     working_dir: /app
-    entrypoint: ["/bin/bash", "/app/docker/demo/demo_entrypoint.sh"]
+    entrypoint: ["/bin/bash", "-lc", "sed -i 's/\r$//' /app/docker/demo/demo_entrypoint.sh && chmod +x /app/docker/demo/demo_entrypoint.sh && /app/docker/demo/demo_entrypoint.sh"]
     environment:
       IN_DOCKER: "1"
       PYTHONPATH: "/app"
