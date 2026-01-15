@@ -23,6 +23,8 @@ def _collect_entity_options(cfg: Any, entities: List[str]) -> Dict[str, Dict[str
     for es_name in entities:
         es_opts: Dict[str, str] = {}
         # Prefer [odata-export], fallback to legacy [odata-source]
+        # Use silent_if_missing=True and print_value=False to avoid log spam
+        # for these optional per-entity keys
         sel = cast(
             Optional[str],
             get_config_value(
@@ -30,6 +32,8 @@ def _collect_entity_options(cfg: Any, entities: List[str]) -> Dict[str, Dict[str
                 section="odata-export",
                 cfg_parser=cfg,
                 allow_none_if_cast_fails=True,
+                silent_if_missing=True,
+                print_value=False,
             )
             or cast(
                 Optional[str],
@@ -38,6 +42,8 @@ def _collect_entity_options(cfg: Any, entities: List[str]) -> Dict[str, Dict[str
                     section="odata-source",
                     cfg_parser=cfg,
                     allow_none_if_cast_fails=True,
+                    silent_if_missing=True,
+                    print_value=False,
                 ),
             ),
         )
@@ -50,6 +56,8 @@ def _collect_entity_options(cfg: Any, entities: List[str]) -> Dict[str, Dict[str
                 section="odata-export",
                 cfg_parser=cfg,
                 allow_none_if_cast_fails=True,
+                silent_if_missing=True,
+                print_value=False,
             )
             or cast(
                 Optional[str],
@@ -58,6 +66,8 @@ def _collect_entity_options(cfg: Any, entities: List[str]) -> Dict[str, Dict[str
                     section="odata-source",
                     cfg_parser=cfg,
                     allow_none_if_cast_fails=True,
+                    silent_if_missing=True,
+                    print_value=False,
                 ),
             ),
         )
@@ -70,6 +80,8 @@ def _collect_entity_options(cfg: Any, entities: List[str]) -> Dict[str, Dict[str
                 section="odata-export",
                 cfg_parser=cfg,
                 allow_none_if_cast_fails=True,
+                silent_if_missing=True,
+                print_value=False,
             )
             or cast(
                 Optional[str],
@@ -78,6 +90,8 @@ def _collect_entity_options(cfg: Any, entities: List[str]) -> Dict[str, Dict[str
                     section="odata-source",
                     cfg_parser=cfg,
                     allow_none_if_cast_fails=True,
+                    silent_if_missing=True,
+                    print_value=False,
                 ),
             ),
         )
@@ -148,9 +162,9 @@ def main() -> None:
         raw_entities = [e.strip() for e in entities_str.split(",")]
         entities = [e for e in raw_entities if e]
         if not entities or len(entities) != len(raw_entities):
-            raise ValueError(f"ODATA_ENTITY_SETS contains empty items: {entities_str!r}")
-
-
+            raise ValueError(
+                f"ODATA_ENTITY_SETS contains empty items: {entities_str!r}"
+            )
 
     # Avoid table collisions later (destination upload normalizes identifiers in most dialects)
     seen: set[str] = set()

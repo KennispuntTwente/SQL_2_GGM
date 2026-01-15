@@ -105,6 +105,7 @@ def get_config_value(
     *,
     cast_type: Optional[Callable[[Any], Any] | type] = None,
     allow_none_if_cast_fails: bool = False,
+    silent_if_missing: bool = False,
 ):
     """
     Get configuration value from INI file if present and non-empty, otherwise from environment variable
@@ -114,6 +115,10 @@ def get_config_value(
     Interprets boolean-like values as actual booleans.
     Logging: missing INI option or ENV var warnings are emitted at most once per
     key per process to avoid repetitive log spam.
+
+    Args:
+        silent_if_missing: If True, suppress warnings when the key is not found
+            in INI or ENV. Useful for optional per-entity config keys.
     """
     _ensure_console_logging()
 
@@ -137,15 +142,16 @@ def get_config_value(
         )
         ini_value = cfg_parser.get(section, key)
         if ini_value.strip() == "":
-            # Warn only once per (section, key) per process
-            warn_key = (section, key)
-            if warn_key not in _warned_ini_missing:
-                _warned_ini_missing.add(warn_key)
-                logging.getLogger(__name__).warning(
-                    "Warning: %s in section [%s] is not set or empty in INI file (falling back).",
-                    key,
-                    section,
-                )
+            # Warn only once per (section, key) per process, unless silent
+            if not silent_if_missing:
+                warn_key = (section, key)
+                if warn_key not in _warned_ini_missing:
+                    _warned_ini_missing.add(warn_key)
+                    logging.getLogger(__name__).warning(
+                        "Warning: %s in section [%s] is not set or empty in INI file (falling back).",
+                        key,
+                        section,
+                    )
         else:
             source = (f"INI[{section}]", ini_value)
 
@@ -160,13 +166,14 @@ def get_config_value(
             )
         env_value = os.environ.get(env_key)
         if env_value is None or env_value.strip() == "":
-            # Warn only once per env variable name per process
-            if env_key not in _warned_env_keys:
-                _warned_env_keys.add(env_key)
-                logging.getLogger(__name__).warning(
-                    "Warning: %s is not set or is empty in environment variables (falling back).",
-                    env_key,
-                )
+            # Warn only once per env variable name per process, unless silent
+            if not silent_if_missing:
+                if env_key not in _warned_env_keys:
+                    _warned_env_keys.add(env_key)
+                    logging.getLogger(__name__).warning(
+                        "Warning: %s is not set or is empty in environment variables (falling back).",
+                        env_key,
+                    )
         else:
             source = (f"ENV[{env_key}]", env_value)
 
