@@ -1,3 +1,7 @@
+# Integration tests for MSSQL case matching with cross-database sources
+# Focuses on schema qualification and table name resolution across databases
+# This ensures staging_to_silver works correctly with MSSQL cross-database references
+
 import os
 import subprocess
 from pathlib import Path

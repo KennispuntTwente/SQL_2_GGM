@@ -1,3 +1,7 @@
+# Tests for staging_to_silver guard functions and dialect-specific constraints
+# Focuses on should_defer_constraints, validate_upsert_supported, and filter_queries
+# This ensures PostgreSQL-only features are properly gated and query filtering works correctly
+
 from types import SimpleNamespace
 
 import pytest

@@ -1,11 +1,12 @@
+# Smoke tests for synthetic data generation without Docker dependencies
+# Focuses on verifying CSV output structure and required columns for staging queries
+# This ensures the generator produces valid data that can be loaded into staging
+
 from pathlib import Path
 import subprocess
 import sys
 import sqlite3
 import pytest
-
-# Basic smoke test for synthetic data generation and a minimal staging_to_silver run on SQLite.
-# We avoid Docker dependencies here; this ensures the generator keeps required columns present.
 
 
 @pytest.mark.fast

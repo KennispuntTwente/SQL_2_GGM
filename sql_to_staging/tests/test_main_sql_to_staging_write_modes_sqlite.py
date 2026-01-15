@@ -1,3 +1,7 @@
+# Tests for sql_to_staging main write modes (append/truncate) with SQLite
+# Focuses on verifying WRITE_MODE configuration affects row handling correctly
+# This ensures write mode behavior works through the full main entry point
+
 import subprocess
 from pathlib import Path
 import os

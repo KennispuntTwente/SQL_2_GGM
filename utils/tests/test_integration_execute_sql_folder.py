@@ -1,3 +1,7 @@
+# Integration tests for execute_sql_folder against Postgres and MSSQL backends
+# Focuses on running SQL folder scripts with suffix filtering and schema deletion
+# This ensures SQL migration scripts execute correctly on real database containers
+
 from pathlib import Path
 
 import pytest

@@ -1,3 +1,7 @@
+# End-to-end pipeline test reproducing the synthetic/README workflow on Postgres
+# Focuses on generating CSVs, loading to source, and running sql_to_staging + staging_to_silver
+# This ensures the full synthetic data pipeline works correctly with real containers
+
 import os
 import random
 import pathlib

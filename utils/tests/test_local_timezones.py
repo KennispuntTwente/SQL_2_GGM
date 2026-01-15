@@ -1,3 +1,7 @@
+# Tests for local_date_amsterdam timezone conversion helper
+# Focuses on verifying SQL expression compilation for different database backends
+# This ensures correct timezone conversion expressions are generated for Amsterdam local time
+
 from sqlalchemy import Column, DateTime, Integer, MetaData, Table, create_engine, select
 
 from utils.database.local_timezones import local_date_amsterdam

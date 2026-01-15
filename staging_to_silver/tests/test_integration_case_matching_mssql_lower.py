@@ -1,3 +1,7 @@
+# Integration tests for MSSQL strict lowercase column matching
+# Focuses on verifying staging column case preferences with lowercase source columns
+# This ensures staging_to_silver handles lowercase-only staging columns on MSSQL
+
 import os
 import subprocess
 import configparser

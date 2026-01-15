@@ -1,3 +1,7 @@
+# Tests for SRC_TABLES configuration validation in sql_to_staging main
+# Focuses on verifying empty or invalid SRC_TABLES raises clear errors
+# This ensures users get actionable error messages for missing table configuration
+
 import subprocess
 from pathlib import Path
 import os

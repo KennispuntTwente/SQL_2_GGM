@@ -1,6 +1,6 @@
-# Tests for upload_parquet grouping logic
-# Focuses on parsing base names and grouping files by table
-# This ensures correct handling of chunked and non-chunked Parquet files
+# Tests for upload_parquet Parquet file grouping logic
+# Focuses on parsing base table names from *_partNNNN.parquet files and grouping by table
+# This ensures chunked Parquet files are correctly associated with their source table
 
 from pathlib import Path
 

@@ -1,3 +1,7 @@
+# Tests for SQL statement splitting with Oracle PL/SQL blocks
+# Focuses on correctly handling anonymous blocks with slash terminators and preserving END semicolons
+# This ensures Oracle DDL scripts with procedural code are parsed and executed correctly
+
 from utils.database.execute_sql_folder import _split_sql_statements
 
 

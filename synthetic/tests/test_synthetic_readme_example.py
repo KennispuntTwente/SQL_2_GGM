@@ -1,3 +1,7 @@
+# Tests for synthetic data README example script
+# Focuses on running the exact one-liner example from synthetic/README.md
+# This ensures documented examples remain functional and produce expected results
+
 import os
 import pathlib
 import random

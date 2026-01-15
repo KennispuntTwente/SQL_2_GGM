@@ -1,3 +1,7 @@
+# Tests for direct_transfer retry logic on transient database errors
+# Focuses on simulating deadlock/transient failures and verifying automatic retry
+# This ensures direct_transfer recovers gracefully from temporary insert failures
+
 from pathlib import Path
 
 from sqlalchemy import Column, Integer, String, Table, MetaData, create_engine

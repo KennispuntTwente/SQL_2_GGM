@@ -1,3 +1,7 @@
+# Tests for query_loader error logging on broken mapping files
+# Focuses on verifying syntax errors in custom mappings are logged with file path
+# This ensures users get clear error messages when custom query modules fail to import
+
 import logging
 
 from staging_to_silver.functions.query_loader import load_queries

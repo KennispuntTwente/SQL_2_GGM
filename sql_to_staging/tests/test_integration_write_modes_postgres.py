@@ -1,3 +1,7 @@
+# Integration tests for write modes (append/truncate) on Postgres via Docker
+# Focuses on verifying direct_transfer and upload_parquet honor write_mode correctly
+# This ensures row handling semantics work correctly on real Postgres containers
+
 import pytest
 from sqlalchemy import text
 from dotenv import load_dotenv

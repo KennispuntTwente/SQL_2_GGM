@@ -1,3 +1,7 @@
+# Integration tests for MSSQL cross-database staging_to_silver execution
+# Focuses on three-part naming (db.schema.table) and cross-database init SQL execution
+# This ensures staging_to_silver works correctly when source and silver are in different MSSQL databases
+
 from __future__ import annotations
 
 from pathlib import Path

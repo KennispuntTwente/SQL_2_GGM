@@ -1,3 +1,7 @@
+# Integration tests for Postgres case matching between staging and silver
+# Focuses on auto vs strict name matching and column case handling
+# This ensures staging_to_silver correctly resolves case differences on Postgres
+
 import os
 import configparser
 

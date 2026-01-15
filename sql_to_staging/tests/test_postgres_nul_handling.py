@@ -1,3 +1,7 @@
+# Integration tests for Postgres NUL (0x00) character handling in text columns
+# Focuses on automatic stripping of NUL bytes from strings during upload to Postgres
+# This ensures string columns with embedded NULs don't cause ValueError on insert
+
 import pytest
 import polars as pl
 from sqlalchemy import text

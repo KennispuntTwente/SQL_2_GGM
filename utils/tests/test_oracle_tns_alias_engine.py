@@ -1,3 +1,7 @@
+# Tests for Oracle TNS alias configuration in create_sqlalchemy_engine
+# Focuses on verifying correct URL construction for TNS alias vs direct host/port connections
+# This ensures Oracle connections work correctly with both TNS naming and EZConnect-style URLs
+
 from utils.database.create_sqlalchemy_engine import create_sqlalchemy_engine
 
 

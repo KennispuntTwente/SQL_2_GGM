@@ -1,3 +1,7 @@
+# Tests for upload_parquet write modes (append/truncate/replace) with SQLite
+# Focuses on verifying pre-existing rows are handled correctly per write mode
+# This ensures Parquet upload honors write mode semantics without Docker dependencies
+
 from pathlib import Path
 from sqlalchemy import create_engine, text
 

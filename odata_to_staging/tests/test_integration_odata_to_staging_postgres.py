@@ -1,3 +1,7 @@
+# Integration tests for odata_to_staging against Northwind OData service and Postgres
+# Focuses on downloading OData entities and loading them into Postgres staging schema
+# This ensures OData ingestion works end-to-end with real external services
+
 import os
 import sys
 import runpy

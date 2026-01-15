@@ -1,3 +1,7 @@
+# Integration tests for Declaratieregel query mapping on Postgres
+# Focuses on verifying correct data flow from staging to silver for declaration rules
+# This ensures complex GGM queries with joins and transformations work correctly
+
 import os
 import subprocess
 import configparser

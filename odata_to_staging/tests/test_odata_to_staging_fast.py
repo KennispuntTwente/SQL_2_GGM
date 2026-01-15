@@ -1,3 +1,7 @@
+# Fast unit tests for odata_to_staging using mocked OData client responses
+# Focuses on chunked pagination, entity type discovery, and Parquet file generation
+# This ensures core OData download logic works correctly without network dependencies
+
 import os
 import sys
 from types import SimpleNamespace, ModuleType

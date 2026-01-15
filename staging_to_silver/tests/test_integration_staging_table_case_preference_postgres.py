@@ -1,3 +1,7 @@
+# Integration tests for Postgres staging table name case preferences
+# Focuses on choosing between quoted UPPER and unquoted lower table variants
+# This ensures staging_to_silver respects STAGING_TABLE_NAME_CASE configuration
+
 import os
 import subprocess
 import configparser

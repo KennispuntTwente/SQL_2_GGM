@@ -1,3 +1,7 @@
+# Tests for init_sql error handling when engine creation fails
+# Focuses on verifying graceful abort when SILVER_DB engine cannot be created
+# This ensures init_sql raises clear errors instead of proceeding with invalid configuration
+
 import configparser
 import pathlib
 import pytest

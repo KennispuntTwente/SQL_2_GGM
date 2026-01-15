@@ -1,3 +1,7 @@
+# Tests for row_limit parameter in direct_transfer and download_parquet
+# Focuses on limiting copied/exported rows to a subset of source data
+# This ensures row limits work correctly for sampling or testing with large tables
+
 from pathlib import Path
 
 import polars as pl

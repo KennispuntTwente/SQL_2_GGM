@@ -1,3 +1,7 @@
+# Tests for create_sqlalchemy_engine error handling with unsupported drivers
+# Focuses on verifying that unsupported driver names raise clear ValueError exceptions
+# This ensures users get actionable error messages instead of cryptic failures
+
 from utils.database.create_sqlalchemy_engine import create_sqlalchemy_engine
 import pytest
 

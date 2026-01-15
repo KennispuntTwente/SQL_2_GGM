@@ -1,3 +1,7 @@
+# Tests for schema placeholder quoting in execute_sql_folder
+# Focuses on verifying {schema} substitution produces correctly quoted identifiers per dialect
+# This ensures SQL templates with schema placeholders work across Postgres and MSSQL
+
 from pathlib import Path
 from typing import List, cast
 

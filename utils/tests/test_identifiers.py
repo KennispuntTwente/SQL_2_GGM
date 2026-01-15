@@ -1,3 +1,7 @@
+# Tests for SQL identifier quoting helpers across different database dialects
+# Focuses on quote_ident, quote_fqn, and quote_truncate_target for Postgres and MSSQL
+# This ensures correct identifier escaping for reserved words, special characters, and cross-database references
+
 from sqlalchemy.dialects import postgresql, mssql
 
 from utils.database.identifiers import (

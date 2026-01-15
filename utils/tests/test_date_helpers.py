@@ -1,4 +1,6 @@
-"""Tests for utils.database.date_helpers cross-dialect date conversion functions."""
+# Tests for cross-dialect date conversion helper functions
+# Focuses on SQLAlchemy expression compilation for yyyymmdd_to_date, incomplete_date_to_date, etc.
+# This ensures date manipulation expressions compile correctly across different database backends
 
 import pytest
 from sqlalchemy import Column, Date, Integer, MetaData, Table, create_engine, select

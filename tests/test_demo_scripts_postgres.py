@@ -1,3 +1,7 @@
+# Integration tests for demo scripts running against Postgres
+# Focuses on verifying sql_to_staging and staging_to_silver demos create expected tables
+# This ensures demo scripts work end-to-end with real Postgres containers
+
 import subprocess
 import pathlib
 

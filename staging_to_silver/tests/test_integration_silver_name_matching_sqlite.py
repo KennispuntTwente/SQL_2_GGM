@@ -1,3 +1,7 @@
+# Integration tests for silver name matching with SQLite backend
+# Focuses on case-insensitive column matching between query labels and destination columns
+# This ensures SILVER_NAME_MATCHING works correctly for fast local testing with SQLite
+
 from pathlib import Path
 import os
 

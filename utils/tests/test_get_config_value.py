@@ -1,3 +1,7 @@
+# Tests for get_config_value configuration precedence and value interpretation
+# Focuses on INI > ENV > default priority, empty value handling, and type coercion (booleans, lists)
+# This ensures correct configuration resolution from multiple sources with proper fallback behavior
+
 import builtins
 from configparser import ConfigParser
 

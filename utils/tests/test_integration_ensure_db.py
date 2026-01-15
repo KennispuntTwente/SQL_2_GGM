@@ -1,9 +1,6 @@
-"""Docker-backed integration tests for ensure_database_and_schema.
-
-These tests verify that the shared helper can create databases and
-schemas for supported dialects, mirroring how the main pipelines
-behave in CI/CD.
-"""
+# Integration tests for ensure_database_and_schema helper via Docker
+# Focuses on verifying database and schema auto-creation for Postgres, MSSQL, and other dialects
+# This ensures the shared helper works correctly in CI/CD pipelines with real containers
 
 from __future__ import annotations
 

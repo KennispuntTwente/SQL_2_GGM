@@ -1,3 +1,7 @@
+# Tests for sql_to_staging main entry point with SQLite databases
+# Focuses on end-to-end execution via subprocess with INI configuration
+# This ensures the main module works correctly for fast local testing without Docker
+
 import subprocess
 from pathlib import Path
 import os

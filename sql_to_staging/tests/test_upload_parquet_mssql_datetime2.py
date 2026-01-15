@@ -1,6 +1,6 @@
-# Integration test for MSSQL DATETIME2 mapping in upload_parquet
-# Ensures datetime-like columns are created as DATETIME2(6), support pre-1753 dates,
-# and preserve microseconds
+# Integration tests for MSSQL DATETIME2 type mapping in upload_parquet
+# Focuses on verifying datetime columns use DATETIME2(6) to support pre-1753 dates and microseconds
+# This ensures historical dates and high-precision timestamps are preserved on MSSQL
 
 from __future__ import annotations
 

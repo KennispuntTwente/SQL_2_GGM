@@ -1,3 +1,7 @@
+# Tests for schema_qualifier cross-database schema qualification
+# Focuses on MSSQL three-part naming (db.schema) vs Postgres/SQLite behavior
+# This ensures correct schema prefixes are generated for different database backends
+
 from staging_to_silver.functions.schema_qualifier import qualify_schema
 
 

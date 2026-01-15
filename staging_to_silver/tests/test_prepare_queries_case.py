@@ -1,3 +1,7 @@
+# Tests for prepare_queries table and column name case transformation
+# Focuses on verifying SILVER_TABLE_NAME_CASE and SILVER_COLUMN_NAME_CASE settings
+# This ensures query keys and column labels are correctly cased per configuration
+
 import configparser
 
 from staging_to_silver.functions.queries_setup import prepare_queries

@@ -1,3 +1,7 @@
+# Tests for OData pagination when $count is not supported by the service
+# Focuses on client-driven skip/top pagination with mocked OData responses
+# This ensures download_parquet_odata handles services without server-side count
+
 import json
 import os
 from typing import List

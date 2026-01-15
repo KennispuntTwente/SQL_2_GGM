@@ -1,3 +1,7 @@
+# Integration tests for MSSQL case matching with mixed-case source tables
+# Focuses on strict lower preference matching against uppercase staging tables
+# This ensures staging_to_silver correctly handles case mismatches on MSSQL backends
+
 import os
 import subprocess
 import configparser

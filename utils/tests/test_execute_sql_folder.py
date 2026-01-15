@@ -1,3 +1,7 @@
+# Tests for execute_sql_folder with SQLite in-memory database
+# Focuses on suffix filtering behavior and drop_schema_objects cleanup
+# This ensures SQL folder execution honors dialect-specific file suffixes and can reset schema state
+
 from pathlib import Path
 
 from sqlalchemy import create_engine, text

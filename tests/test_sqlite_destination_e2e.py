@@ -1,3 +1,7 @@
+# End-to-end tests for SQLite as both source and destination
+# Focuses on direct_transfer between SQLite databases and staging_to_silver query loading
+# This ensures the full pipeline works correctly with SQLite for fast local testing
+
 from pathlib import Path
 from sqlalchemy import (
     create_engine,

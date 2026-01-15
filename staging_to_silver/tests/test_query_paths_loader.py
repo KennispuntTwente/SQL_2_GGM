@@ -1,3 +1,7 @@
+# Tests for QUERY_PATHS custom query loading and default package override
+# Focuses on loading queries from filesystem paths instead of or alongside built-in package
+# This ensures users can extend or replace default GGM queries with custom mappings
+
 import configparser
 from pathlib import Path
 

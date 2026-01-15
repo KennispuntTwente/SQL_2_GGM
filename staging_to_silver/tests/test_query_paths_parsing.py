@@ -1,3 +1,7 @@
+# Tests for QUERY_PATHS parsing with semicolons, commas, and quoted paths
+# Focuses on handling Windows paths with spaces and various separator combinations
+# This ensures custom query directories can be specified reliably across platforms
+
 from staging_to_silver.functions.queries_setup import parse_extra_query_paths
 
 

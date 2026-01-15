@@ -1,3 +1,7 @@
+# Tests for MSSQL ODBC driver configuration in create_sqlalchemy_engine
+# Focuses on verifying default driver selection, custom driver overrides, and TrustServerCertificate settings
+# This ensures MSSQL connections are correctly configured with proper ODBC parameters
+
 from utils.database.create_sqlalchemy_engine import create_sqlalchemy_engine
 
 

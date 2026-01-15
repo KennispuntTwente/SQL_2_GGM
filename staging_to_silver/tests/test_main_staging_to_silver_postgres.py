@@ -1,3 +1,7 @@
+# Integration tests for staging_to_silver main entry point on Postgres
+# Focuses on end-to-end execution with INI configuration and GGM DDL initialization
+# This ensures the main module correctly loads config, runs queries, and populates silver schema
+
 import os
 import subprocess
 import sys

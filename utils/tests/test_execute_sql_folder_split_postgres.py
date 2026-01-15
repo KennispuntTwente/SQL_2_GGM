@@ -1,3 +1,7 @@
+# Tests for SQL statement splitting with Postgres dollar-quoted blocks
+# Focuses on correctly parsing PL/pgSQL function bodies containing semicolons
+# This ensures multi-statement SQL files with stored procedures are split correctly
+
 from utils.database.execute_sql_folder import _split_sql_statements
 
 
