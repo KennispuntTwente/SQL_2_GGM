@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Any, Dict, Optional, cast
+from typing import Any, Dict, Optional, Union, cast
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -84,6 +84,7 @@ def load_odata_client(cfg: Any):
         ),
     ).upper()
 
+    # Check ODATA_VERIFY_SSL from both sections - use explicit None check to handle False correctly
     verify_ssl_opt = cast(
         Optional[bool],
         get_config_value(
@@ -93,17 +94,58 @@ def load_odata_client(cfg: Any):
             default=None,
             cast_type=bool,
             allow_none_if_cast_fails=True,
+        ),
+    )
+    if verify_ssl_opt is None:
+        verify_ssl_opt = cast(
+            Optional[bool],
+            get_config_value(
+                "ODATA_VERIFY_SSL",
+                section="odata-source",
+                cfg_parser=cfg,
+                default=None,
+                cast_type=bool,
+                allow_none_if_cast_fails=True,
+            ),
+        )
+    verify_ssl_bool = True if verify_ssl_opt is None else verify_ssl_opt
+
+    # Optional: custom CA certificate bundle for SSL verification
+    # If set, this path is used instead of the default system CA bundle
+    ssl_ca_cert_path = cast(
+        Optional[str],
+        get_config_value(
+            "ODATA_SSL_CA_CERT",
+            section="odata-connection",
+            cfg_parser=cfg,
+            default=None,
+            cast_type=str,
+            allow_none_if_cast_fails=True,
         )
         or get_config_value(
-            "ODATA_VERIFY_SSL",
+            "ODATA_SSL_CA_CERT",
             section="odata-source",
             cfg_parser=cfg,
             default=None,
-            cast_type=bool,
+            cast_type=str,
             allow_none_if_cast_fails=True,
         ),
     )
-    verify_ssl = True if verify_ssl_opt is None else verify_ssl_opt
+
+    # Determine verify_ssl: can be True, False, or a path to a CA bundle
+    if ssl_ca_cert_path:
+        import os
+
+        if not os.path.isfile(ssl_ca_cert_path):
+            raise ValueError(
+                f"ODATA_SSL_CA_CERT path does not exist or is not a file: {ssl_ca_cert_path}"
+            )
+        verify_ssl: Union[bool, str] = ssl_ca_cert_path
+        log.info(
+            "Using custom CA certificate for SSL verification: %s", ssl_ca_cert_path
+        )
+    else:
+        verify_ssl = verify_ssl_bool
 
     headers_raw = cast(
         Optional[str],
@@ -277,6 +319,57 @@ def load_odata_client(cfg: Any):
             ),
         )
 
+        # HelloMe can have its own SSL CA cert, separate from OData
+        hellome_ssl_ca_cert = cast(
+            Optional[str],
+            get_config_value(
+                "HELLOME_SSL_CA_CERT",
+                section="hellome-auth",
+                cfg_parser=cfg,
+                default=None,
+                cast_type=str,
+                allow_none_if_cast_fails=True,
+            ),
+        )
+
+        # HelloMe can have its own SSL verify setting, separate from OData
+        hellome_verify_ssl_opt = cast(
+            Optional[bool],
+            get_config_value(
+                "HELLOME_VERIFY_SSL",
+                section="hellome-auth",
+                cfg_parser=cfg,
+                default=None,
+                cast_type=bool,
+                allow_none_if_cast_fails=True,
+            ),
+        )
+
+        # Determine verify_ssl for HelloMe:
+        # 1. If HELLOME_SSL_CA_CERT is set, use the cert path
+        # 2. Else if HELLOME_VERIFY_SSL is explicitly set, use that
+        # 3. Else fall back to ODATA_SSL_CA_CERT / ODATA_VERIFY_SSL
+        if hellome_ssl_ca_cert:
+            import os
+
+            if not os.path.isfile(hellome_ssl_ca_cert):
+                raise ValueError(
+                    f"HELLOME_SSL_CA_CERT path does not exist or is not a file: {hellome_ssl_ca_cert}"
+                )
+            hellome_verify_ssl: Union[bool, str] = hellome_ssl_ca_cert
+            log.info(
+                "Using custom CA certificate for HelloMe authentication: %s",
+                hellome_ssl_ca_cert,
+            )
+        elif hellome_verify_ssl_opt is not None:
+            hellome_verify_ssl = hellome_verify_ssl_opt
+            if not hellome_verify_ssl:
+                log.warning(
+                    "SSL verification disabled for HelloMe endpoint (HELLOME_VERIFY_SSL=false)"
+                )
+        else:
+            hellome_verify_ssl = verify_ssl
+
         token_manager = HelloMeTokenManager(
             token_endpoint=token_endpoint,
             client_id=client_id,
@@ -284,7 +377,7 @@ def load_odata_client(cfg: Any):
             username=hm_username,
             password=hm_password,
             refresh_margin_seconds=refresh_margin,
-            verify_ssl=verify_ssl,
+            verify_ssl=hellome_verify_ssl,
         )
 
         # Wrap session to inject fresh token on each request
@@ -308,8 +401,9 @@ def load_odata_client(cfg: Any):
     elif auth_mode == "NONE":
         pass
     else:
-        raise ValueError("ODATA_AUTH_MODE must be one of: NONE | BASIC | BEARER | HELLOME")
-
+        raise ValueError(
+            "ODATA_AUTH_MODE must be one of: NONE | BASIC | BEARER | HELLOME"
+        )
 
     log.info("Initialized requests.Session for OData (verify_ssl=%s)", verify_ssl)
 

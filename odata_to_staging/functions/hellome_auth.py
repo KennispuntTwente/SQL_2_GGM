@@ -19,7 +19,7 @@ Usage:
 import logging
 import threading
 import time
-from typing import Optional
+from typing import Optional, Union
 
 import requests
 
@@ -44,7 +44,8 @@ class HelloMeTokenManager:
         username: Resource owner username
         password: Resource owner password
         refresh_margin_seconds: Seconds before expiry to trigger refresh (default: 300)
-        verify_ssl: Whether to verify SSL certificates (default: True)
+        verify_ssl: Whether to verify SSL certificates (True), disable verification (False),
+                    or path to a custom CA bundle (.pem file) for self-signed certificates
         request_timeout: HTTP request timeout in seconds (default: 30)
     """
 
@@ -56,7 +57,7 @@ class HelloMeTokenManager:
         username: str,
         password: str,
         refresh_margin_seconds: int = 300,
-        verify_ssl: bool = True,
+        verify_ssl: Union[bool, str] = True,
         request_timeout: float = 30.0,
     ) -> None:
         self.token_endpoint = token_endpoint
@@ -142,11 +143,20 @@ class HelloMeTokenManager:
                 timeout=self.request_timeout,
             )
         except requests.ConnectionError as e:
+            error_str = str(e)
             log.error(
                 "Failed to connect to HelloMe token endpoint %s: %s",
                 self.token_endpoint,
                 e,
             )
+            # Detect SSL certificate errors and provide specific guidance
+            if "SSL" in error_str or "certificate" in error_str.lower():
+                raise HelloMeAuthError(
+                    f"SSL certificate verification failed for HelloMe token endpoint '{self.token_endpoint}': {e}. "
+                    "Options to fix this:\n"
+                    "  1. Set HELLOME_SSL_CA_CERT = /path/to/ca-bundle.pem in [hellome-auth] to use a custom CA certificate\n"
+                    "  2. Set HELLOME_VERIFY_SSL = false in [hellome-auth] to disable verification (not recommended for production)"
+                ) from e
             raise HelloMeAuthError(
                 f"Failed to connect to HelloMe token endpoint '{self.token_endpoint}': {e}. "
                 "Check network connectivity and verify HELLOME_TOKEN_ENDPOINT is correct."

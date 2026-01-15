@@ -110,6 +110,21 @@ class TestHelloMeTokenManager:
             assert "Failed to connect" in str(exc_info.value)
             assert "HELLOME_TOKEN_ENDPOINT" in str(exc_info.value)
 
+    def test_fetch_token_ssl_certificate_error(self, token_manager):
+        """SSL certificate errors provide specific guidance about HELLOME_SSL_CA_CERT."""
+        ssl_error = requests.ConnectionError(
+            "HTTPSConnectionPool(host='test.hellome.center', port=443): "
+            "Max retries exceeded (Caused by SSLError(SSLCertVerificationError(1, "
+            "'[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: self-signed certificate')))"
+        )
+        with patch("requests.post", side_effect=ssl_error):
+            with pytest.raises(HelloMeAuthError) as exc_info:
+                token_manager.get_token()
+
+            assert "SSL" in str(exc_info.value)
+            assert "HELLOME_SSL_CA_CERT" in str(exc_info.value)
+            assert "HELLOME_VERIFY_SSL" in str(exc_info.value)
+
     def test_fetch_token_timeout_error(self, token_manager):
         """Timeout errors are wrapped with clear message."""
         with patch(
@@ -481,3 +496,357 @@ class TestHelloMeEngineLoaderIntegration:
             request_calls[0]["kwargs"]["headers"]["Authorization"]
             == "Bearer dynamic_test_token"
         )
+
+
+class TestHelloMeSSLConfiguration:
+    """Tests for HelloMe-specific SSL configuration options."""
+
+    def _install_fake_pyodata(self, monkeypatch):
+        """Install fake pyodata module for testing."""
+        from odata_to_staging.tests.test_odata_to_staging_fast import (
+            _install_fake_pyodata,
+        )
+
+        return _install_fake_pyodata(monkeypatch)
+
+    def _make_cfg(self, odata_connection=None, hellome_auth=None):
+        """Create a config object with given sections."""
+
+        class _Cfg:
+            def __init__(self, mapping):
+                self._mapping = mapping
+
+            def has_option(self, section, option):
+                return option in self._mapping.get(section, {})
+
+            def get(self, section, option, fallback=None):
+                return self._mapping.get(section, {}).get(option, fallback)
+
+        base_odata = {
+            "ODATA_URL": "https://example.test/odata",
+            "ODATA_AUTH_MODE": "HELLOME",
+        }
+        base_hellome = {
+            "HELLOME_TOKEN_ENDPOINT": "https://test.hellome.center/token",
+            "HELLOME_CLIENT_ID": "client",
+            "HELLOME_CLIENT_SECRET": "secret",
+            "HELLOME_USERNAME": "user",
+            "HELLOME_PASSWORD": "pass",
+        }
+        if odata_connection:
+            base_odata.update(odata_connection)
+        if hellome_auth:
+            base_hellome.update(hellome_auth)
+
+        return _Cfg(
+            {
+                "odata-connection": base_odata,
+                "hellome-auth": base_hellome,
+            }
+        )
+
+    def test_hellome_verify_ssl_false_disables_verification(
+        self, monkeypatch, tmp_path
+    ):
+        """HELLOME_VERIFY_SSL=false should disable SSL verification for HelloMe."""
+        self._install_fake_pyodata(monkeypatch)
+
+        # Track what verify_ssl value is passed to HelloMeTokenManager
+        captured_kwargs = {}
+
+        class MockTokenManager:
+            def __init__(self, **kwargs):
+                captured_kwargs.update(kwargs)
+
+            def get_token(self):
+                return "test_token"
+
+        # Patch in the hellome_auth module where it's imported from
+        monkeypatch.setattr(
+            "odata_to_staging.functions.hellome_auth.HelloMeTokenManager",
+            MockTokenManager,
+        )
+
+        class _Session:
+            def __init__(self):
+                self.verify = True
+                self.headers = {}
+
+            def request(self, method, url, **kwargs):
+                return MagicMock()
+
+        monkeypatch.setattr(
+            "odata_to_staging.functions.engine_loaders.requests.Session",
+            lambda: _Session(),
+        )
+
+        cfg = self._make_cfg(
+            odata_connection={"ODATA_VERIFY_SSL": "true"},  # OData has SSL enabled
+            hellome_auth={"HELLOME_VERIFY_SSL": "false"},  # But HelloMe disables it
+        )
+
+        from odata_to_staging.functions.engine_loaders import load_odata_client
+
+        load_odata_client(cfg)
+
+        # HelloMe should have verify_ssl=False
+        assert captured_kwargs.get("verify_ssl") is False
+
+    def test_hellome_verify_ssl_true_enables_verification(self, monkeypatch):
+        """HELLOME_VERIFY_SSL=true should enable SSL verification for HelloMe."""
+        self._install_fake_pyodata(monkeypatch)
+
+        captured_kwargs = {}
+
+        class MockTokenManager:
+            def __init__(self, **kwargs):
+                captured_kwargs.update(kwargs)
+
+            def get_token(self):
+                return "test_token"
+
+        monkeypatch.setattr(
+            "odata_to_staging.functions.hellome_auth.HelloMeTokenManager",
+            MockTokenManager,
+        )
+
+        class _Session:
+            def __init__(self):
+                self.verify = True
+                self.headers = {}
+
+            def request(self, method, url, **kwargs):
+                return MagicMock()
+
+        monkeypatch.setattr(
+            "odata_to_staging.functions.engine_loaders.requests.Session",
+            lambda: _Session(),
+        )
+
+        cfg = self._make_cfg(
+            odata_connection={"ODATA_VERIFY_SSL": "false"},  # OData has SSL disabled
+            hellome_auth={"HELLOME_VERIFY_SSL": "true"},  # But HelloMe enables it
+        )
+
+        from odata_to_staging.functions.engine_loaders import load_odata_client
+
+        load_odata_client(cfg)
+
+        # HelloMe should have verify_ssl=True
+        assert captured_kwargs.get("verify_ssl") is True
+
+    def test_hellome_ssl_ca_cert_used_when_set(self, monkeypatch, tmp_path):
+        """HELLOME_SSL_CA_CERT should be used for HelloMe SSL verification."""
+        self._install_fake_pyodata(monkeypatch)
+
+        # Create a temporary cert file
+        cert_file = tmp_path / "hellome_ca.pem"
+        cert_file.write_text(
+            "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----"
+        )
+
+        captured_kwargs = {}
+
+        class MockTokenManager:
+            def __init__(self, **kwargs):
+                captured_kwargs.update(kwargs)
+
+            def get_token(self):
+                return "test_token"
+
+        monkeypatch.setattr(
+            "odata_to_staging.functions.hellome_auth.HelloMeTokenManager",
+            MockTokenManager,
+        )
+
+        class _Session:
+            def __init__(self):
+                self.verify = True
+                self.headers = {}
+
+            def request(self, method, url, **kwargs):
+                return MagicMock()
+
+        monkeypatch.setattr(
+            "odata_to_staging.functions.engine_loaders.requests.Session",
+            lambda: _Session(),
+        )
+
+        cfg = self._make_cfg(
+            hellome_auth={"HELLOME_SSL_CA_CERT": str(cert_file)},
+        )
+
+        from odata_to_staging.functions.engine_loaders import load_odata_client
+
+        load_odata_client(cfg)
+
+        # HelloMe should have verify_ssl set to the cert path
+        assert captured_kwargs.get("verify_ssl") == str(cert_file)
+
+    def test_hellome_ssl_ca_cert_takes_priority_over_verify_ssl(
+        self, monkeypatch, tmp_path
+    ):
+        """HELLOME_SSL_CA_CERT should take priority over HELLOME_VERIFY_SSL."""
+        self._install_fake_pyodata(monkeypatch)
+
+        # Create a temporary cert file
+        cert_file = tmp_path / "hellome_ca.pem"
+        cert_file.write_text(
+            "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----"
+        )
+
+        captured_kwargs = {}
+
+        class MockTokenManager:
+            def __init__(self, **kwargs):
+                captured_kwargs.update(kwargs)
+
+            def get_token(self):
+                return "test_token"
+
+        monkeypatch.setattr(
+            "odata_to_staging.functions.hellome_auth.HelloMeTokenManager",
+            MockTokenManager,
+        )
+
+        class _Session:
+            def __init__(self):
+                self.verify = True
+                self.headers = {}
+
+            def request(self, method, url, **kwargs):
+                return MagicMock()
+
+        monkeypatch.setattr(
+            "odata_to_staging.functions.engine_loaders.requests.Session",
+            lambda: _Session(),
+        )
+
+        cfg = self._make_cfg(
+            hellome_auth={
+                "HELLOME_VERIFY_SSL": "false",  # This should be ignored
+                "HELLOME_SSL_CA_CERT": str(cert_file),  # This takes priority
+            },
+        )
+
+        from odata_to_staging.functions.engine_loaders import load_odata_client
+
+        load_odata_client(cfg)
+
+        # HelloMe should have verify_ssl set to the cert path, not False
+        assert captured_kwargs.get("verify_ssl") == str(cert_file)
+
+    def test_hellome_falls_back_to_odata_ssl_settings(self, monkeypatch, tmp_path):
+        """Without HELLOME SSL settings, should fall back to ODATA settings."""
+        self._install_fake_pyodata(monkeypatch)
+
+        # Create a temporary cert file for OData
+        cert_file = tmp_path / "odata_ca.pem"
+        cert_file.write_text(
+            "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----"
+        )
+
+        captured_kwargs = {}
+
+        class MockTokenManager:
+            def __init__(self, **kwargs):
+                captured_kwargs.update(kwargs)
+
+            def get_token(self):
+                return "test_token"
+
+        monkeypatch.setattr(
+            "odata_to_staging.functions.hellome_auth.HelloMeTokenManager",
+            MockTokenManager,
+        )
+
+        class _Session:
+            def __init__(self):
+                self.verify = True
+                self.headers = {}
+
+            def request(self, method, url, **kwargs):
+                return MagicMock()
+
+        monkeypatch.setattr(
+            "odata_to_staging.functions.engine_loaders.requests.Session",
+            lambda: _Session(),
+        )
+
+        cfg = self._make_cfg(
+            odata_connection={"ODATA_SSL_CA_CERT": str(cert_file)},
+            # No HELLOME SSL settings - should fall back to ODATA
+        )
+
+        from odata_to_staging.functions.engine_loaders import load_odata_client
+
+        load_odata_client(cfg)
+
+        # HelloMe should have verify_ssl set to the ODATA cert path
+        assert captured_kwargs.get("verify_ssl") == str(cert_file)
+
+    def test_hellome_falls_back_to_odata_verify_ssl_false(self, monkeypatch):
+        """Without HELLOME SSL settings, should fall back to ODATA_VERIFY_SSL=false."""
+        self._install_fake_pyodata(monkeypatch)
+
+        captured_kwargs = {}
+
+        class MockTokenManager:
+            def __init__(self, **kwargs):
+                captured_kwargs.update(kwargs)
+
+            def get_token(self):
+                return "test_token"
+
+        monkeypatch.setattr(
+            "odata_to_staging.functions.hellome_auth.HelloMeTokenManager",
+            MockTokenManager,
+        )
+
+        class _Session:
+            def __init__(self):
+                self.verify = True
+                self.headers = {}
+
+            def request(self, method, url, **kwargs):
+                return MagicMock()
+
+        monkeypatch.setattr(
+            "odata_to_staging.functions.engine_loaders.requests.Session",
+            lambda: _Session(),
+        )
+
+        cfg = self._make_cfg(
+            odata_connection={"ODATA_VERIFY_SSL": "false"},
+            # No HELLOME SSL settings - should fall back to ODATA
+        )
+
+        from odata_to_staging.functions.engine_loaders import load_odata_client
+
+        load_odata_client(cfg)
+
+        # HelloMe should have verify_ssl=False (from ODATA)
+        assert captured_kwargs.get("verify_ssl") is False
+
+    def test_hellome_ssl_ca_cert_nonexistent_file_raises(self, monkeypatch):
+        """HELLOME_SSL_CA_CERT with nonexistent file should raise ValueError."""
+        self._install_fake_pyodata(monkeypatch)
+
+        class _Session:
+            def __init__(self):
+                self.verify = True
+                self.headers = {}
+
+        monkeypatch.setattr(
+            "odata_to_staging.functions.engine_loaders.requests.Session",
+            lambda: _Session(),
+        )
+
+        cfg = self._make_cfg(
+            hellome_auth={"HELLOME_SSL_CA_CERT": "/nonexistent/path/to/cert.pem"},
+        )
+
+        from odata_to_staging.functions.engine_loaders import load_odata_client
+
+        with pytest.raises(ValueError, match="HELLOME_SSL_CA_CERT.*does not exist"):
+            load_odata_client(cfg)

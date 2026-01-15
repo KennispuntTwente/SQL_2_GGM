@@ -9,7 +9,11 @@ ODATA_PASSWORD =
 ODATA_BEARER_TOKEN = 
 # Optionele HTTP-headers in JSON-formaat, bijv. {"X-CSRF-Token":"Fetch"}
 ODATA_HEADERS =         
-ODATA_VERIFY_SSL = true 
+ODATA_VERIFY_SSL = true
+# (Optioneel) Pad naar een custom CA-certificaatbundel (.pem) voor SSL-verificatie
+# Gebruik dit als de server een self-signed certificaat of interne CA gebruikt
+# Voorbeeld: ODATA_SSL_CA_CERT = C:\certs\hellome_ca.pem
+ODATA_SSL_CA_CERT = 
 
 [hellome-auth]
 # Instellingen voor HelloMe OAuth2 authenticatie (alleen nodig als ODATA_AUTH_MODE = HELLOME)
@@ -23,6 +27,14 @@ HELLOME_USERNAME =
 HELLOME_PASSWORD = 
 # (Optioneel) Aantal seconden voor verlopen token om proactief te refreshen (default: 300 = 5 min)
 HELLOME_REFRESH_MARGIN_SECONDS = 300
+# (Optioneel) SSL-verificatie voor HelloMe endpoint (default: gebruikt ODATA_VERIFY_SSL)
+# Zet op false om SSL-verificatie uit te schakelen (niet aanbevolen voor productie)
+HELLOME_VERIFY_SSL = 
+# (Optioneel) Pad naar een custom CA-certificaatbundel (.pem) voor SSL-verificatie van HelloMe endpoint
+# Gebruik dit als de HelloMe server een self-signed certificaat of interne CA gebruikt
+# Als niet ingesteld, wordt ODATA_SSL_CA_CERT / ODATA_VERIFY_SSL gebruikt
+# Voorbeeld: HELLOME_SSL_CA_CERT = C:\certs\hellome_ca.pem
+HELLOME_SSL_CA_CERT =
 
 [odata-export]
 # Comma-separated lijst van OData EntitySets om te exporteren, bijv.: Employees,Orders
