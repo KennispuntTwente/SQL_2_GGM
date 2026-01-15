@@ -223,10 +223,93 @@ def load_odata_client(cfg: Any):
         )
         token = _require_non_empty_secret(token_opt, "ODATA_BEARER_TOKEN", auth_mode)
         sess.headers.setdefault("Authorization", f"Bearer {token}")
+    elif auth_mode == "HELLOME":
+        # Dynamic token retrieval from HelloMe identity provider
+        from odata_to_staging.functions.hellome_auth import HelloMeTokenManager
+
+        def _get_hellome_cfg(key: str, print_val: bool = True) -> Optional[str]:
+            return cast(
+                Optional[str],
+                get_config_value(
+                    key,
+                    section="hellome-auth",
+                    cfg_parser=cfg,
+                    print_value=print_val,
+                    default=None,
+                    cast_type=str,
+                    allow_none_if_cast_fails=True,
+                ),
+            )
+
+        token_endpoint = _require_non_empty_secret(
+            _get_hellome_cfg("HELLOME_TOKEN_ENDPOINT"),
+            "HELLOME_TOKEN_ENDPOINT",
+            auth_mode,
+        )
+        client_id = _require_non_empty_secret(
+            _get_hellome_cfg("HELLOME_CLIENT_ID"),
+            "HELLOME_CLIENT_ID",
+            auth_mode,
+        )
+        client_secret = _require_non_empty_secret(
+            _get_hellome_cfg("HELLOME_CLIENT_SECRET", print_val=False),
+            "HELLOME_CLIENT_SECRET",
+            auth_mode,
+        )
+        hm_username = _require_non_empty_secret(
+            _get_hellome_cfg("HELLOME_USERNAME"),
+            "HELLOME_USERNAME",
+            auth_mode,
+        )
+        hm_password = _require_non_empty_secret(
+            _get_hellome_cfg("HELLOME_PASSWORD", print_val=False),
+            "HELLOME_PASSWORD",
+            auth_mode,
+        )
+        refresh_margin = cast(
+            int,
+            get_config_value(
+                "HELLOME_REFRESH_MARGIN_SECONDS",
+                section="hellome-auth",
+                cfg_parser=cfg,
+                default=300,
+                cast_type=int,
+            ),
+        )
+
+        token_manager = HelloMeTokenManager(
+            token_endpoint=token_endpoint,
+            client_id=client_id,
+            client_secret=client_secret,
+            username=hm_username,
+            password=hm_password,
+            refresh_margin_seconds=refresh_margin,
+            verify_ssl=verify_ssl,
+        )
+
+        # Wrap session to inject fresh token on each request
+        _orig_request = sess.request
+
+        def _request_with_hellome_token(method, url, **kwargs):
+            token = token_manager.get_token()
+            headers = kwargs.get("headers", {})
+            if headers is None:
+                headers = {}
+            headers["Authorization"] = f"Bearer {token}"
+            kwargs["headers"] = headers
+            return _orig_request(method, url, **kwargs)
+
+        sess.request = _request_with_hellome_token  # type: ignore[method-assign]
+        log.info(
+            "Configured HelloMe dynamic token auth (endpoint=%s, refresh_margin=%ds)",
+            token_endpoint,
+            refresh_margin,
+        )
     elif auth_mode == "NONE":
         pass
     else:
-        raise ValueError("ODATA_AUTH_MODE must be one of: NONE | BASIC | BEARER")
+        raise ValueError("ODATA_AUTH_MODE must be one of: NONE | BASIC | BEARER | HELLOME")
+
 
     log.info("Initialized requests.Session for OData (verify_ssl=%s)", verify_ssl)
 
@@ -410,11 +493,12 @@ def load_odata_client(cfg: Any):
     # Ensure a default timeout is applied to all requests made by this session.
     # pyodata calls requests via this session without a timeout by default.
     if hasattr(sess, "request"):
-        _orig_request = sess.request  # type: ignore[attr-defined]
+        # Use a different variable name to avoid shadowing _orig_request from HELLOME wrapper
+        _timeout_orig_request = sess.request  # type: ignore[attr-defined]
 
         def _request_with_timeout(method, url, **kwargs):  # type: ignore[no-redef]
             kwargs.setdefault("timeout", timeout_seconds)
-            return _orig_request(method, url, **kwargs)
+            return _timeout_orig_request(method, url, **kwargs)
 
         try:
             sess.request = _request_with_timeout  # type: ignore[assignment]

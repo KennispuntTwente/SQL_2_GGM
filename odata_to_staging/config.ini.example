@@ -1,7 +1,8 @@
 [odata-connection]
 # Basis-URL van het OData endpoint (bijv.: https://example.com/odata.svc/)
 ODATA_URL = 
-# Authenticatie-modus (één van: NONE | BASIC | BEARER)
+# Authenticatie-modus (één van: NONE | BASIC | BEARER | HELLOME)
+# HELLOME: Dynamisch token ophalen via HelloMe identity provider (zie [hellome-auth])
 ODATA_AUTH_MODE = NONE
 ODATA_USERNAME = 
 ODATA_PASSWORD = 
@@ -9,6 +10,19 @@ ODATA_BEARER_TOKEN =
 # Optionele HTTP-headers in JSON-formaat, bijv. {"X-CSRF-Token":"Fetch"}
 ODATA_HEADERS =         
 ODATA_VERIFY_SSL = true 
+
+[hellome-auth]
+# Instellingen voor HelloMe OAuth2 authenticatie (alleen nodig als ODATA_AUTH_MODE = HELLOME)
+# Token endpoint URL, bijv.: https://<tenantcode>.hellome.center/runtime/oauth2/token.idp
+HELLOME_TOKEN_ENDPOINT = 
+# OAuth2 client credentials (worden verstrekt door Centric tijdens onboarding)
+HELLOME_CLIENT_ID = 
+HELLOME_CLIENT_SECRET = 
+# Gebruikersnaam en wachtwoord voor resource owner password grant
+HELLOME_USERNAME = 
+HELLOME_PASSWORD = 
+# (Optioneel) Aantal seconden voor verlopen token om proactief te refreshen (default: 300 = 5 min)
+HELLOME_REFRESH_MARGIN_SECONDS = 300
 
 [odata-export]
 # Comma-separated lijst van OData EntitySets om te exporteren, bijv.: Employees,Orders
