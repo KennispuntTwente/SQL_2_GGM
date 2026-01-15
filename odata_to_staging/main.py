@@ -130,6 +130,20 @@ def main() -> None:
     if not entities or len(entities) != len(raw_entities):
         raise ValueError(f"ODATA_ENTITY_SETS contains empty items: {entities_str!r}")
 
+    # Avoid table collisions later (destination upload normalizes identifiers in most dialects)
+    seen: set[str] = set()
+    dupes: list[str] = []
+    for e in entities:
+        k = e.casefold()
+        if k in seen:
+            dupes.append(e)
+        seen.add(k)
+    if dupes:
+        raise ValueError(
+            "ODATA_ENTITY_SETS contains duplicate EntitySet names (case-insensitive): "
+            + ", ".join(dupes)
+        )
+
     page_size = cast(
         int,
         get_config_value(

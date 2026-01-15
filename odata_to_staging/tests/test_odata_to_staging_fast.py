@@ -4,6 +4,10 @@
 
 import os
 import sys
+import base64
+import uuid
+from datetime import time, timedelta
+from decimal import Decimal
 from types import SimpleNamespace, ModuleType
 
 import polars as pl
@@ -187,11 +191,76 @@ def test_download_simple_two_rows(tmp_path):
 
     assert manifest is not None
     files = sorted([f for f in os.listdir(out_dir) if f.endswith(".parquet")])
-    assert files == ["Employees_part0000.parquet"]
+    # Filename now includes run_id: Employees_{run_id}_part0000.parquet
+    assert len(files) == 1
+    assert files[0].startswith("Employees_") and files[0].endswith("_part0000.parquet")
     # Basic sanity: file is a valid parquet we can read
     df = pl.read_parquet(out_dir / files[0])
     assert set(df.columns) == {"ID", "Name"}
     assert len(df) == 2
+
+
+def test_download_scalar_conversions_decimal_uuid_time_bytes(tmp_path):
+    et = _EntityType(
+        keys=["ID"], props=["Name", "Amount", "Guid", "At", "Delta", "Blob"]
+    )
+    schema = _Schema({"Employees": et})
+
+    class E:
+        def __init__(self, ID, Name, Amount, Guid, At, Delta, Blob):
+            self.ID = ID
+            self.Name = Name
+            self.Amount = Amount
+            self.Guid = Guid
+            self.At = At
+            self.Delta = Delta
+            self.Blob = Blob
+
+    guid = uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+    blob = b"\x00\xff"
+    page1 = [
+        E(
+            1,
+            "Alice",
+            Decimal("1.23"),
+            guid,
+            time(12, 34, 56),
+            timedelta(seconds=5),
+            blob,
+        )
+    ]
+    es_proxy = SimpleNamespace(
+        Employees=_EntitySetProxy("Employees", pages=[page1], total=1)
+    )
+    client = _Client(schema=schema, entity_sets=es_proxy)
+
+    out_dir = tmp_path / "data"
+    manifest = download_parquet_odata(
+        client,
+        entity_sets=["Employees"],
+        output_dir=str(out_dir),
+        page_size=10,
+        log_row_count=False,
+    )
+
+    assert manifest is not None
+    files = sorted([f for f in os.listdir(out_dir) if f.endswith(".parquet")])
+    # Filename now includes run_id: Employees_{run_id}_part0000.parquet
+    assert len(files) == 1
+    assert files[0].startswith("Employees_") and files[0].endswith("_part0000.parquet")
+
+    df = pl.read_parquet(out_dir / files[0])
+    assert df.to_dicts() == [
+        {
+            "ID": 1,
+            "Name": "Alice",
+            "Amount": "1.23",
+            "Guid": str(guid),
+            "At": "12:34:56",
+            "Delta": 5.0,
+            "Blob": base64.b64encode(blob).decode("ascii"),
+        }
+    ]
 
 
 def test_download_manifest_write_failure_raises(tmp_path, monkeypatch):

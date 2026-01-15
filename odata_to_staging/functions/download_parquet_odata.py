@@ -2,8 +2,10 @@ import os
 import json
 import uuid
 import logging
-from datetime import date, datetime
-from typing import Any, Dict, Iterable, List, Optional
+import base64
+from datetime import date, datetime, time, timedelta
+from decimal import Decimal
+from typing import Any, Dict, Iterable, List, Optional, Set
 
 import polars as pl
 
@@ -11,31 +13,150 @@ import polars as pl
 logger = logging.getLogger("odata_to_staging.download_parquet")
 
 
-def _to_scalar(value: Any) -> Any:
-    """Best-effort conversion of OData values to parquet-friendly scalars.
+def _to_jsonable(value: Any) -> Any:
+    """Convert OData values to JSON-serializable Python types (no string wrapping).
 
-    - Keep None, bool, int, float, str
-    - Keep datetime/date
-    - For other objects (proxies, nested collections), return None
+    This is the inner conversion layer that produces Python dicts/lists
+    for nested structures, which can then be JSON-serialized by the caller.
     """
     if value is None:
         return None
     if isinstance(value, (bool, int, float, str)):
         return value
+    if isinstance(value, Decimal):
+        return str(value)
+    if isinstance(value, uuid.UUID):
+        return str(value)
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, time):
+        return value.isoformat()
+    if isinstance(value, timedelta):
+        return value.total_seconds()
+    if isinstance(value, (bytes, bytearray)):
+        return base64.b64encode(bytes(value)).decode("ascii")
+    # Handle lists
+    if isinstance(value, (list, tuple)):
+        return [_to_jsonable(item) for item in value]
+    # Handle dicts
+    if isinstance(value, dict):
+        return {k: _to_jsonable(v) for k, v in value.items()}
+    # Handle OData entity proxies or other objects with attributes
+    try:
+        if hasattr(value, "__dict__"):
+            obj_dict = {
+                k: _to_jsonable(v)
+                for k, v in value.__dict__.items()
+                if not k.startswith("_")
+            }
+            if obj_dict:
+                return obj_dict
+    except Exception:
+        pass
+    # Last resort: try str() representation
+    try:
+        return str(value)
+    except Exception:
+        return None
+
+
+def _to_scalar(value: Any) -> Any:
+    """Best-effort conversion of OData values to parquet-friendly scalars.
+
+    - Keep None, bool, int, float, str
+    - Keep Decimal, UUID (as str)
+    - Keep datetime/date
+    - Convert time to ISO string
+    - Convert timedelta to total seconds (float)
+    - Convert bytes to base64 string
+    - Lists/dicts (from $expand or complex types) are JSON-serialized to string
+    - Other objects (proxies, entity refs) are recursively converted to dict then JSON
+    """
+    if value is None:
+        return None
+    if isinstance(value, (bool, int, float, str)):
+        return value
+    if isinstance(value, Decimal):
+        # Polars inference from python Decimals can be backend/version-dependent;
+        # store as string to avoid silent NULLs or object dtypes in parquet.
+        return str(value)
+    if isinstance(value, uuid.UUID):
+        return str(value)
     if isinstance(value, (datetime, date)):
         return value
-    # Fallback: not a scalar we handle
-    return None
+    if isinstance(value, time):
+        return value.isoformat()
+    if isinstance(value, timedelta):
+        return value.total_seconds()
+    if isinstance(value, (bytes, bytearray)):
+        return base64.b64encode(bytes(value)).decode("ascii")
+    # Handle lists (e.g., from $expand navigation properties returning collections)
+    if isinstance(value, (list, tuple)):
+        jsonable = [_to_jsonable(item) for item in value]
+        return json.dumps(jsonable, default=str, ensure_ascii=False)
+    # Handle dicts (e.g., complex types or already-converted entities)
+    if isinstance(value, dict):
+        jsonable = {k: _to_jsonable(v) for k, v in value.items()}
+        return json.dumps(jsonable, default=str, ensure_ascii=False)
+    # Handle OData entity proxies or other objects with attributes
+    # Try to extract a dict representation for nested/expanded entities
+    try:
+        # pyodata entity proxies often have a way to get properties
+        if hasattr(value, "__dict__"):
+            # Filter out private/internal attributes
+            obj_dict = {
+                k: _to_jsonable(v)
+                for k, v in value.__dict__.items()
+                if not k.startswith("_")
+            }
+            if obj_dict:
+                return json.dumps(obj_dict, default=str, ensure_ascii=False)
+    except Exception:
+        pass
+    # Last resort: try str() representation
+    try:
+        return str(value)
+    except Exception:
+        return None
 
 
-def _entity_properties(client: Any, entity_set_name: str) -> List[str]:
-    """Return ordered list of properties of an entity set (keys first)."""
+def _entity_properties(
+    client: Any, entity_set_name: str, select: Optional[str] = None
+) -> List[str]:
+    """Return ordered list of properties of an entity set (keys first).
+
+    If select is provided (comma-separated property names from $select),
+    only those properties are returned, preserving the order in select.
+    Keys are always included first if present in select.
+    """
     es = client.schema.entity_set(entity_set_name)
     typ = es.entity_type
     keys = [kp.name for kp in typ.key_proprties]
     # Remaining props (excluding keys) in schema order
     members = [mp.name for mp in typ.proprties() if mp.name not in set(keys)]
-    return keys + members
+    all_props = keys + members
+
+    if select:
+        # Parse $select: comma-separated, may contain navigation paths like "Orders/OrderID"
+        # We only take top-level property names (before any slash)
+        selected_raw = [s.strip() for s in select.split(",") if s.strip()]
+        selected_names: List[str] = []
+        for s in selected_raw:
+            # Handle navigation paths: "Orders/OrderID" -> "Orders"
+            prop_name = s.split("/")[0].strip()
+            if prop_name and prop_name not in selected_names:
+                selected_names.append(prop_name)
+
+        # Keep only those that exist in the entity type
+        all_props_set = set(all_props)
+        filtered = [p for p in selected_names if p in all_props_set]
+
+        # Ensure keys come first (only those that are in the selection)
+        keys_in_select = [k for k in keys if k in filtered]
+        others_in_select = [p for p in filtered if p not in keys]
+        return keys_in_select + others_in_select
+
+    return all_props
 
 
 def _rows_from_entities(
@@ -96,16 +217,33 @@ def download_parquet_odata(
                 f"EntitySet {es_name!r} not found in OData service metadata"
             ) from e
 
-        props = _entity_properties(client, es_name)
+        # When $select is provided, only include selected columns in output
+        # This avoids all-NULL columns for unselected properties
+        props = _entity_properties(client, es_name, select=select)
+
+        # If $expand is specified, add navigation property names to props
+        # so that expanded data is captured in the output
+        if expand:
+            expand_props = [
+                e.strip().split("/")[0] for e in expand.split(",") if e.strip()
+            ]
+            for ep in expand_props:
+                if ep not in props:
+                    props.append(ep)
 
         # Optional total count (may be expensive on some services)
         total_count: Optional[int] = None
         if log_row_count:
-            try:
-                total_count = es_proxy.get_entities().count().execute()
-                logger.info("   (total rows: %s)", f"{total_count:,}")
-            except Exception as e:
-                logger.warning("Failed to COUNT() for %s: %s", es_name, e)
+            if row_limit and row_limit > 0:
+                logger.info(
+                    "   (row count skipped; ROW_LIMIT is set – using limit instead)"
+                )
+            else:
+                try:
+                    total_count = es_proxy.get_entities().count().execute()
+                    logger.info("   (total rows: %s)", f"{total_count:,}")
+                except Exception as e:
+                    logger.warning("Failed to COUNT() for %s: %s", es_name, e)
         else:
             logger.info("   (row count skipped; LOG_ROW_COUNT disabled)")
 
@@ -139,12 +277,42 @@ def download_parquet_odata(
                 req = req.filter(filter_txt)
 
             if next_url:
-                # Continue server-driven paging
+                # Continue server-driven paging (e.g., $skiptoken)
+                # Some OData services use server-driven paging exclusively
                 try:
                     req = es_proxy.get_entities().next_url(next_url)  # type: ignore[attr-defined]
-                except Exception:
+                    # Re-apply options to the next_url request in case they're not preserved
+                    if select:
+                        try:
+                            req = req.select(select)
+                        except Exception:
+                            pass
+                    if expand:
+                        try:
+                            req = req.expand(expand)
+                        except Exception:
+                            pass
+                    if filter_txt:
+                        try:
+                            req = req.filter(filter_txt)
+                        except Exception:
+                            pass
+                except Exception as e:
                     # Fallback to skip/top if next_url API not supported
-                    req = es_proxy.get_entities().skip(skip).top(top_n)
+                    logger.debug(
+                        "Server-driven paging (next_url) not supported for %s, "
+                        "falling back to $skip/$top: %s",
+                        es_name,
+                        e,
+                    )
+                    req = es_proxy.get_entities()
+                    if select:
+                        req = req.select(select)
+                    if expand:
+                        req = req.expand(expand)
+                    if filter_txt:
+                        req = req.filter(filter_txt)
+                    req = req.skip(skip).top(top_n)
                     next_url = None
             else:
                 req = req.skip(skip).top(top_n)
@@ -169,7 +337,10 @@ def download_parquet_odata(
                 break
 
             df = pl.DataFrame(rows)
-            out_path = os.path.join(output_dir, f"{es_name}_part{part_idx:04d}.parquet")
+            # Include run_id in filename to avoid conflicts with concurrent runs
+            out_path = os.path.join(
+                output_dir, f"{es_name}_{run_id}_part{part_idx:04d}.parquet"
+            )
             df.write_parquet(out_path)
             created_files.append(os.path.basename(out_path))
             wrote_any = True

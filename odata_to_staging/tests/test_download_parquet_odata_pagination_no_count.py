@@ -119,7 +119,10 @@ def test_download_parquet_odata_pagination_no_count(tmp_path):
         manifest = json.load(f)
 
     # Expect 3 part files, not truncated at 1
-    part_files = [f for f in manifest["files"] if f.startswith("Items_part")]
+    # Filename pattern is now Items_{run_id}_part####.parquet
+    part_files = [
+        f for f in manifest["files"] if f.startswith("Items_") and "_part" in f
+    ]
     assert len(part_files) == 3, f"Expected 3 part files, got {part_files}"
 
     # Read back total rows to confirm all 5 exported
