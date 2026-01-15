@@ -101,6 +101,10 @@ def main() -> None:
 
     setup_logging(app_name="odata_to_staging", cfg_parsers=[cfg])
     log = logging.getLogger("odata_to_staging")
+
+    # Load OData client first (needed for both explicit and auto-discovery modes)
+    client = load_odata_client(cfg)
+
     # Read source entity sets
     entities_str = cast(
         Optional[str],
@@ -120,15 +124,33 @@ def main() -> None:
             ),
         ),
     )
-    if not entities_str:
-        raise ValueError(
-            "ODATA_ENTITY_SETS must be a comma-separated list of EntitySet names"
-        )
 
-    raw_entities = [e.strip() for e in entities_str.split(",")]
-    entities = [e for e in raw_entities if e]
-    if not entities or len(entities) != len(raw_entities):
-        raise ValueError(f"ODATA_ENTITY_SETS contains empty items: {entities_str!r}")
+    # Check for wildcard (*) to auto-discover all entity sets
+    if entities_str and entities_str.strip() == "*":
+        from odata_to_staging.functions.get_all_entity_sets import get_all_entity_sets
+
+        entities = get_all_entity_sets(client)
+        if not entities:
+            raise ValueError(
+                "ODATA_ENTITY_SETS=* was specified but no EntitySets found in schema"
+            )
+        log.info(
+            "Auto-discovered %d EntitySets from OData schema: %s",
+            len(entities),
+            ", ".join(entities),
+        )
+    elif not entities_str:
+        raise ValueError(
+            "ODATA_ENTITY_SETS must be a comma-separated list of EntitySet names "
+            "(or '*' to export all)"
+        )
+    else:
+        raw_entities = [e.strip() for e in entities_str.split(",")]
+        entities = [e for e in raw_entities if e]
+        if not entities or len(entities) != len(raw_entities):
+            raise ValueError(f"ODATA_ENTITY_SETS contains empty items: {entities_str!r}")
+
+
 
     # Avoid table collisions later (destination upload normalizes identifiers in most dialects)
     seen: set[str] = set()
@@ -177,7 +199,6 @@ def main() -> None:
         ),
     )
 
-    client = load_odata_client(cfg)
     per_entity = _collect_entity_options(cfg, entities)
 
     manifest_path = download_parquet_odata(
