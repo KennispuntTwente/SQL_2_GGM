@@ -300,7 +300,12 @@ class TestODataV4ClientIntegration:
         query_response.raise_for_status = MagicMock()
         query_response.json.return_value = {
             "value": [
-                {"ProductID": 1, "ProductName": "Chai", "UnitPrice": 18.0, "UnitsInStock": 39},
+                {
+                    "ProductID": 1,
+                    "ProductName": "Chai",
+                    "UnitPrice": 18.0,
+                    "UnitsInStock": 39,
+                },
             ],
         }
 
@@ -325,3 +330,165 @@ class TestODataV4ClientIntegration:
         )
         assert len(entities) == 1
         assert entities[0]["ProductName"] == "Chai"
+
+
+class TestExtractTypeName:
+    """Tests for _extract_type_name helper method."""
+
+    def test_standard_namespace_type(self):
+        """Standard Namespace.TypeName format."""
+        assert ODataV4Client._extract_type_name("NorthwindModel.Product") == "Product"
+        assert ODataV4Client._extract_type_name("My.Namespace.Category") == "Category"
+
+    def test_simple_type_name(self):
+        """Simple type name without namespace."""
+        assert ODataV4Client._extract_type_name("Product") == "Product"
+
+    def test_empty_string(self):
+        """Empty string returns empty string."""
+        assert ODataV4Client._extract_type_name("") == ""
+
+    def test_bracket_quoted_schema_and_type(self):
+        """Bracket-quoted identifiers like [Schema].[Type]."""
+        assert ODataV4Client._extract_type_name("[APICUST].[METADATA]") == "[METADATA]"
+        assert ODataV4Client._extract_type_name("[Schema].[MyTable]") == "[MyTable]"
+
+    def test_namespace_with_bracket_type(self):
+        """Namespace.with.[BracketType] format."""
+        assert ODataV4Client._extract_type_name("Namespace.[METADATA]") == "[METADATA]"
+        assert ODataV4Client._extract_type_name("My.Namespace.[Type]") == "[Type]"
+
+    def test_single_bracket_quoted_type(self):
+        """Single bracket-quoted type name."""
+        assert ODataV4Client._extract_type_name("[METADATA]") == "[METADATA]"
+
+
+class TestCaseInsensitiveEntitySetLookup:
+    """Tests for case-insensitive EntitySet lookup."""
+
+    @pytest.fixture
+    def client_with_case_mismatch(self):
+        """Create client where config uses different case than metadata."""
+        session = MagicMock(spec=requests.Session)
+        client = ODataV4Client("https://example.com/odata/v4", session)
+        # EntitySet name in metadata is "Products" but we'll query with "products"
+        client._schema = {
+            "entity_sets": [
+                {"name": "Products", "entity_type": "Product"},
+            ],
+            "entity_types": {
+                "Product": {
+                    "name": "Product",
+                    "keys": ["ProductID"],
+                    "properties": [
+                        {"name": "ProductID", "type": "Edm.Int32", "nullable": False},
+                        {"name": "ProductName", "type": "Edm.String", "nullable": True},
+                    ],
+                    "navigation_properties": [],
+                },
+            },
+        }
+        return client
+
+    def test_exact_case_match(self, client_with_case_mismatch):
+        """Exact case match should work."""
+        props = client_with_case_mismatch.get_entity_properties("Products")
+        assert "ProductID" in props
+
+    def test_lowercase_entity_set_name(self, client_with_case_mismatch):
+        """Lowercase entity set name should match via case-insensitive fallback."""
+        props = client_with_case_mismatch.get_entity_properties("products")
+        assert "ProductID" in props
+
+    def test_uppercase_entity_set_name(self, client_with_case_mismatch):
+        """Uppercase entity set name should match via case-insensitive fallback."""
+        props = client_with_case_mismatch.get_entity_properties("PRODUCTS")
+        assert "ProductID" in props
+
+    def test_mixed_case_entity_set_name(self, client_with_case_mismatch):
+        """Mixed case entity set name should match via case-insensitive fallback."""
+        props = client_with_case_mismatch.get_entity_properties("pRoDuCtS")
+        assert "ProductID" in props
+
+    def test_find_entity_set_returns_correct_dict(self, client_with_case_mismatch):
+        """_find_entity_set should return the actual entity set dict."""
+        es = client_with_case_mismatch._find_entity_set("products")
+        assert es is not None
+        assert es["name"] == "Products"  # Original case preserved
+        assert es["entity_type"] == "Product"
+
+    def test_find_entity_set_not_found_returns_none(self, client_with_case_mismatch):
+        """_find_entity_set returns None for non-existent entity set."""
+        es = client_with_case_mismatch._find_entity_set("NonExistent")
+        assert es is None
+
+
+class TestSpecialCharacterEntitySetNames:
+    """Tests for entity set names with special characters."""
+
+    @pytest.fixture
+    def client_with_special_names(self):
+        """Create client with bracket-quoted entity set names."""
+        session = MagicMock(spec=requests.Session)
+        client = ODataV4Client("https://example.com/odata/v4", session)
+        client._schema = {
+            "entity_sets": [
+                {"name": "[APICUST].[METADATA]", "entity_type": "[METADATA]"},
+            ],
+            "entity_types": {
+                "[METADATA]": {
+                    "name": "[METADATA]",
+                    "keys": ["ID"],
+                    "properties": [
+                        {"name": "ID", "type": "Edm.Int32", "nullable": False},
+                        {"name": "Name", "type": "Edm.String", "nullable": True},
+                    ],
+                    "navigation_properties": [],
+                },
+            },
+        }
+        return client, session
+
+    def test_get_entity_properties_with_brackets(self, client_with_special_names):
+        """Should handle entity set names with brackets."""
+        client, _ = client_with_special_names
+        props = client.get_entity_properties("[APICUST].[METADATA]")
+        assert "ID" in props
+        assert "Name" in props
+
+    def test_query_entities_url_encodes_brackets(self, client_with_special_names):
+        """Query should URL-encode brackets in entity set name."""
+        client, session = client_with_special_names
+
+        # Mock successful response
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.raise_for_status = MagicMock()
+        mock_response.json.return_value = {"value": [{"ID": 1, "Name": "Test"}]}
+        session.get.return_value = mock_response
+
+        client.query_entities("[APICUST].[METADATA]", top=10)
+
+        # Check the URL was encoded - brackets should be %5B and %5D
+        call_url = session.get.call_args[0][0]
+        assert "%5B" in call_url  # Encoded [
+        assert "%5D" in call_url  # Encoded ]
+        assert "[APICUST]" not in call_url  # Raw brackets should not appear
+
+    def test_count_entities_url_encodes_brackets(self, client_with_special_names):
+        """Count should URL-encode brackets in entity set name."""
+        client, session = client_with_special_names
+
+        # Mock successful response
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = "42"
+        mock_response.raise_for_status = MagicMock()
+        session.get.return_value = mock_response
+
+        client.count_entities("[APICUST].[METADATA]")
+
+        # Check the URL was encoded
+        call_url = session.get.call_args[0][0]
+        assert "%5B" in call_url  # Encoded [
+        assert "%5D" in call_url  # Encoded ]

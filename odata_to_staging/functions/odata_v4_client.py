@@ -85,6 +85,59 @@ class ODataV4Client:
         self.session = session
         self._schema: Optional[Dict[str, Any]] = None
 
+    @staticmethod
+    def _extract_type_name(full_type: str) -> str:
+        """Extract type name from fully-qualified OData type.
+
+        Handles standard "Namespace.TypeName" format as well as bracket-quoted
+        identifiers like "[Schema].[Type]" or "Namespace.[Type]".
+
+        Args:
+            full_type: Fully-qualified type string (e.g., "Namespace.Type")
+
+        Returns:
+            Just the type name portion
+        """
+        if not full_type:
+            return ""
+
+        # Handle bracket-quoted identifiers: "[Schema].[Type]" or "Namespace.[Type]"
+        # Split on dots that are NOT inside brackets
+        # Strategy: find the last segment, which may be bracket-quoted
+        if "[" in full_type:
+            # Find the last '[' that starts a bracket-quoted identifier
+            last_bracket = full_type.rfind("[")
+            if last_bracket > 0:
+                # Check if there's a dot before the bracket
+                if full_type[last_bracket - 1] == ".":
+                    return full_type[last_bracket:]
+            # If the whole thing starts with '[', it might be the full type name
+            if full_type.startswith("["):
+                # Look for pattern like "[Schema].[Type]" - return last bracketed segment
+                parts = []
+                current = ""
+                in_bracket = False
+                for char in full_type:
+                    if char == "[":
+                        in_bracket = True
+                        current += char
+                    elif char == "]":
+                        in_bracket = False
+                        current += char
+                    elif char == "." and not in_bracket:
+                        if current:
+                            parts.append(current)
+                        current = ""
+                    else:
+                        current += char
+                if current:
+                    parts.append(current)
+                if parts:
+                    return parts[-1]
+
+        # Standard case: "Namespace.TypeName" -> "TypeName"
+        return full_type.split(".")[-1]
+
     @property
     def schema(self) -> Dict[str, Any]:
         """Lazily load and return schema from $metadata."""
@@ -291,7 +344,8 @@ class ODataV4Client:
 
             if name:
                 # EntityType format may be "Namespace.TypeName", extract just the type name
-                type_name = entity_type.split(".")[-1] if entity_type else ""
+                # Handle bracket-quoted identifiers like "[Schema].[Type]" or "Namespace.[Type]"
+                type_name = self._extract_type_name(entity_type) if entity_type else ""
                 entity_sets.append(
                     {
                         "name": name,
@@ -309,6 +363,34 @@ class ODataV4Client:
         """
         return [es["name"] for es in self.schema["entity_sets"]]
 
+    def _find_entity_set(self, entity_set_name: str) -> Optional[Dict[str, str]]:
+        """Find EntitySet by name with case-insensitive fallback.
+
+        Args:
+            entity_set_name: Name of the EntitySet to find
+
+        Returns:
+            EntitySet dict if found, None otherwise
+        """
+        # Try exact match first
+        entity_set = next(
+            (es for es in self.schema["entity_sets"] if es["name"] == entity_set_name),
+            None,
+        )
+        if entity_set:
+            return entity_set
+
+        # Try case-insensitive match
+        entity_set = next(
+            (
+                es
+                for es in self.schema["entity_sets"]
+                if es["name"].lower() == entity_set_name.lower()
+            ),
+            None,
+        )
+        return entity_set
+
     def get_entity_properties(
         self, entity_set_name: str, select: Optional[str] = None
     ) -> List[str]:
@@ -324,26 +406,13 @@ class ODataV4Client:
         Raises:
             ValueError: If EntitySet or EntityType not found in schema
         """
-        # Find the entity type for this set
-        entity_set = next(
-            (es for es in self.schema["entity_sets"] if es["name"] == entity_set_name),
-            None,
-        )
+        # Find the entity set with case-insensitive fallback
+        entity_set = self._find_entity_set(entity_set_name)
         if not entity_set:
             raise ValueError(f"EntitySet {entity_set_name!r} not found in schema")
 
         type_name = entity_set["entity_type"]
-        entity_type = self.schema["entity_types"].get(type_name)
-        if not entity_type:
-            # Try case-insensitive match
-            entity_type = next(
-                (
-                    et
-                    for name, et in self.schema["entity_types"].items()
-                    if name.lower() == type_name.lower()
-                ),
-                None,
-            )
+        entity_type = self._find_entity_type(type_name)
         if not entity_type:
             raise ValueError(
                 f"EntityType {type_name!r} not found in schema for EntitySet {entity_set_name!r}"
@@ -365,6 +434,31 @@ class ODataV4Client:
 
         return ordered
 
+    def _find_entity_type(self, type_name: str) -> Optional[Dict[str, Any]]:
+        """Find EntityType by name with case-insensitive fallback.
+
+        Args:
+            type_name: Name of the EntityType to find
+
+        Returns:
+            EntityType dict if found, None otherwise
+        """
+        # Try exact match first
+        entity_type = self.schema["entity_types"].get(type_name)
+        if entity_type:
+            return entity_type
+
+        # Try case-insensitive match
+        entity_type = next(
+            (
+                et
+                for name, et in self.schema["entity_types"].items()
+                if name.lower() == type_name.lower()
+            ),
+            None,
+        )
+        return entity_type
+
     def get_navigation_properties(self, entity_set_name: str) -> List[str]:
         """Return list of navigation property names for an EntitySet.
 
@@ -377,25 +471,12 @@ class ODataV4Client:
         Raises:
             ValueError: If EntitySet or EntityType not found in schema
         """
-        entity_set = next(
-            (es for es in self.schema["entity_sets"] if es["name"] == entity_set_name),
-            None,
-        )
+        entity_set = self._find_entity_set(entity_set_name)
         if not entity_set:
             raise ValueError(f"EntitySet {entity_set_name!r} not found in schema")
 
         type_name = entity_set["entity_type"]
-        entity_type = self.schema["entity_types"].get(type_name)
-        if not entity_type:
-            # Try case-insensitive match
-            entity_type = next(
-                (
-                    et
-                    for name, et in self.schema["entity_types"].items()
-                    if name.lower() == type_name.lower()
-                ),
-                None,
-            )
+        entity_type = self._find_entity_type(type_name)
         if not entity_type:
             raise ValueError(
                 f"EntityType {type_name!r} not found in schema for EntitySet {entity_set_name!r}"
@@ -429,7 +510,9 @@ class ODataV4Client:
         Raises:
             ODataV4Error: If the query fails
         """
-        base_url = f"{self.service_url}/{entity_set_name}"
+        # URL-encode entity set name to handle special characters like brackets
+        encoded_name = quote(entity_set_name, safe="")
+        base_url = f"{self.service_url}/{encoded_name}"
 
         params: Dict[str, str] = {}
         if select:
@@ -528,7 +611,9 @@ class ODataV4Client:
         Returns:
             Count of entities, or None if count not supported by service
         """
-        base_url = f"{self.service_url}/{entity_set_name}/$count"
+        # URL-encode entity set name to handle special characters like brackets
+        encoded_name = quote(entity_set_name, safe="")
+        base_url = f"{self.service_url}/{encoded_name}/$count"
 
         params: Dict[str, str] = {}
         if filter_expr:

@@ -125,7 +125,9 @@ def _is_v4_client(client: Any) -> bool:
 
     OData v4 client has query_entities method, pyodata v2 uses entity_sets attribute.
     """
-    return hasattr(client, "query_entities") and hasattr(client, "get_entity_properties")
+    return hasattr(client, "query_entities") and hasattr(
+        client, "get_entity_properties"
+    )
 
 
 def _entity_properties(
@@ -203,7 +205,6 @@ def _rows_from_dicts(
     return rows
 
 
-
 def download_parquet_odata(
     client: Any,
     *,
@@ -240,7 +241,6 @@ def download_parquet_odata(
     else:
         logger.info("Using OData v2 client (pyodata) for data download")
 
-
     for es_name in entity_sets:
         logger.info("📥 Dumping OData EntitySet: %s", es_name)
 
@@ -252,10 +252,12 @@ def download_parquet_odata(
 
         # Validate entity set exists and get properties based on client type
         if is_v4:
-            # OData v4 client
+            # OData v4 client - uses case-insensitive lookup internally
             try:
                 entity_set_names = client.get_entity_set_names()
-                if es_name not in entity_set_names:
+                # Case-insensitive check for validation message
+                entity_set_names_lower = {n.lower(): n for n in entity_set_names}
+                if es_name.lower() not in entity_set_names_lower:
                     raise ValueError(
                         f"EntitySet {es_name!r} not found in OData service metadata. "
                         f"Available: {entity_set_names}"
@@ -267,7 +269,7 @@ def download_parquet_odata(
                     f"EntitySet {es_name!r} not found in OData service metadata"
                 ) from e
 
-            # Get properties from v4 client
+            # Get properties from v4 client (handles case-insensitive matching internally)
             props = client.get_entity_properties(es_name, select=select)
         else:
             # OData v2 client (pyodata)
@@ -301,7 +303,9 @@ def download_parquet_odata(
             else:
                 try:
                     if is_v4:
-                        total_count = client.count_entities(es_name, filter_expr=filter_txt)
+                        total_count = client.count_entities(
+                            es_name, filter_expr=filter_txt
+                        )
                     else:
                         total_count = es_proxy.get_entities().count().execute()
                     if total_count is not None:
@@ -340,7 +344,9 @@ def download_parquet_odata(
                 try:
                     if next_url:
                         # Follow @odata.nextLink for pagination
-                        entity_dicts, next_url = client.query_entities_from_url(next_url)
+                        entity_dicts, next_url = client.query_entities_from_url(
+                            next_url
+                        )
                     else:
                         entity_dicts, next_url = client.query_entities(
                             es_name,
