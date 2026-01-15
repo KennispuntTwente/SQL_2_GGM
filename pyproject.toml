@@ -16,6 +16,7 @@ dependencies = [
     "sqlparse>=0.5.3",
     "pyodata>=1.11.2",
     "requests>=2.32.0",
+    "cryptography>=45.0.5",
 ]
 description = "Pipelines to extract, load, and transform data from various sources into the Gemeentelijk Gegevensmodel (GGM)."
 readme = "README.md"

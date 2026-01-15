@@ -1,6 +1,9 @@
+import atexit
 import json
 import logging
-from typing import Any, Dict, Optional, Union, cast
+import os
+import tempfile
+from typing import Any, Dict, Optional, Tuple, Union, cast
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -15,6 +18,135 @@ from utils.config.get_config_value import get_config_value
 
 
 log = logging.getLogger("odata_to_staging.engine_loaders")
+
+
+# Track temp files created from .pfx extraction for cleanup
+_pfx_temp_files: list = []
+
+
+def _cleanup_pfx_temp_files() -> None:
+    """Remove temporary PEM files created from .pfx extraction on exit."""
+    for path in _pfx_temp_files:
+        try:
+            if os.path.exists(path):
+                os.unlink(path)
+        except Exception:
+            pass
+
+
+atexit.register(_cleanup_pfx_temp_files)
+
+
+def _extract_pem_from_pfx(
+    pfx_path: str, password: Optional[str] = None
+) -> Tuple[str, str]:
+    """Extract certificate and private key from a .pfx/.p12 (PKCS#12) file.
+
+    Uses the cryptography library to load the PKCS#12 bundle and extract
+    the certificate and private key as PEM-encoded temporary files.
+
+    Args:
+        pfx_path: Path to the .pfx or .p12 file
+        password: Password to decrypt the PKCS#12 file (or None if unencrypted)
+
+    Returns:
+        Tuple of (cert_temp_path, key_temp_path) pointing to temporary PEM files
+
+    Raises:
+        ValueError: If the file cannot be loaded or is missing cert/key
+        RuntimeError: If the cryptography library is not installed
+    """
+    try:
+        from cryptography.hazmat.primitives.serialization import (
+            Encoding,
+            NoEncryption,
+            PrivateFormat,
+        )
+        from cryptography.hazmat.primitives.serialization.pkcs12 import (
+            load_key_and_certificates,
+        )
+    except ImportError as e:
+        raise RuntimeError(
+            "The 'cryptography' library is required for .pfx/.p12 support. "
+            "Install it with: pip install cryptography"
+        ) from e
+
+    # Read the PKCS#12 file
+    try:
+        with open(pfx_path, "rb") as f:
+            pfx_data = f.read()
+    except Exception as e:
+        raise ValueError(f"Failed to read .pfx file '{pfx_path}': {e}") from e
+
+    # Parse the PKCS#12 bundle
+    pwd_bytes = password.encode("utf-8") if password else None
+    try:
+        private_key, certificate, additional_certs = load_key_and_certificates(
+            pfx_data, pwd_bytes
+        )
+    except Exception as e:
+        error_msg = str(e).lower()
+        if "password" in error_msg or "mac" in error_msg or "decrypt" in error_msg:
+            raise ValueError(
+                f"Failed to decrypt .pfx file '{pfx_path}': incorrect password or corrupted file. "
+                "Ensure ODATA_CLIENT_KEY_PASSWORD is set correctly."
+            ) from e
+        raise ValueError(
+            f"Failed to parse .pfx file '{pfx_path}': {e}. "
+            "Ensure the file is a valid PKCS#12 bundle."
+        ) from e
+
+    if private_key is None:
+        raise ValueError(
+            f".pfx file '{pfx_path}' does not contain a private key. "
+            "Ensure the certificate was exported with the private key included."
+        )
+    if certificate is None:
+        raise ValueError(
+            f".pfx file '{pfx_path}' does not contain a certificate. "
+            "Ensure the file is a valid PKCS#12 bundle with a certificate."
+        )
+
+    # Serialize to PEM format
+    cert_pem = certificate.public_bytes(Encoding.PEM)
+    key_pem = private_key.private_bytes(
+        encoding=Encoding.PEM,
+        format=PrivateFormat.TraditionalOpenSSL,
+        encryption_algorithm=NoEncryption(),
+    )
+
+    # Write to secure temporary files
+    # These files are deleted on process exit via atexit handler
+    try:
+        cert_fd, cert_path = tempfile.mkstemp(suffix="_cert.pem", prefix="ggmpilot_")
+        key_fd, key_path = tempfile.mkstemp(suffix="_key.pem", prefix="ggmpilot_")
+
+        os.write(cert_fd, cert_pem)
+        os.close(cert_fd)
+
+        os.write(key_fd, key_pem)
+        os.close(key_fd)
+
+        # Restrict permissions on key file (best effort on Windows)
+        try:
+            os.chmod(key_path, 0o600)
+        except Exception:
+            pass
+
+        _pfx_temp_files.extend([cert_path, key_path])
+        return cert_path, key_path
+
+    except Exception as e:
+        # Clean up on failure
+        for path in [cert_path, key_path]:
+            try:
+                if os.path.exists(path):
+                    os.unlink(path)
+            except Exception:
+                pass
+        raise RuntimeError(
+            f"Failed to write temporary PEM files from .pfx: {e}"
+        ) from e
 
 
 def _require_non_empty_secret(
@@ -134,8 +266,6 @@ def load_odata_client(cfg: Any):
 
     # Determine verify_ssl: can be True, False, or a path to a CA bundle
     if ssl_ca_cert_path:
-        import os
-
         if not os.path.isfile(ssl_ca_cert_path):
             raise ValueError(
                 f"ODATA_SSL_CA_CERT path does not exist or is not a file: {ssl_ca_cert_path}"
@@ -149,6 +279,26 @@ def load_odata_client(cfg: Any):
 
     # --- Client Certificate (mTLS/PKIO) for Centric Dataplatform ---
     # PKIO certificates are required for OData API access per the Centric Dataplatform manual
+    # Supports: .pem/.crt files, or .pfx/.p12 (PKCS#12) bundles
+    client_pfx_path = cast(
+        Optional[str],
+        get_config_value(
+            "ODATA_CLIENT_PFX",
+            section="odata-connection",
+            cfg_parser=cfg,
+            default=None,
+            cast_type=str,
+            allow_none_if_cast_fails=True,
+        )
+        or get_config_value(
+            "ODATA_CLIENT_PFX",
+            section="odata-source",
+            cfg_parser=cfg,
+            default=None,
+            cast_type=str,
+            allow_none_if_cast_fails=True,
+        ),
+    )
     client_cert_path = cast(
         Optional[str],
         get_config_value(
@@ -212,9 +362,32 @@ def load_odata_client(cfg: Any):
 
     # Validate and configure client certificate for mTLS
     client_cert_tuple: Optional[tuple] = None
-    if client_cert_path:
-        import os
 
+    # Option 1: .pfx/.p12 (PKCS#12) bundle - extract to temporary PEM files
+    if client_pfx_path:
+        if not os.path.isfile(client_pfx_path):
+            raise ValueError(
+                f"ODATA_CLIENT_PFX path does not exist or is not a file: {client_pfx_path}"
+            )
+        if client_cert_path or client_key_path:
+            log.warning(
+                "Both ODATA_CLIENT_PFX and ODATA_CLIENT_CERT/KEY are set. "
+                "Using ODATA_CLIENT_PFX; ignoring ODATA_CLIENT_CERT/KEY."
+            )
+        log.info("Extracting client certificate from .pfx file: %s", client_pfx_path)
+        try:
+            cert_temp, key_temp = _extract_pem_from_pfx(
+                client_pfx_path, password=client_key_password
+            )
+            client_cert_tuple = (cert_temp, key_temp)
+            log.info(
+                "Using PKIO client certificate from .pfx for mTLS (extracted to temp files)"
+            )
+        except (ValueError, RuntimeError) as e:
+            raise ValueError(f"Failed to load .pfx certificate: {e}") from e
+
+    # Option 2: Separate .pem/.crt files
+    elif client_cert_path:
         if not os.path.isfile(client_cert_path):
             raise ValueError(
                 f"ODATA_CLIENT_CERT path does not exist or is not a file: {client_cert_path}"
@@ -278,14 +451,14 @@ def load_odata_client(cfg: Any):
             sess.cert = client_cert_tuple  # (cert_path, key_path)
         else:
             sess.cert = client_cert_tuple[0]  # Combined cert+key file
-        # Note: requests does not natively support encrypted private keys with password.
-        # If a password is needed, the key should be decrypted beforehand or use a
-        # PKCS#12 file converted to unencrypted PEM.
-        if client_key_password:
+        # Note: For .pem files with encrypted private keys, requests does not natively
+        # support password-protected keys. Use ODATA_CLIENT_PFX instead, which extracts
+        # the key in-memory and writes to a temporary unencrypted file.
+        if client_key_password and not client_pfx_path:
             log.warning(
                 "ODATA_CLIENT_KEY_PASSWORD is set but requests does not natively support "
-                "encrypted private keys. Consider using an unencrypted key file or "
-                "converting from PKCS#12 (.p12/.pfx) to unencrypted PEM."
+                "encrypted .pem private keys. Consider using ODATA_CLIENT_PFX instead, "
+                "which properly handles password-protected PKCS#12 bundles."
             )
 
     if auth_mode == "BASIC":
@@ -457,8 +630,6 @@ def load_odata_client(cfg: Any):
         # 2. Else if HELLOME_VERIFY_SSL is explicitly set, use that
         # 3. Else fall back to ODATA_SSL_CA_CERT / ODATA_VERIFY_SSL
         if hellome_ssl_ca_cert:
-            import os
-
             if not os.path.isfile(hellome_ssl_ca_cert):
                 raise ValueError(
                     f"HELLOME_SSL_CA_CERT path does not exist or is not a file: {hellome_ssl_ca_cert}"

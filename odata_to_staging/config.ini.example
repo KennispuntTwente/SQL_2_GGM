@@ -17,6 +17,13 @@ ODATA_SSL_CA_CERT =
 
 # --- Client Certificate (mTLS/PKIO) ---
 # Voor toegang tot de OData API-endpoint van (bijv.) het Centric Dataplatform is een geldig PKIO-certificaat vereist.
+#
+# OPTIE 1: .pfx/.p12 bestand (AANBEVOLEN - bevat certificaat + key in één bestand)
+# Het .pfx-bestand wordt automatisch uitgepakt; wachtwoord via ODATA_CLIENT_KEY_PASSWORD
+# Voorbeeld: ODATA_CLIENT_PFX = C:\certs\pkio_client.pfx
+ODATA_CLIENT_PFX = 
+#
+# OPTIE 2: Aparte .pem/.crt bestanden
 # Pad naar het client-certificaat (.pem of .crt) voor mTLS/PKIO authenticatie
 # Voorbeeld: ODATA_CLIENT_CERT = C:\certs\pkio_client.pem
 ODATA_CLIENT_CERT = 
@@ -24,8 +31,8 @@ ODATA_CLIENT_CERT =
 # Als het certificaat en de key in één bestand zitten, vul alleen ODATA_CLIENT_CERT in
 # Voorbeeld: ODATA_CLIENT_KEY = C:\certs\pkio_client_key.pem
 ODATA_CLIENT_KEY = 
-# (Optioneel) Wachtwoord voor de private key, indien versleuteld
-# LET OP: Bewaar dit wachtwoord veilig; overweeg environment variables te gebruiken
+#
+# Wachtwoord voor het .pfx-bestand of versleutelde private key
 ODATA_CLIENT_KEY_PASSWORD = 
 
 [hellome-auth]
