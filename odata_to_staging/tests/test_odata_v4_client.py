@@ -349,18 +349,18 @@ class TestExtractTypeName:
         assert ODataV4Client._extract_type_name("") == ""
 
     def test_bracket_quoted_schema_and_type(self):
-        """Bracket-quoted identifiers like [Schema].[Type]."""
-        assert ODataV4Client._extract_type_name("[APICUST].[METADATA]") == "[METADATA]"
-        assert ODataV4Client._extract_type_name("[Schema].[MyTable]") == "[MyTable]"
+        """Bracket-quoted identifiers like [Schema].[Type] - brackets are stripped."""
+        assert ODataV4Client._extract_type_name("[APICUST].[METADATA]") == "METADATA"
+        assert ODataV4Client._extract_type_name("[Schema].[MyTable]") == "MyTable"
 
     def test_namespace_with_bracket_type(self):
-        """Namespace.with.[BracketType] format."""
-        assert ODataV4Client._extract_type_name("Namespace.[METADATA]") == "[METADATA]"
-        assert ODataV4Client._extract_type_name("My.Namespace.[Type]") == "[Type]"
+        """Namespace.with.[BracketType] format - brackets are stripped."""
+        assert ODataV4Client._extract_type_name("Namespace.[METADATA]") == "METADATA"
+        assert ODataV4Client._extract_type_name("My.Namespace.[Type]") == "Type"
 
     def test_single_bracket_quoted_type(self):
-        """Single bracket-quoted type name."""
-        assert ODataV4Client._extract_type_name("[METADATA]") == "[METADATA]"
+        """Single bracket-quoted type name - brackets are stripped."""
+        assert ODataV4Client._extract_type_name("[METADATA]") == "METADATA"
 
 
 class TestCaseInsensitiveEntitySetLookup:
@@ -492,3 +492,100 @@ class TestSpecialCharacterEntitySetNames:
         call_url = session.get.call_args[0][0]
         assert "%5B" in call_url  # Encoded [
         assert "%5D" in call_url  # Encoded ]
+
+
+class TestFindEntityTypeWithBrackets:
+    """Tests for _find_entity_type handling of bracket-quoted type names.
+
+    Verifies that entity types stored with bracket-quoted names like
+    '[APICUST].[METADATA]' can be found by searching for the extracted
+    type name like 'METADATA'.
+    """
+
+    @pytest.fixture
+    def client_with_bracket_quoted_types(self):
+        """Create client with entity types stored under bracket-quoted names."""
+        session = MagicMock(spec=requests.Session)
+        client = ODataV4Client("https://example.com/odata/v4", session)
+        # Entity type is stored with full bracket-quoted name
+        client._schema = {
+            "entity_sets": [
+                {"name": "[APICUST].[METADATA]", "entity_type": "[APICUST].[METADATA]"},
+                {"name": "[APICUST].[ORDERS]", "entity_type": "[APICUST].[ORDERS]"},
+            ],
+            "entity_types": {
+                "[APICUST].[METADATA]": {
+                    "name": "[APICUST].[METADATA]",
+                    "keys": ["ID"],
+                    "properties": [
+                        {"name": "ID", "type": "Edm.Int32", "nullable": False},
+                        {"name": "TableName", "type": "Edm.String", "nullable": True},
+                    ],
+                    "navigation_properties": [],
+                },
+                "[APICUST].[ORDERS]": {
+                    "name": "[APICUST].[ORDERS]",
+                    "keys": ["OrderID"],
+                    "properties": [
+                        {"name": "OrderID", "type": "Edm.Int32", "nullable": False},
+                        {"name": "CustomerID", "type": "Edm.Int32", "nullable": True},
+                    ],
+                    "navigation_properties": [],
+                },
+            },
+        }
+        return client
+
+    def test_find_by_exact_bracket_quoted_name(self, client_with_bracket_quoted_types):
+        """Exact match with full bracket-quoted name should work."""
+        et = client_with_bracket_quoted_types._find_entity_type("[APICUST].[METADATA]")
+        assert et is not None
+        assert et["name"] == "[APICUST].[METADATA]"
+
+    def test_find_by_extracted_type_name(self, client_with_bracket_quoted_types):
+        """Should find entity type by extracted name (without brackets/schema)."""
+        # The fix: searching for 'METADATA' should match '[APICUST].[METADATA]'
+        et = client_with_bracket_quoted_types._find_entity_type("METADATA")
+        assert et is not None
+        assert et["name"] == "[APICUST].[METADATA]"
+        assert "ID" in [p["name"] for p in et["properties"]]
+
+    def test_find_by_extracted_type_name_case_insensitive(
+        self, client_with_bracket_quoted_types
+    ):
+        """Should find entity type by extracted name with case-insensitive match."""
+        et = client_with_bracket_quoted_types._find_entity_type("metadata")
+        assert et is not None
+        assert et["name"] == "[APICUST].[METADATA]"
+
+        et = client_with_bracket_quoted_types._find_entity_type("Metadata")
+        assert et is not None
+        assert et["name"] == "[APICUST].[METADATA]"
+
+    def test_find_different_entities(self, client_with_bracket_quoted_types):
+        """Should correctly differentiate between different bracket-quoted entities."""
+        metadata = client_with_bracket_quoted_types._find_entity_type("METADATA")
+        orders = client_with_bracket_quoted_types._find_entity_type("ORDERS")
+
+        assert metadata is not None
+        assert orders is not None
+        assert metadata["name"] != orders["name"]
+        assert "ID" in [p["name"] for p in metadata["properties"]]
+        assert "OrderID" in [p["name"] for p in orders["properties"]]
+
+    def test_find_nonexistent_returns_none(self, client_with_bracket_quoted_types):
+        """Non-existent entity type should return None."""
+        et = client_with_bracket_quoted_types._find_entity_type("NonExistent")
+        assert et is None
+
+    def test_get_entity_properties_uses_extracted_lookup(
+        self, client_with_bracket_quoted_types
+    ):
+        """get_entity_properties should work via the extracted type name lookup."""
+        # This exercises the full flow where entity_set has type='[APICUST].[METADATA]'
+        # and _find_entity_type needs to find it
+        props = client_with_bracket_quoted_types.get_entity_properties(
+            "[APICUST].[METADATA]"
+        )
+        assert "ID" in props
+        assert "TableName" in props

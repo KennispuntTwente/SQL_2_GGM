@@ -34,12 +34,33 @@ from utils.database.identifiers import (
 logger = logging.getLogger("utils.parquet.upload_parquet")
 
 
+def _sanitize_table_name(name: str) -> str:
+    """Sanitize a table name by removing brackets and replacing dots with underscores.
+
+    This handles OData entity set names like '[APICUST].[METADATA]' which would
+    otherwise be misinterpreted as schema-qualified table names.
+
+    Args:
+        name: Raw table name that may contain brackets and dots
+
+    Returns:
+        Sanitized table name safe for use as a SQL identifier
+    """
+    # Remove square brackets
+    sanitized = name.replace("[", "").replace("]", "")
+    # Replace dots with underscores to avoid schema.table interpretation
+    sanitized = sanitized.replace(".", "_")
+    return sanitized
+
+
 def _parse_parquet_base_name(filename: str) -> str:
     """Derive the logical table base name from a parquet filename."""
 
     stem = Path(filename).stem
     m = re.match(r"^(?P<base>.+)_part\d+$", stem)
-    return m.group("base") if m else stem
+    base = m.group("base") if m else stem
+    # Sanitize to handle bracket-quoted OData names
+    return _sanitize_table_name(base)
 
 
 def group_parquet_files(
@@ -228,7 +249,8 @@ def upload_parquet(
             for idx, fname in enumerate(files):
                 path = os.path.join(input_dir, fname)
                 logger.info("🔹 Processing %s", path)
-                df = pl.read_parquet(path)
+                # Use glob=False to prevent brackets in filenames being treated as glob patterns
+                df = pl.read_parquet(path, glob=False)
                 df = df.rename({col: col.lower() for col in df.columns})
 
                 if dialect == "postgresql":

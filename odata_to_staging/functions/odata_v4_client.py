@@ -96,10 +96,12 @@ class ODataV4Client:
             full_type: Fully-qualified type string (e.g., "Namespace.Type")
 
         Returns:
-            Just the type name portion
+            Just the type name portion (without brackets)
         """
         if not full_type:
             return ""
+
+        result: str
 
         # Handle bracket-quoted identifiers: "[Schema].[Type]" or "Namespace.[Type]"
         # Split on dots that are NOT inside brackets
@@ -110,7 +112,11 @@ class ODataV4Client:
             if last_bracket > 0:
                 # Check if there's a dot before the bracket
                 if full_type[last_bracket - 1] == ".":
-                    return full_type[last_bracket:]
+                    result = full_type[last_bracket:]
+                    # Strip surrounding brackets if present
+                    if result.startswith("[") and result.endswith("]"):
+                        return result[1:-1]
+                    return result
             # If the whole thing starts with '[', it might be the full type name
             if full_type.startswith("["):
                 # Look for pattern like "[Schema].[Type]" - return last bracketed segment
@@ -133,7 +139,11 @@ class ODataV4Client:
                 if current:
                     parts.append(current)
                 if parts:
-                    return parts[-1]
+                    result = parts[-1]
+                    # Strip surrounding brackets if present
+                    if result.startswith("[") and result.endswith("]"):
+                        return result[1:-1]
+                    return result
 
         # Standard case: "Namespace.TypeName" -> "TypeName"
         return full_type.split(".")[-1]
@@ -437,6 +447,9 @@ class ODataV4Client:
     def _find_entity_type(self, type_name: str) -> Optional[Dict[str, Any]]:
         """Find EntityType by name with case-insensitive fallback.
 
+        Also handles bracket-quoted names where the type might be stored with
+        a full name like '[Schema].[Type]' but we're searching for 'Type'.
+
         Args:
             type_name: Name of the EntityType to find
 
@@ -457,7 +470,19 @@ class ODataV4Client:
             ),
             None,
         )
-        return entity_type
+        if entity_type:
+            return entity_type
+
+        # Try matching against extracted type names (for bracket-quoted full names)
+        # e.g., type_name='METADATA' should match stored name='[APICUST].[METADATA]'
+        for name, et in self.schema["entity_types"].items():
+            extracted_name = self._extract_type_name(name)
+            if extracted_name == type_name:
+                return et
+            if extracted_name.lower() == type_name.lower():
+                return et
+
+        return None
 
     def get_navigation_properties(self, entity_set_name: str) -> List[str]:
         """Return list of navigation property names for an EntitySet.
