@@ -144,9 +144,7 @@ def _extract_pem_from_pfx(
                     os.unlink(path)
             except Exception:
                 pass
-        raise RuntimeError(
-            f"Failed to write temporary PEM files from .pfx: {e}"
-        ) from e
+        raise RuntimeError(f"Failed to write temporary PEM files from .pfx: {e}") from e
 
 
 def _require_non_empty_secret(
@@ -160,17 +158,69 @@ def _require_non_empty_secret(
     return value
 
 
-def load_odata_client(cfg: Any):
-    """Create and return a pyodata Client based on [odata-source] settings.
+def detect_odata_version(session: requests.Session, service_url: str) -> str:
+    """Detect OData version from $metadata response headers and content.
 
-    Supports NONE, BASIC, BEARER auth modes; optional custom headers; SSL verify toggle.
+    Checks:
+    1. OData-Version response header (v4 standard)
+    2. DataServiceVersion response header (v2/v3 standard)
+    3. XML namespace in $metadata content
+
+    Args:
+        session: Configured requests session
+        service_url: Base OData service URL
+
+    Returns:
+        "4" for OData v4, "2" for v2/v3/unknown
     """
     try:
-        import pyodata  # type: ignore
+        url = f"{service_url.rstrip('/')}/$metadata"
+        resp = session.get(url, headers={"Accept": "application/xml"})
+
+        # Check OData-Version header (v4 standard)
+        version_header = resp.headers.get("OData-Version", "")
+        if version_header.startswith("4"):
+            log.info("Detected OData v4 from OData-Version header: %s", version_header)
+            return "4"
+
+        # Check DataServiceVersion header (v2/v3)
+        ds_version = resp.headers.get("DataServiceVersion", "")
+        if ds_version:
+            log.info(
+                "Detected OData v2/v3 from DataServiceVersion header: %s", ds_version
+            )
+            return "2"
+
+        # Check XML namespace in content
+        if "http://docs.oasis-open.org/odata/ns/edm" in resp.text:
+            log.info("Detected OData v4 from XML namespace")
+            return "4"
+        if "http://schemas.microsoft.com/ado/2008/09/edm" in resp.text:
+            log.info("Detected OData v2 from XML namespace")
+            return "2"
+        if "http://schemas.microsoft.com/ado/2009/11/edm" in resp.text:
+            log.info("Detected OData v3 from XML namespace, treating as v2")
+            return "2"
+
+        log.info("Could not detect OData version, defaulting to v2")
+        return "2"
     except Exception as e:
-        raise RuntimeError(
-            "pyodata is required for odata_to_staging; please install it in the environment"
-        ) from e
+        log.warning("Failed to detect OData version: %s, defaulting to v2", e)
+        return "2"
+
+
+def load_odata_client(cfg: Any):
+    """Create and return an OData client (v2 or v4) based on configuration.
+
+    Supports:
+    - OData v2 via pyodata library
+    - OData v4 via built-in ODataV4Client (direct HTTP requests)
+    - Auto-detection of OData version from $metadata response
+    - Explicit version configuration via ODATA_VERSION setting
+
+    Auth modes: NONE, BASIC, BEARER, HELLOME
+    Optional: custom headers, SSL verify, client certificates (mTLS)
+    """
 
     service_url_opt = cast(
         Optional[str],
@@ -882,6 +932,55 @@ def load_odata_client(cfg: Any):
     else:
         log.info("Session has no 'request' attribute; skipping default-timeout wrapper")
 
+    # Determine OData version from config or auto-detect
+    odata_version = cast(
+        Optional[str],
+        get_config_value(
+            "ODATA_VERSION",
+            section="odata-connection",
+            cfg_parser=cfg,
+            default=None,
+            cast_type=str,
+            allow_none_if_cast_fails=True,
+        ),
+    )
+    if odata_version is None:
+        odata_version = cast(
+            Optional[str],
+            get_config_value(
+                "ODATA_VERSION",
+                section="odata-source",
+                cfg_parser=cfg,
+                default=None,
+                cast_type=str,
+                allow_none_if_cast_fails=True,
+            ),
+        )
+
+    if odata_version is None:
+        # Auto-detect from $metadata
+        odata_version = detect_odata_version(sess, service_url)
+        log.info("Auto-detected OData version: %s", odata_version)
+    else:
+        odata_version = str(odata_version).strip()
+        log.info("Using configured ODATA_VERSION: %s", odata_version)
+
+    # Return appropriate client based on version
+    if odata_version == "4":
+        from .odata_v4_client import ODataV4Client
+
+        log.info("Creating OData v4 client for: %s", service_url)
+        return ODataV4Client(service_url, sess)
+
+    # OData v2: Use pyodata
+    try:
+        import pyodata  # type: ignore
+    except ImportError as e:
+        raise RuntimeError(
+            "pyodata is required for OData v2 services; "
+            "install it with: pip install pyodata>=1.11.2"
+        ) from e
+
     # Retain nulls to distinguish between missing values and default values
     retain_null = cast(
         bool,
@@ -906,20 +1005,19 @@ def load_odata_client(cfg: Any):
     if retain_null:
         try:
             # pyodata.v2 is the most common, using it as a default.
-            # The import is here to avoid breaking if pyodata is not installed
             import pyodata.v2.model
 
             client_config = pyodata.v2.model.Config(retain_null=True)
-            log.info("OData client configured with retain_null=True.")
+            log.info("OData v2 client configured with retain_null=True.")
         except (AttributeError, ImportError):
             log.warning(
-                "Could not find pyodata.v2.model.Config, proceeding without it. "
-                "This might be expected for OData V4 services."
+                "Could not find pyodata.v2.model.Config, proceeding without it."
             )
 
+    log.info("Creating OData v2 client (pyodata) for: %s", service_url)
     if client_config:
         return pyodata.Client(service_url, sess, config=client_config)
     return pyodata.Client(service_url, sess)
 
 
-__all__ = ["load_odata_client"]
+__all__ = ["load_odata_client", "detect_odata_version"]

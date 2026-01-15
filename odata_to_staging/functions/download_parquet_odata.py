@@ -120,6 +120,14 @@ def _to_scalar(value: Any) -> Any:
         return None
 
 
+def _is_v4_client(client: Any) -> bool:
+    """Check if client is OData v4 (ODataV4Client) vs pyodata v2.
+
+    OData v4 client has query_entities method, pyodata v2 uses entity_sets attribute.
+    """
+    return hasattr(client, "query_entities") and hasattr(client, "get_entity_properties")
+
+
 def _entity_properties(
     client: Any, entity_set_name: str, select: Optional[str] = None
 ) -> List[str]:
@@ -162,6 +170,7 @@ def _entity_properties(
 def _rows_from_entities(
     entities: Iterable[Any], props: List[str]
 ) -> List[Dict[str, Any]]:
+    """Convert pyodata v2 entity objects to row dicts."""
     rows: List[Dict[str, Any]] = []
     for ent in entities:
         row: Dict[str, Any] = {}
@@ -172,6 +181,27 @@ def _rows_from_entities(
                 row[p] = None
         rows.append(row)
     return rows
+
+
+def _rows_from_dicts(
+    entities: List[Dict[str, Any]], props: List[str]
+) -> List[Dict[str, Any]]:
+    """Convert OData v4 entity dicts to row dicts with scalar conversion.
+
+    OData v4 client returns entities as plain dicts, not proxy objects.
+    We still need to apply _to_scalar for consistent data types.
+    """
+    rows: List[Dict[str, Any]] = []
+    for ent in entities:
+        row: Dict[str, Any] = {}
+        for p in props:
+            try:
+                row[p] = _to_scalar(ent.get(p))
+            except Exception:
+                row[p] = None
+        rows.append(row)
+    return rows
+
 
 
 def download_parquet_odata(
@@ -185,9 +215,11 @@ def download_parquet_odata(
     per_entity_options: Optional[Dict[str, Dict[str, str]]] = None,
 ) -> Optional[str]:
     """
-    Stream OData entity sets to chunked Parquet files using pyodata.
+    Stream OData entity sets to chunked Parquet files.
 
-    - Keeps memory bounded by paging with $top/$skip or following __next links
+    Supports both OData v2 (pyodata) and v4 (ODataV4Client) services.
+
+    - Keeps memory bounded by paging with $top/$skip or following next links
     - Writes part files as {EntitySet}_part0000.parquet, ... in output_dir
     - Emits a manifest JSON with file list and absolute output_dir
 
@@ -201,6 +233,14 @@ def download_parquet_odata(
     run_id = uuid.uuid4().hex
     created_files: List[str] = []
 
+    # Detect client type once at the start
+    is_v4 = _is_v4_client(client)
+    if is_v4:
+        logger.info("Using OData v4 client for data download")
+    else:
+        logger.info("Using OData v2 client (pyodata) for data download")
+
+
     for es_name in entity_sets:
         logger.info("📥 Dumping OData EntitySet: %s", es_name)
 
@@ -210,16 +250,36 @@ def download_parquet_odata(
         expand = opts.get("expand")
         filter_txt = opts.get("filter")
 
-        try:
-            es_proxy = getattr(client.entity_sets, es_name)
-        except AttributeError as e:
-            raise ValueError(
-                f"EntitySet {es_name!r} not found in OData service metadata"
-            ) from e
+        # Validate entity set exists and get properties based on client type
+        if is_v4:
+            # OData v4 client
+            try:
+                entity_set_names = client.get_entity_set_names()
+                if es_name not in entity_set_names:
+                    raise ValueError(
+                        f"EntitySet {es_name!r} not found in OData service metadata. "
+                        f"Available: {entity_set_names}"
+                    )
+            except Exception as e:
+                if "not found" in str(e):
+                    raise
+                raise ValueError(
+                    f"EntitySet {es_name!r} not found in OData service metadata"
+                ) from e
 
-        # When $select is provided, only include selected columns in output
-        # This avoids all-NULL columns for unselected properties
-        props = _entity_properties(client, es_name, select=select)
+            # Get properties from v4 client
+            props = client.get_entity_properties(es_name, select=select)
+        else:
+            # OData v2 client (pyodata)
+            try:
+                es_proxy = getattr(client.entity_sets, es_name)
+            except AttributeError as e:
+                raise ValueError(
+                    f"EntitySet {es_name!r} not found in OData service metadata"
+                ) from e
+
+            # Get properties from v2 client
+            props = _entity_properties(client, es_name, select=select)
 
         # If $expand is specified, add navigation property names to props
         # so that expanded data is captured in the output
@@ -240,8 +300,14 @@ def download_parquet_odata(
                 )
             else:
                 try:
-                    total_count = es_proxy.get_entities().count().execute()
-                    logger.info("   (total rows: %s)", f"{total_count:,}")
+                    if is_v4:
+                        total_count = client.count_entities(es_name, filter_expr=filter_txt)
+                    else:
+                        total_count = es_proxy.get_entities().count().execute()
+                    if total_count is not None:
+                        logger.info("   (total rows: %s)", f"{total_count:,}")
+                    else:
+                        logger.info("   (row count not available)")
                 except Exception as e:
                     logger.warning("Failed to COUNT() for %s: %s", es_name, e)
         else:
@@ -258,7 +324,7 @@ def download_parquet_odata(
         skip = 0
         wrote_any = False
 
-        # Primary paging using skip/top; additionally follow __next when provided
+        # Primary paging using skip/top; additionally follow next links when provided
         next_url: Optional[str] = None
         while True:
             if remaining is None:
@@ -268,70 +334,95 @@ def download_parquet_odata(
                 if top_n <= 0:
                     break
 
-            req = es_proxy.get_entities()
-            if select:
-                req = req.select(select)
-            if expand:
-                req = req.expand(expand)
-            if filter_txt:
-                req = req.filter(filter_txt)
-
-            if next_url:
-                # Continue server-driven paging (e.g., $skiptoken)
-                # Some OData services use server-driven paging exclusively
+            # Execute query based on client type
+            if is_v4:
+                # OData v4 client - use query_entities method
                 try:
-                    req = es_proxy.get_entities().next_url(next_url)  # type: ignore[attr-defined]
-                    # Re-apply options to the next_url request in case they're not preserved
-                    if select:
-                        try:
-                            req = req.select(select)
-                        except Exception:
-                            pass
-                    if expand:
-                        try:
-                            req = req.expand(expand)
-                        except Exception:
-                            pass
-                    if filter_txt:
-                        try:
-                            req = req.filter(filter_txt)
-                        except Exception:
-                            pass
+                    if next_url:
+                        # Follow @odata.nextLink for pagination
+                        entity_dicts, next_url = client.query_entities_from_url(next_url)
+                    else:
+                        entity_dicts, next_url = client.query_entities(
+                            es_name,
+                            select=select,
+                            expand=expand,
+                            filter_expr=filter_txt,
+                            skip=skip,
+                            top=top_n,
+                        )
                 except Exception as e:
-                    # Fallback to skip/top if next_url API not supported
-                    logger.debug(
-                        "Server-driven paging (next_url) not supported for %s, "
-                        "falling back to $skip/$top: %s",
-                        es_name,
-                        e,
-                    )
-                    req = es_proxy.get_entities()
-                    if select:
-                        req = req.select(select)
-                    if expand:
-                        req = req.expand(expand)
-                    if filter_txt:
-                        req = req.filter(filter_txt)
-                    req = req.skip(skip).top(top_n)
-                    next_url = None
+                    raise RuntimeError(
+                        f"Failed to fetch OData v4 page for {es_name}: {e}"
+                    ) from e
+
+                # Convert to rows using dict-based extraction
+                rows = _rows_from_dicts(entity_dicts, props)
             else:
-                req = req.skip(skip).top(top_n)
+                # OData v2 client (pyodata)
+                req = es_proxy.get_entities()
+                if select:
+                    req = req.select(select)
+                if expand:
+                    req = req.expand(expand)
+                if filter_txt:
+                    req = req.filter(filter_txt)
 
-            try:
-                entities = req.execute()
-            except Exception as e:
-                raise RuntimeError(
-                    f"Failed to fetch OData page for {es_name}: {e}"
-                ) from e
+                if next_url:
+                    # Continue server-driven paging (e.g., $skiptoken)
+                    try:
+                        req = es_proxy.get_entities().next_url(next_url)  # type: ignore[attr-defined]
+                        # Re-apply options to the next_url request in case they're not preserved
+                        if select:
+                            try:
+                                req = req.select(select)
+                            except Exception:
+                                pass
+                        if expand:
+                            try:
+                                req = req.expand(expand)
+                            except Exception:
+                                pass
+                        if filter_txt:
+                            try:
+                                req = req.filter(filter_txt)
+                            except Exception:
+                                pass
+                    except Exception as e:
+                        # Fallback to skip/top if next_url API not supported
+                        logger.debug(
+                            "Server-driven paging (next_url) not supported for %s, "
+                            "falling back to $skip/$top: %s",
+                            es_name,
+                            e,
+                        )
+                        req = es_proxy.get_entities()
+                        if select:
+                            req = req.select(select)
+                        if expand:
+                            req = req.expand(expand)
+                        if filter_txt:
+                            req = req.filter(filter_txt)
+                        req = req.skip(skip).top(top_n)
+                        next_url = None
+                else:
+                    req = req.skip(skip).top(top_n)
 
-            # entities may be a ListWithTotalCount with attributes .next_url and is iterable
-            try:
-                next_url = getattr(entities, "next_url", None)
-            except Exception:
-                next_url = None
+                try:
+                    entities = req.execute()
+                except Exception as e:
+                    raise RuntimeError(
+                        f"Failed to fetch OData v2 page for {es_name}: {e}"
+                    ) from e
 
-            # Convert current page to rows
-            rows = _rows_from_entities(entities, props)
+                # entities may be a ListWithTotalCount with attributes .next_url
+                try:
+                    next_url = getattr(entities, "next_url", None)
+                except Exception:
+                    next_url = None
+
+                # Convert to rows using attribute-based extraction
+                rows = _rows_from_entities(entities, props)
+
             if not rows:
                 # No items in this page -> stop
                 break

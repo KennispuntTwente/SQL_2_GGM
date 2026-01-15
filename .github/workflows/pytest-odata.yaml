@@ -1,0 +1,36 @@
+name: OData integration tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  odata-integration:
+    name: OData v2/v4 integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      RUN_ODATA_INTEGRATION: "1"
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up uv + Python
+        uses: astral-sh/setup-uv@v7.1.1
+        with:
+          python-version: '3.12.10'
+          enable-cache: true
+
+      - name: Run OData integration tests
+        run: >-
+          uv run --frozen -m pytest -m "odata_integration"
+          -vv -s -rA --durations=25 --maxfail=3
+          -o log_cli=true -o log_cli_level=INFO

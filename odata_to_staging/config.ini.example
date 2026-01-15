@@ -15,6 +15,13 @@ ODATA_VERIFY_SSL = true
 # Voorbeeld: ODATA_SSL_CA_CERT = C:\certs\hellome_ca.pem
 ODATA_SSL_CA_CERT = 
 
+# --- OData Protocol Versie ---
+# OData versie: "2" of "4". Standaard: auto-detectie via $metadata endpoint.
+# OData v2: Gebruikt pyodata library
+# OData v4: Gebruikt ingebouwde ODataV4Client (directe HTTP calls met requests)
+# Laat leeg voor automatische detectie op basis van $metadata response headers/namespaces.
+# ODATA_VERSION = 4
+
 # --- Client Certificate (mTLS/PKIO) ---
 # Voor toegang tot de OData API-endpoint van (bijv.) het Centric Dataplatform is een geldig PKIO-certificaat vereist.
 #

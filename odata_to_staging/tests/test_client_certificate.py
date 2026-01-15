@@ -436,9 +436,11 @@ class TestPfxCertificateSupport:
         )
 
         # Create a self-signed certificate
-        subject = issuer = x509.Name([
-            x509.NameAttribute(NameOID.COMMON_NAME, "Test Certificate"),
-        ])
+        subject = issuer = x509.Name(
+            [
+                x509.NameAttribute(NameOID.COMMON_NAME, "Test Certificate"),
+            ]
+        )
         cert = (
             x509.CertificateBuilder()
             .subject_name(subject)
@@ -581,8 +583,12 @@ class TestPfxCertificateSupport:
         # Also create PEM files
         cert_file = tmp_path / "client.pem"
         key_file = tmp_path / "client_key.pem"
-        cert_file.write_text("-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----")
-        key_file.write_text("-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----")
+        cert_file.write_text(
+            "-----BEGIN CERTIFICATE-----\ntest\n-----END CERTIFICATE-----"
+        )
+        key_file.write_text(
+            "-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----"
+        )
 
         captured_session = {}
 
@@ -625,7 +631,8 @@ class TestPfxCertificateSupport:
 
         # Verify warning was logged about using .pfx over .pem
         assert any(
-            "ODATA_CLIENT_PFX" in record.message and "ignoring" in record.message.lower()
+            "ODATA_CLIENT_PFX" in record.message
+            and "ignoring" in record.message.lower()
             for record in caplog.records
         )
 
