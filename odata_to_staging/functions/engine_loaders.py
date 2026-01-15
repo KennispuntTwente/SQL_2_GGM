@@ -147,6 +147,97 @@ def load_odata_client(cfg: Any):
     else:
         verify_ssl = verify_ssl_bool
 
+    # --- Client Certificate (mTLS/PKIO) for Centric Dataplatform ---
+    # PKIO certificates are required for OData API access per the Centric Dataplatform manual
+    client_cert_path = cast(
+        Optional[str],
+        get_config_value(
+            "ODATA_CLIENT_CERT",
+            section="odata-connection",
+            cfg_parser=cfg,
+            default=None,
+            cast_type=str,
+            allow_none_if_cast_fails=True,
+        )
+        or get_config_value(
+            "ODATA_CLIENT_CERT",
+            section="odata-source",
+            cfg_parser=cfg,
+            default=None,
+            cast_type=str,
+            allow_none_if_cast_fails=True,
+        ),
+    )
+    client_key_path = cast(
+        Optional[str],
+        get_config_value(
+            "ODATA_CLIENT_KEY",
+            section="odata-connection",
+            cfg_parser=cfg,
+            default=None,
+            cast_type=str,
+            allow_none_if_cast_fails=True,
+        )
+        or get_config_value(
+            "ODATA_CLIENT_KEY",
+            section="odata-source",
+            cfg_parser=cfg,
+            default=None,
+            cast_type=str,
+            allow_none_if_cast_fails=True,
+        ),
+    )
+    # Optional password for encrypted private key
+    client_key_password = cast(
+        Optional[str],
+        get_config_value(
+            "ODATA_CLIENT_KEY_PASSWORD",
+            section="odata-connection",
+            cfg_parser=cfg,
+            print_value=False,
+            default=None,
+            cast_type=str,
+            allow_none_if_cast_fails=True,
+        )
+        or get_config_value(
+            "ODATA_CLIENT_KEY_PASSWORD",
+            section="odata-source",
+            cfg_parser=cfg,
+            print_value=False,
+            default=None,
+            cast_type=str,
+            allow_none_if_cast_fails=True,
+        ),
+    )
+
+    # Validate and configure client certificate for mTLS
+    client_cert_tuple: Optional[tuple] = None
+    if client_cert_path:
+        import os
+
+        if not os.path.isfile(client_cert_path):
+            raise ValueError(
+                f"ODATA_CLIENT_CERT path does not exist or is not a file: {client_cert_path}"
+            )
+        if client_key_path:
+            if not os.path.isfile(client_key_path):
+                raise ValueError(
+                    f"ODATA_CLIENT_KEY path does not exist or is not a file: {client_key_path}"
+                )
+            client_cert_tuple = (client_cert_path, client_key_path)
+            log.info(
+                "Using PKIO client certificate for mTLS: cert=%s, key=%s",
+                client_cert_path,
+                client_key_path,
+            )
+        else:
+            # Certificate and key in single file
+            client_cert_tuple = (client_cert_path,)
+            log.info(
+                "Using PKIO client certificate for mTLS (combined cert+key): %s",
+                client_cert_path,
+            )
+
     headers_raw = cast(
         Optional[str],
         get_config_value(
@@ -180,6 +271,22 @@ def load_odata_client(cfg: Any):
     sess.verify = verify_ssl
     if headers:
         sess.headers.update(headers)
+
+    # Apply client certificate for mTLS/PKIO authentication
+    if client_cert_tuple:
+        if len(client_cert_tuple) == 2:
+            sess.cert = client_cert_tuple  # (cert_path, key_path)
+        else:
+            sess.cert = client_cert_tuple[0]  # Combined cert+key file
+        # Note: requests does not natively support encrypted private keys with password.
+        # If a password is needed, the key should be decrypted beforehand or use a
+        # PKCS#12 file converted to unencrypted PEM.
+        if client_key_password:
+            log.warning(
+                "ODATA_CLIENT_KEY_PASSWORD is set but requests does not natively support "
+                "encrypted private keys. Consider using an unencrypted key file or "
+                "converting from PKCS#12 (.p12/.pfx) to unencrypted PEM."
+            )
 
     if auth_mode == "BASIC":
         username_opt = cast(
