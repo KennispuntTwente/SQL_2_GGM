@@ -265,7 +265,7 @@ def direct_transfer(
         qualified_src = f"{source_schema}.{table_name}" if source_schema else table_name
         qualified_dst = f"{dest_schema}.{table_name}" if dest_schema else table_name
         logger.info(
-            "🚚 Copying table %s -> %s (chunk_size=%s)",
+            "Copying table %s -> %s (chunk_size=%s)",
             qualified_src,
             qualified_dst,
             chunk_size,
@@ -408,9 +408,7 @@ def direct_transfer(
 
                 inserted_total += len(batch)
                 logger.info(
-                    "   ↳ inserted %s rows (total %s)", len(batch), inserted_total
+                    "   inserted %s rows (total %s)", len(batch), inserted_total
                 )
 
-        logger.info(
-            "✅ Finished table %s (%s rows)", qualified_dst, f"{inserted_total:,}"
-        )
+        logger.info("Finished table %s (%s rows)", qualified_dst, f"{inserted_total:,}")

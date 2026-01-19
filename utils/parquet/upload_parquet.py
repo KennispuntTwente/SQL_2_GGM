@@ -201,11 +201,28 @@ def upload_parquet(
 
     remaining_files = {fname for flist in grouped.values() for fname in flist}
 
+    # Progress tracking
+    total_tables = len(grouped)
+    tables_uploaded = 0
+    total_rows_uploaded = 0
+
+    if total_tables == 0:
+        logger.warning("No parquet files found to upload")
+        return
+
+    logger.info("Uploading %d table(s) to database", total_tables)
+
     try:
-        for table_name, files in grouped.items():
+        for table_idx, (table_name, files) in enumerate(grouped.items(), start=1):
             logical_table = table_name.lower() if lower_table_names else table_name
             full_table = f"{schema}.{logical_table}" if schema else logical_table
-            logger.info("📦 Uploading %s part(s) to table %s", len(files), full_table)
+            logger.info(
+                "[%d/%d] Uploading %s (%d part(s))",
+                table_idx,
+                total_tables,
+                full_table,
+                len(files),
+            )
 
             from sqlalchemy import inspect
 
@@ -246,11 +263,13 @@ def upload_parquet(
                 [os.path.join(input_dir, fname) for fname in files]
             )
 
+            table_rows = 0  # Track rows for this table
             for idx, fname in enumerate(files):
                 path = os.path.join(input_dir, fname)
-                logger.info("🔹 Processing %s", path)
+                logger.debug("   Processing part %d/%d: %s", idx + 1, len(files), fname)
                 # Use glob=False to prevent brackets in filenames being treated as glob patterns
                 df = pl.read_parquet(path, glob=False)
+                table_rows += len(df)
                 df = df.rename({col: col.lower() for col in df.columns})
 
                 if dialect == "postgresql":
@@ -421,7 +440,9 @@ def upload_parquet(
                     else:
                         raise e
 
-            logger.info("✅ Loaded: %s", logical_table)
+            logger.info("   -> %s: %s rows uploaded", logical_table, f"{table_rows:,}")
+            tables_uploaded += 1
+            total_rows_uploaded += table_rows
 
             if cleanup:
                 for fname in files:
@@ -433,7 +454,7 @@ def upload_parquet(
                         logger.warning("Failed to delete %s: %s", fname, e)
                     finally:
                         remaining_files.discard(fname)
-                logger.info("🗑️ Cleanup completed for %s", table_name)
+                logger.debug("Cleanup completed for %s", table_name)
     finally:
         if cleanup and remaining_files:
             for fname in list(remaining_files):
@@ -452,6 +473,12 @@ def upload_parquet(
                 pass
             except Exception as e:
                 logger.warning("Failed to delete manifest %s: %s", manifest_path, e)
+
+    logger.info(
+        "Upload complete: %d table(s), %s total rows",
+        tables_uploaded,
+        f"{total_rows_uploaded:,}",
+    )
 
 
 __all__ = [

@@ -63,13 +63,11 @@ def parse_and_load_ini_configs(
         _ensure_console_logging()
         cfg = configparser.ConfigParser()
         if path:
-            logging.getLogger(__name__).info(
-                "→ Attempting to load %s config from: %s", name, path
-            )
+            logging.getLogger(__name__).info("Loading %s config from: %s", name, path)
             if os.path.exists(path):
                 cfg.read(path)
                 logging.getLogger(__name__).info(
-                    "✔ Loaded %s config from: %s", name, path
+                    "Loaded %s config from: %s", name, path
                 )
             else:
                 warnings.warn(
@@ -77,11 +75,11 @@ def parse_and_load_ini_configs(
                     "Falling back to environment variables."
                 )
                 logging.getLogger(__name__).warning(
-                    "⚠ Falling back to environment for %s config", name
+                    "Falling back to environment for %s config", name
                 )
         else:
             logging.getLogger(__name__).info(
-                "→ No %s config path provided; using environment variables", name
+                "No %s config path provided; using environment variables", name
             )
         return cfg
 
@@ -114,20 +112,18 @@ def load_single_ini_config(
 
     cfg = configparser.ConfigParser()
     if args.config:
-        logging.getLogger(__name__).info(
-            "→ Attempting to load config from: %s", args.config
-        )
+        logging.getLogger(__name__).info("Loading config from: %s", args.config)
         if os.path.exists(args.config):
             cfg.read(args.config)
-            logging.getLogger(__name__).info("✔ Loaded config from: %s", args.config)
+            logging.getLogger(__name__).info("Loaded config from: %s", args.config)
         else:
             warnings.warn(
                 f"Config file not found: {args.config}. Falling back to environment variables."
             )
-            logging.getLogger(__name__).warning("⚠ Falling back to environment")
+            logging.getLogger(__name__).warning("Falling back to environment")
     else:
         logging.getLogger(__name__).info(
-            "→ No config path provided; using environment variables"
+            "No config path provided; using environment variables"
         )
 
     return args, cfg

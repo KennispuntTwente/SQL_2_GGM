@@ -103,20 +103,28 @@ def _collect_entity_options(cfg: Any, entities: List[str]) -> Dict[str, Dict[str
 
 
 def main() -> None:
+    import time
+
+    start_time = time.perf_counter()
+
     module_dir = Path(__file__).resolve().parent
     env_path = module_dir / ".env"
     if env_path.exists():
         load_dotenv(dotenv_path=env_path)
-        logging.getLogger(__name__).info(
-            "Loaded environment variables from %s", env_path
-        )
 
     args, cfg = load_single_ini_config(prog_desc="Run OData to staging data migration")
 
     setup_logging(app_name="odata_to_staging", cfg_parsers=[cfg])
     log = logging.getLogger("odata_to_staging")
 
+    # Immediate feedback to user
+    log.info("Starting odata_to_staging pipeline")
+
+    if env_path.exists():
+        log.debug("Loaded environment variables from %s", env_path)
+
     # Load OData client first (needed for both explicit and auto-discovery modes)
+    log.info("Connecting to OData service...")
     client = load_odata_client(cfg)
 
     # Read source entity sets
@@ -143,6 +151,7 @@ def main() -> None:
     if entities_str and entities_str.strip() == "*":
         from odata_to_staging.functions.get_all_entity_sets import get_all_entity_sets
 
+        log.info("Discovering entity sets from OData schema...")
         entities = get_all_entity_sets(client)
         if not entities:
             raise ValueError(
@@ -215,6 +224,10 @@ def main() -> None:
 
     per_entity = _collect_entity_options(cfg, entities)
 
+    log.info(
+        "Preparing to export %d entity set(s): %s", len(entities), ", ".join(entities)
+    )
+
     manifest_path = download_parquet_odata(
         client,
         entity_sets=entities,
@@ -226,6 +239,7 @@ def main() -> None:
     )
 
     # Destination engine and upload
+    log.info("Connecting to destination database...")
     dest_engine = load_destination_engine(cfg)
 
     write_mode = cast(
@@ -277,6 +291,9 @@ def main() -> None:
             ),
         ),
     )
+
+    elapsed = time.perf_counter() - start_time
+    log.info("Pipeline complete in %.1fs", elapsed)
 
 
 if __name__ == "__main__":  # pragma: no cover - CLI entrypoint

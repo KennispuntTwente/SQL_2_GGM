@@ -47,7 +47,9 @@ def docker_running() -> bool:
     if not shutil.which("docker"):
         return False
     try:
-        res = subprocess.run(["docker", "info"], capture_output=True, text=True, timeout=5)
+        res = subprocess.run(
+            ["docker", "info"], capture_output=True, text=True, timeout=5
+        )
         return res.returncode == 0
     except Exception:
         return False
@@ -140,7 +142,9 @@ def create_table_and_data(conn, db_type: str, table: str):
         )
         """
     elif db_type == "mssql":
-        conn.execute(text(f"IF OBJECT_ID(N'{table}', N'U') IS NOT NULL DROP TABLE {table}"))
+        conn.execute(
+            text(f"IF OBJECT_ID(N'{table}', N'U') IS NOT NULL DROP TABLE {table}")
+        )
         ddl = f"""
         CREATE TABLE {table} (
             id INT PRIMARY KEY,
@@ -221,7 +225,7 @@ def create_table_and_data(conn, db_type: str, table: str):
             f32=1.5,
             f64=1.23456789,
             t="lorem ipsum dolor sit amet",
-            u="café 🚀",
+            u="café",
             bin=b"\x00\x01A\xff",
             d=date(2024, 1, 2),
             ts=datetime(2024, 1, 2, 3, 4, 5, 123456),

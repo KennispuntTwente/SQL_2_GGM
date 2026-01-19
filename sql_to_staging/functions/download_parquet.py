@@ -82,7 +82,7 @@ def download_parquet(
 
         # ── ConnectorX path ───────────────────────────────────
         if is_uri:
-            logger.info("📥 Dumping table via ConnectorX (arrow_stream): %s", qualified)
+            logger.info("Dumping table via ConnectorX (arrow_stream): %s", qualified)
             # Parse the URI robustly and normalize driver suffixes (e.g. postgresql+psycopg2 -> postgresql)
             try:
                 parsed = make_url(uri)
@@ -200,7 +200,7 @@ def download_parquet(
                 except Exception:
                     nrows = "?"
                 logger.info(
-                    "✅ ConnectorX chunk %s written: %s (%s rows)",
+                    "ConnectorX chunk %s written: %s (%s rows)",
                     part_written,
                     out,
                     nrows,
@@ -212,7 +212,7 @@ def download_parquet(
 
         # ── SQLAlchemy Engine path  ────────────
         else:
-            logger.info("📥 Dumping table via SQLAlchemy: %s", qualified)
+            logger.info("Dumping table via SQLAlchemy: %s", qualified)
             with engine.connect() as conn:
                 if log_row_count:
                     if row_limit and row_limit > 0:
@@ -275,7 +275,7 @@ def download_parquet(
                     out = os.path.join(output_dir, f"{table}_part{idx:04d}.parquet")
                     batch_df.write_parquet(out)
                     created_files.append(os.path.basename(out))
-                    logger.info("✅ pl.read_database chunk %s written: %s", idx, out)
+                    logger.info("pl.read_database chunk %s written: %s", idx, out)
 
     # Write a manifest for this run so upload can be restricted to the current files only.
     # Fail fast if the manifest cannot be written – silently returning None causes the
@@ -297,7 +297,7 @@ def download_parquet(
             json.dump(manifest, f, ensure_ascii=False, indent=2)
         os.replace(tmp_path, manifest_path)
         logger.info(
-            "🧾 Manifest written: %s (%s files)", manifest_path, len(created_files)
+            "Manifest written: %s (%s files)", manifest_path, len(created_files)
         )
     except Exception as e:
         # Attempt cleanup of any partial temp file
@@ -310,7 +310,7 @@ def download_parquet(
             f"Failed to write parquet manifest {manifest_path}: {e}. Aborting to avoid stale file uploads."
         ) from e
 
-    logger.info("🎉 Export complete – all tables written")
+    logger.info("Export complete - all tables written")
 
     # Return the manifest path for callers that wish to limit subsequent upload
     return manifest_path

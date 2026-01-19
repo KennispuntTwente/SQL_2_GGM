@@ -234,15 +234,22 @@ def download_parquet_odata(
     run_id = uuid.uuid4().hex
     created_files: List[str] = []
 
+    # Track overall progress and statistics
+    total_entities = len(entity_sets)
+    total_rows_exported = 0
+    entities_completed = 0
+
     # Detect client type once at the start
     is_v4 = _is_v4_client(client)
     if is_v4:
-        logger.info("Using OData v4 client for data download")
+        logger.debug("Using OData v4 client for data download")
     else:
-        logger.info("Using OData v2 client (pyodata) for data download")
+        logger.debug("Using OData v2 client (pyodata) for data download")
 
-    for es_name in entity_sets:
-        logger.info("📥 Dumping OData EntitySet: %s", es_name)
+    for entity_idx, es_name in enumerate(entity_sets, start=1):
+        logger.info(
+            "[%d/%d] Downloading EntitySet: %s", entity_idx, total_entities, es_name
+        )
 
         # Resolve options for this entity set
         opts = (per_entity_options or {}).get(es_name, {})
@@ -327,6 +334,7 @@ def download_parquet_odata(
         part_idx = 0
         skip = 0
         wrote_any = False
+        entity_rows = 0  # Track rows for this entity
 
         # Primary paging using skip/top; additionally follow next links when provided
         next_url: Optional[str] = None
@@ -445,10 +453,13 @@ def download_parquet_odata(
             try:
                 nrows = len(df)
             except Exception:
-                nrows = "?"
-            logger.info(
-                "✅ OData chunk %s written: %s (%s rows)", part_idx, out_path, nrows
-            )
+                nrows = 0
+
+            # Track total rows for this entity
+            entity_rows += nrows if isinstance(nrows, int) else 0
+
+            # Log at debug level to reduce spam
+            logger.debug("   Chunk %d: %s rows written", part_idx, nrows)
 
             part_idx += 1
             skip += nrows if isinstance(nrows, int) else top_n
@@ -465,7 +476,11 @@ def download_parquet_odata(
                 break
 
         if not wrote_any:
-            logger.info("   (no rows)")
+            logger.info("   -> No rows returned")
+        else:
+            total_rows_exported += entity_rows
+            entities_completed += 1
+            logger.info("   -> %s rows in %d chunk(s)", f"{entity_rows:,}", part_idx)
 
     # Write manifest for this run
     manifest_path = os.path.join(
@@ -479,13 +494,18 @@ def download_parquet_odata(
         }
         with open(manifest_path, "w", encoding="utf-8") as f:
             json.dump(manifest, f, ensure_ascii=False, indent=2)
-        logger.info(
-            "🧾 Manifest written: %s (%s files)", manifest_path, len(created_files)
+        logger.debug(
+            "Manifest written: %s (%s files)", manifest_path, len(created_files)
         )
     except Exception as e:
         raise RuntimeError(
             f"Failed to write OData parquet manifest {manifest_path}: {e}. Aborting to avoid stale file uploads."
         ) from e
 
-    logger.info("🎉 OData export complete – all entity sets written")
+    logger.info(
+        "Download complete: %d entity set(s), %s total rows, %d parquet file(s)",
+        entities_completed,
+        f"{total_rows_exported:,}",
+        len(created_files),
+    )
     return manifest_path
