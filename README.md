@@ -23,10 +23,9 @@ met een SQL-server/OData-API te onsluiten en/of te modelleren naar het GGM.
 
 ---
 
-> **Status van dit project (28/10/2025)**: *dit project is nabij afronding maar nog in ontwikkeling.
-Enkele queries voor de transformatie van SSD-data in 'staging_to_silver' vereisen bijvoorbeeld mogelijk nog wijzigingen.
-Een GitHub-release zal binnenkort worden uitgegeven wanneer bevestigd is dat alle huidige queries functioneren.
-In mogelijke toekomstige releases wordt de set queries uitgebreid naar meer tabellen die voorkomen in het GGM en ontsloten kunnen worden uit SSD dan wel andere applicaties.*
+> **Status van dit project (21/01/2026)**: er is een opvolger van dit project beschikbaar:
+'[SQLMESH_2_GGM](https://github.com/kennispuntTwente/sqlmesh_2_ggm)'. Hoewel het huidige project functioneel is, is 'SQLMESH_2_GGM' aanzienlijk simpeler en beter (door gebruik van Python-packages 'dlt' en 'SQLMesh' die
+veel functionaliteit bieden die in dit project handmatig is geïmplementeerd). Je wordt dus aangeraden om 'SQLMESH_2_GGM' te gebruiken in plaats van dit project.
 
 ## Overzicht
 
